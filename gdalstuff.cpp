@@ -14,6 +14,8 @@
 #include "stdlib.h"
 using namespace std;
 
+const int KERNEL_WIDTH = 4;
+
 class Geotiff {
 
 private: // NOTE: "private" keyword is redundant here.  
@@ -279,40 +281,28 @@ double distance(double latp, double latc, double longp, double longc) {
 }
 
 // TODO: make direction an enum
-int boundingBoxEdge(const double cenLat, const double cenLon, const double radiusM, const int direction, Geotiff& popTiff) {
+// Only works for up (0) and down (1)
+int boundingBoxEdge(const int x, const int y, const double radiusM, const int direction, Geotiff& popTiff) {
     const int numRows = popTiff.GetDimensions()[0];
-    const int numCols = popTiff.GetDimensions()[1];
-    // Turn lat and lon into indices in the pop data.
-    const int x = ((cenLon + 180.0) / 360.0) * numCols;
-    const int y = ((-cenLat + 90.0) / 180.0) * numRows;
+    // Turn x and y (indices in the pop data) into geographic coordinates.
+    const double cenLat = popTiff.coords(x, y)[0];
+    const double cenLon = popTiff.coords(x, y)[1];
 
-    int edge;
-    int edgeOfMap;
-    // 0 = right, 1 = up, 2 = left, 3 = down
+    int edge = y;
+    int edgeOfMap = numRows - 1;
+    // 0 = up, 1 = down
     // Start at center
-    if (direction == 1 || direction == 3) {
-        edge = y;
-        edgeOfMap = numRows - 1;
-    } else {
-        edge = x;
-        edgeOfMap = numCols - 1;
-    }
     int incOrDec; // Added to edge to move one pixel in desired direction
-    if (direction == 0 || direction == 3) {
-        incOrDec = 1; // Right or down: increasing
+    if (direction == 1) {
+        incOrDec = 1; // Down: increasing
     } else {
-        incOrDec = -1; // Left or up: decreasing
+        incOrDec = -1; // Up: decreasing
     }
 
     while (edge >= 0 && edge <= edgeOfMap) {
         double lat, lon;
-        if (direction == 1 || direction == 3) {
-            lat = popTiff.coords(x, edge)[0];
-            lon = popTiff.coords(x, edge)[1];
-        } else {
-            lat = popTiff.coords(edge, y)[0];
-            lon = popTiff.coords(edge, y)[1];
-        }
+        lat = popTiff.coords(x, edge)[0];
+        lon = popTiff.coords(x, edge)[1];
         if (distance(lat, cenLat, lon, cenLon) > radiusM) {
             edge -= incOrDec; // Went too far, walk it back
             break;
@@ -321,7 +311,123 @@ int boundingBoxEdge(const double cenLat, const double cenLon, const double radiu
             edge += incOrDec;
         }
     }
+    if (edge < 0) {
+        edge = 0;
+    } else if (edge > edgeOfMap) {
+        edge = edgeOfMap;
+    }
     return edge;
+}
+
+// For indexing into a kernel array
+inline int kernelIndex(const int i, const int j) {
+    return KERNEL_WIDTH * i + j;
+}
+
+// Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference parameter kernelLength.
+// Right now it just does one summation table rectangle for each row of the kernel
+// TODO: make rectangles stretch across multiple rows where applicable
+int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& popTiff, int& kernelLength) {
+    const double cenLat = popTiff.coords(cenX, cenY)[0];
+    const double cenLon = popTiff.coords(cenX, cenY)[1];
+    const int northEdge = boundingBoxEdge(cenX, cenY, radiusM, 0, popTiff);
+    const int southEdge = boundingBoxEdge(cenX, cenY, radiusM, 1, popTiff);
+    const int maxPossibleLength = southEdge - northEdge + 1;
+    // A faster way of doing a 2D array of dimensions maxPossibleSize x KERNEL_WIDTH
+    // Each row consists of: {westX, eastX, northY, southY} describing a summation table rectangle (so KERNEL_WIDTH
+    // must be 4) relative to cenX and cenY
+    int* tempKernel = new int[maxPossibleLength * KERNEL_WIDTH]; // Temp just cause we don't know length of real kernel yet
+
+    int kernelRow = 0; // Firt index into kernel
+    int y = northEdge;
+    int horizontalOffset = 0; // From the verticle center line of the kernel
+    while (y <= southEdge) {
+        double lat = popTiff.coords(cenX + horizontalOffset, y)[0];
+        double lon = popTiff.coords(cenX + horizontalOffset, y)[1];
+        if (distance(lat, cenLat, lon, cenLon) > radiusM) {
+            if (horizontalOffset == 0) {
+                cout << "Something went wrong!1" << endl;
+            }
+            horizontalOffset--;
+        } else {
+            // See how much farther out we can go at this y level and still be in the circle
+            while (distance(lat, cenLat, lon, cenLon) <= radiusM) {
+                horizontalOffset++;
+                lat = popTiff.coords(cenX + horizontalOffset, y)[0];
+                lon = popTiff.coords(cenX + horizontalOffset, y)[1];
+             }
+            horizontalOffset--; // horizontalOffset is now maximally far (after this decrement)
+
+            // Start a new rectangle at y
+            tempKernel[kernelIndex(kernelRow, 0)] = -horizontalOffset - 1;
+            tempKernel[kernelIndex(kernelRow, 1)] = horizontalOffset;
+            tempKernel[kernelIndex(kernelRow, 2)] = y - cenY - 1;
+            if (y == southEdge) { // If we just started a new rectangle at southEdge, it must end there too
+                tempKernel[kernelIndex(kernelRow, 3)] = y - cenY;
+                break;
+            } else { // Find where this new rectangle ends
+                while (true) {
+                    y++;
+                    if (y > southEdge) {
+                        cout << "Probably shouldn't get here1" << endl;
+                        tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // Rectangle can't extend below south edge
+                        break;
+                    }
+
+                    // Check if the circle has widened
+                    lat = popTiff.coords(cenX + horizontalOffset + 1, y)[0];
+                    lon = popTiff.coords(cenX + horizontalOffset + 1, y)[1];
+                    if (distance(lat, cenLat, lon, cenLon) <= radiusM) {
+                        tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The circle has widened; the rectangle is done
+                        kernelRow++;
+                        break;
+                    }
+
+                    lat = popTiff.coords(cenX + horizontalOffset, y)[0];
+                    lon = popTiff.coords(cenX + horizontalOffset, y)[1];
+                    if (distance(lat, cenLat, lon, cenLon) > radiusM) {
+                        tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The y value can no longer be in the rectangle
+                        kernelRow++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    kernelLength = kernelRow + 1; // Visible to the caller
+    cout << "kernelLength: " << kernelLength << endl;
+    // Now that we know the length of kernel, we can construct it using the data in tempKernel and then return it
+    int* kernel = new int[kernelLength * KERNEL_WIDTH];
+    for (kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
+        cout << "Row " << kernelRow << ": ";
+        for (int kernelCol = 0; kernelCol < KERNEL_WIDTH; kernelCol++) {
+            kernel[kernelIndex(kernelRow, kernelCol)] = tempKernel[kernelIndex(kernelRow, kernelCol)];
+            cout << kernel[kernelIndex(kernelRow, kernelCol)] << " ";
+        }
+        cout << endl;
+    }
+    delete[] tempKernel;
+    return kernel;
+}
+
+// Turn the passed in pop table into a summation table (mutates it)
+void turnIntoSummationTable(float** pop, Geotiff& popTiff) {
+    const int numRows = popTiff.GetDimensions()[0];
+    const int numCols = popTiff.GetDimensions()[1];
+    for (int x = 0; x < numCols; x++) {
+        for (int y = 0; y < numRows; y++) {
+            if (x == 0 && y == 0) {
+                continue;
+            } else if (x == 0) {
+                pop[y][x] += pop[y - 1][x];
+            } else if (y == 0) {
+                pop[y][x] += pop[y][x - 1];
+            } else {
+                pop[y][x] += pop[y][x - 1] + pop[y - 1][x] - pop[y - 1][x - 1];
+            }
+        }
+    }
 }
 
 // Returns the population of a circle with a radius of <radiusKm> kilometers centered at the given latittude <cenLat>
@@ -331,41 +437,21 @@ int boundingBoxEdge(const double cenLat, const double cenLon, const double radiu
 // pop must have first dimension corresponding to longitude, second corresponding to reverse lattitude
 // TODO: Make a coordinates class
 // TODO: figure out where to put const around pop type
-float popWithinNKilometers(const double lat, const double lon, const double radiusKm, float** pop, Geotiff& popTiff) {
-    const double radiusM = radiusKm * 1000; // Radius in meters
+float popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength, float** popSumTable, Geotiff& popTiff) {
     const int numRows = popTiff.GetDimensions()[0]; // TODO: remove after parity
     const int numCols = popTiff.GetDimensions()[1];
-    // Turn lat and lon into indices in the pop data.
-    const int x = ((lon + 180.0) / 360.0) * numCols;
-    const int y = ((-lat + 90.0) / 180.0) * numRows;
+    float totalPop = 0;
 
-    const double cenLon = popTiff.coords(x, y)[1];
-    const double cenLat = popTiff.coords(x, y)[0];
-
-    // TODO: Major bug, can't find bounding box by only travelling left or right due to distortion
-    //       up and down still work
-    float thisPop = 0;
-
-    int rightEdge = boundingBoxEdge(cenLat, cenLon, radiusM, 0, popTiff);
-    int upEdge    = boundingBoxEdge(cenLat, cenLon, radiusM, 1, popTiff);
-    int leftEdge  = boundingBoxEdge(cenLat, cenLon, radiusM, 2, popTiff);
-    int downEdge  = boundingBoxEdge(cenLat, cenLon, radiusM, 3, popTiff);
-
-    for (int X = leftEdge; X <= rightEdge; X++) {
-        for (int Y = upEdge; Y <= downEdge; Y++) {
-            double lattitude = popTiff.coords(X, Y)[0];
-            double longitude = popTiff.coords(X, Y)[1];
-            if (distance(lattitude, cenLat, longitude, cenLon) > radiusM) {
-                continue;
-            }
-            // Indexing into pop requires Y first then X, unlike in Geotiff.coords() above
-            float thisCellPop = pop[Y][X];
-            if (thisCellPop >= 0.) {
-                thisPop += thisCellPop;
-            }
-        }
+    for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
+        // Sides of the rectangle
+        const int west = kernel[kernelIndex(kernelRow, 0)] + cenX;
+        const int east = kernel[kernelIndex(kernelRow, 1)] + cenX;
+        const int north = kernel[kernelIndex(kernelRow, 2)] + cenY;
+        const int south = kernel[kernelIndex(kernelRow, 3)] + cenY;
+        totalPop += popSumTable[south][east] - popSumTable[north][east] - popSumTable[south][west] + popSumTable[north][west];
     }
-    return thisPop;
+
+    return totalPop;
 }
 
 int main()
@@ -374,19 +460,26 @@ int main()
     const string popDataFilename = "C:\\Users\\Administrator\\source\\repos\\gdalstuff\\gdalstuff\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
     Geotiff popTiff(popDataFilename.c_str());
 
-    // The population data as a 2d array. First dimension is longitude, second dimension is reverse lattitude.
+    // The population data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
     float** pop = popTiff.GetRasterBand(1);
+    
+    double lat = 42.0;
+    double lon = -88.2;
+    double radiusKm = 12.5;
+    double radiusM = radiusKm * 1000;
+    const int numRows = popTiff.GetDimensions()[0];
+    const int numCols = popTiff.GetDimensions()[1];
+    // Turn lat and lon into indices in the pop data.
+    const int cenX = ((lon + 180.0) / 360.0) * numCols;
+    const int cenY = ((-lat + 90.0) / 180.0) * numRows;
 
-    while (true) {
-        double lat, lon, radiusKm;
-        cout << "Enter radius in kilometers: ";
-        cin >> radiusKm;
-        cout << "Enter lattitude: ";
-        cin >> lat;
-        cout << "Enter longitude: ";
-        cin >> lon;
+    int kernelLength;
+    int* kernel = makeKernel(cenX, cenY, radiusM, popTiff, kernelLength); // Initializes kernelLength
 
-        cout << "Population within " << radiusKm << " kilometers of (" << lat << ", " << lon << "): " \
-             << popWithinNKilometers(lat, lon, radiusKm, pop, popTiff) << endl;
-    }
+    turnIntoSummationTable(pop, popTiff); // Mutates pop
+    
+    float popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, pop, popTiff);
+
+    cout << "Population within " << radiusKm << " kilometers of (" << lat << ", " << lon << "): " \
+            << ((int) popWithinNKilometers) << endl;
 }
