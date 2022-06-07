@@ -123,7 +123,7 @@ public:
         return dimensions;
     }
 
-    float** GetRasterBand(int z) {
+    double** GetRasterBand(int z) {
 
         /*
          * function float** GetRasterBand(int z):
@@ -140,7 +140,7 @@ public:
          * float** pointer.
          */
 
-        float** bandLayer = new float* [NROWS];
+        double** bandLayer = new double* [NROWS];
         switch (GDALGetRasterDataType(geotiffDataset->GetRasterBand(z))) {
         case 0:
             return NULL; // GDT_Unknown, or unknown data type.
@@ -172,7 +172,7 @@ public:
     }
 
     template<typename T>
-    float** GetArray2D(int layerIndex, float** bandLayer) {
+    double** GetArray2D(int layerIndex, double** bandLayer) {
 
         /*
          * function float** GetArray2D(int layerIndex):
@@ -212,9 +212,9 @@ public:
                 exit(1);
             }
 
-            bandLayer[row] = new float[NCOLS];
+            bandLayer[row] = new double[NCOLS];
             for (int col = 0; col < NCOLS; col++) { // iterate through columns
-                bandLayer[row][col] = (float)rowBuff[col];
+                bandLayer[row][col] = (double)rowBuff[col];
             }
         }
         CPLFree(rowBuff);
@@ -400,23 +400,38 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
     // Now that we know the length of kernel, we can construct it using the data in tempKernel and then return it
     int* kernel = new int[kernelLength * KERNEL_WIDTH];
     for (kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
-        cout << "Row " << kernelRow << ": ";
+        //cout << "Row " << kernelRow << ": ";
         for (int kernelCol = 0; kernelCol < KERNEL_WIDTH; kernelCol++) {
             kernel[kernelIndex(kernelRow, kernelCol)] = tempKernel[kernelIndex(kernelRow, kernelCol)];
-            cout << kernel[kernelIndex(kernelRow, kernelCol)] << " ";
+            //cout << kernel[kernelIndex(kernelRow, kernelCol)] << " ";
         }
-        cout << endl;
+        //cout << endl;
     }
     delete[] tempKernel;
     return kernel;
 }
 
 // Turn the passed in pop table into a summation table (mutates it)
-void turnIntoSummationTable(float** pop, Geotiff& popTiff) {
+void turnIntoSummationTable(double** pop, Geotiff& popTiff) {
+    double sumDDumD = 0;
+    for (int i = 0; i <= 3000; i++) {
+        for (int j = 0; j <= 3000; j++) {
+            if (pop[j][i] < 0) {
+                continue;
+            }
+            sumDDumD += pop[j][i];
+        }
+    }
+    cout << "sumDDumD: " << sumDDumD << endl;
+
+
     const int numRows = popTiff.GetDimensions()[0];
     const int numCols = popTiff.GetDimensions()[1];
     for (int x = 0; x < numCols; x++) {
         for (int y = 0; y < numRows; y++) {
+            if (pop[y][x] < 0) {
+                pop[y][x] = 0.0;
+            }
             if (x == 0 && y == 0) {
                 continue;
             } else if (x == 0) {
@@ -428,6 +443,8 @@ void turnIntoSummationTable(float** pop, Geotiff& popTiff) {
             }
         }
     }
+
+    cout << "From table: " << pop[3000][3000] << endl;
 }
 
 // Returns the population of a circle with a radius of <radiusKm> kilometers centered at the given latittude <cenLat>
@@ -437,10 +454,10 @@ void turnIntoSummationTable(float** pop, Geotiff& popTiff) {
 // pop must have first dimension corresponding to longitude, second corresponding to reverse lattitude
 // TODO: Make a coordinates class
 // TODO: figure out where to put const around pop type
-float popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength, float** popSumTable, Geotiff& popTiff) {
+float popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength, double** popSumTable, Geotiff& popTiff) {
     const int numRows = popTiff.GetDimensions()[0]; // TODO: remove after parity
     const int numCols = popTiff.GetDimensions()[1];
-    float totalPop = 0;
+    double totalPop = 0;
 
     for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
         // Sides of the rectangle
@@ -459,27 +476,39 @@ int main()
     // Load population data
     const string popDataFilename = "C:\\Users\\Administrator\\source\\repos\\gdalstuff\\gdalstuff\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
     Geotiff popTiff(popDataFilename.c_str());
-
-    // The population data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
-    float** pop = popTiff.GetRasterBand(1);
-    
-    double lat = 42.0;
-    double lon = -88.2;
-    double radiusKm = 12.5;
-    double radiusM = radiusKm * 1000;
     const int numRows = popTiff.GetDimensions()[0];
     const int numCols = popTiff.GetDimensions()[1];
+
+    // The population data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
+    double** pop = popTiff.GetRasterBand(1);
+
+    cout << "loaded pop" << endl;
+
+    turnIntoSummationTable(pop, popTiff); // Mutates pop
+
+    cout << "summed" << endl;
+    
+    double lat = 42;
+    double lon = -88.2;
+    //double radiusKm = 200;
+    //double radiusM = radiusKm * 1000;
     // Turn lat and lon into indices in the pop data.
     const int cenX = ((lon + 180.0) / 360.0) * numCols;
     const int cenY = ((-lat + 90.0) / 180.0) * numRows;
 
-    int kernelLength;
-    int* kernel = makeKernel(cenX, cenY, radiusM, popTiff, kernelLength); // Initializes kernelLength
+    double radii[17] = { 0.390625, 0.78125, 1.5625, 3.125, 6.25, 12.5, 25, 50, 100, 200, 400, 800, 1600, 3200, 200, 1000, 2000};
 
-    turnIntoSummationTable(pop, popTiff); // Mutates pop
-    
-    float popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, pop, popTiff);
+    for (int i = 0; i < 17; i++) {
+        double radiusM = radii[i] * 1000;
 
-    cout << "Population within " << radiusKm << " kilometers of (" << lat << ", " << lon << "): " \
-            << ((int) popWithinNKilometers) << endl;
+        int kernelLength;
+        int* kernel = makeKernel(cenX, cenY, radiusM, popTiff, kernelLength); // Initializes kernelLength
+
+        float popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, pop, popTiff);
+
+        delete[] kernel;
+
+        cout << "Population within " << radii[i] << " kilometers of (" << lat << ", " << lon << "): " \
+            << ((int)popWithinNKilometers) << endl;
+    }
 }
