@@ -539,8 +539,9 @@ int main()
     //double radii[17] = { 0.390625, 0.78125, 1.5625, 3.125, 6.25, 12.5, 25, 50, 100, 200, 400, 800, 1600, 3200, 200, 1000, 2000 };
 
     double largest = 0;
+    int step = 10;
 
-    for (int cenY = 0; cenY < numRows; cenY += 10) {
+    for (int cenY = 0; cenY < numRows; cenY += step) {
         if (cenY % 1000 == 0) {
             cout << "Current lattitude: " << (popTiff.coords(100, cenY)[0]) << endl;
         }
@@ -548,7 +549,7 @@ int main()
         int kernelLength;
         int* kernel = makeKernel(1000, cenY, radiusM, popTiff, kernelLength); // Initializes kernelLength
 
-        for (int cenX = 0; cenX < numCols; cenX += 10) {
+        for (int cenX = 0; cenX < numCols; cenX += step) {
             double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, pop, popTiff);
 
             if (popWithinNKilometers > largest) {
@@ -556,8 +557,35 @@ int main()
                     << ((long long)popWithinNKilometers) << endl;
                 largest = popWithinNKilometers;
             }
+
+            if (popWithinNKilometers > largest * 0.85) {
+                if (step > 10) {
+                    cenX -= 10;
+                }
+                step = 10;
+            } else if (popWithinNKilometers > largest * 0.8) {
+                if (step > 140) {
+                    cenX -= 70;
+                }
+                step = 140;
+            }
+            else if (popWithinNKilometers > largest * 0.75) {
+                if (step > 200) {
+                    cenX -= 100;
+                }
+                step = 200;
+            } else if (popWithinNKilometers > largest * 0.7) {
+                if (step > 400) {
+                    cenX -= 200;
+                }
+                step = 400;
+            } else {
+                step = 700;
+            }
+            
         }
 
         delete[] kernel;
+        step = 10;
     }
 }
