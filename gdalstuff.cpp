@@ -87,14 +87,14 @@ public:
         return geotransform;
     }
 
-    double* coords(int x, int y) {
+    double coords(int x, int y, int idx) {
         double* geoTransform = GetGeoTransform();
         double lon = geoTransform[0] + x * geoTransform[1] + y * geoTransform[2];
         double lat = geoTransform[3] + x * geoTransform[4] + y * geoTransform[5];
         double coordinates[2];
         coordinates[0] = lat;
         coordinates[1] = lon;
-        return coordinates;
+        return coordinates[idx];
     };
 
     double GetNoDataValue() {
@@ -286,8 +286,8 @@ double distance(double latp, double latc, double longp, double longc) {
 int boundingBoxEdge(const int x, const int y, const double radiusM, const int direction, Geotiff& popTiff) {
     const int numRows = popTiff.GetDimensions()[0];
     // Turn x and y (indices in the pop data) into geographic coordinates.
-    const double cenLat = popTiff.coords(x, y)[0];
-    const double cenLon = popTiff.coords(x, y)[1];
+    const double cenLat = popTiff.coords(x, y, 0);
+    const double cenLon = popTiff.coords(x, y, 1);
 
     int edge = y;
     int edgeOfMap = numRows - 1;
@@ -303,8 +303,8 @@ int boundingBoxEdge(const int x, const int y, const double radiusM, const int di
 
     while (edge >= 0 && edge <= edgeOfMap) {
         double lat, lon;
-        lat = popTiff.coords(x, edge)[0];
-        lon = popTiff.coords(x, edge)[1];
+        lat = popTiff.coords(x, edge, 0);
+        lon = popTiff.coords(x, edge, 1);
         if (distance(lat, cenLat, lon, cenLon) > radiusM) {
             edge -= incOrDec; // Went too far, walk it back
             break;
@@ -332,8 +332,8 @@ inline int kernelIndex(const int i, const int j) {
 // TODO: make rectangles stretch across multiple rows where applicable
 int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& popTiff, int& kernelLength) {
     const int numCols = popTiff.GetDimensions()[1];
-    const double cenLat = popTiff.coords(cenX, cenY)[0];
-    const double cenLon = popTiff.coords(cenX, cenY)[1];
+    const double cenLat = popTiff.coords(cenX, cenY, 0);
+    const double cenLon = popTiff.coords(cenX, cenY, 1);
     const int northEdge = boundingBoxEdge(cenX, cenY, radiusM, 0, popTiff);
     const int southEdge = boundingBoxEdge(cenX, cenY, radiusM, 1, popTiff);
     const int maxPossibleLength = southEdge - northEdge + 1;
@@ -346,8 +346,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
     int y = northEdge;
     int horizontalOffset = 0; // From the verticle center line of the kernel
     while (y <= southEdge) {
-        double lat = popTiff.coords(cenX + horizontalOffset, y)[0];
-        double lon = popTiff.coords(cenX + horizontalOffset, y)[1];
+        double lat = popTiff.coords(cenX + horizontalOffset, y, 0);
+        double lon = popTiff.coords(cenX + horizontalOffset, y, 1);
         if (distance(lat, cenLat, lon, cenLon) > radiusM) {
             if (horizontalOffset == 0) {
                 cout << "Something went wrong!1" << endl;
@@ -361,8 +361,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
                 if (horizontalOffset > numCols / 2) { // This rectangle wraps around the world
                     break;
                 }
-                lat = popTiff.coords(cenX + horizontalOffset, y)[0];
-                lon = popTiff.coords(cenX + horizontalOffset, y)[1];
+                lat = popTiff.coords(cenX + horizontalOffset, y, 0);
+                lon = popTiff.coords(cenX + horizontalOffset, y, 1);
             }
             horizontalOffset--; // horizontalOffset is now maximally far (after this decrement)
 
@@ -385,8 +385,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
 
                     // Check if the circle has widened
                     if (horizontalOffset < numCols / 2) { // Rectangles that wrap around the whole world can't widen any more
-                        lat = popTiff.coords(cenX + horizontalOffset + 1, y)[0];
-                        lon = popTiff.coords(cenX + horizontalOffset + 1, y)[1];
+                        lat = popTiff.coords(cenX + horizontalOffset + 1, y, 0);
+                        lon = popTiff.coords(cenX + horizontalOffset + 1, y, 1);
                         if (distance(lat, cenLat, lon, cenLon) <= radiusM) {
                             tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The circle has widened; the rectangle is done
                             kernelRow++;
@@ -394,8 +394,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
                         }
                     }
 
-                    lat = popTiff.coords(cenX + horizontalOffset, y)[0];
-                    lon = popTiff.coords(cenX + horizontalOffset, y)[1];
+                    lat = popTiff.coords(cenX + horizontalOffset, y, 0);
+                    lon = popTiff.coords(cenX + horizontalOffset, y, 1);
                     if (distance(lat, cenLat, lon, cenLon) > radiusM) {
                         tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The y value can no longer be in the rectangle
                         kernelRow++;
@@ -514,7 +514,7 @@ double popWithinKernel(const int cenX, const int cenY, int* kernel, const int ke
 int main()
 {
     // Load population data
-    const string popDataFilename = "C:\\Users\\Administrator\\source\\repos\\gdalstuff\\gdalstuff\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
+    const string popDataFilename = "/mnt/c/Users/Administrator/source/repos/gdalstuff/gdalstuff/GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0/GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
     Geotiff popTiff(popDataFilename.c_str());
     const int numRows = popTiff.GetDimensions()[0];
     const int numCols = popTiff.GetDimensions()[1];
@@ -536,23 +536,31 @@ int main()
     //const int X = ((lonny + 180.0) / 360.0) * numCols;
     //const int Y = ((-latty + 90.0) / 180.0) * numRows;
 
+    cout << "0.5 location" << endl;
+
     //double radii[17] = { 0.390625, 0.78125, 1.5625, 3.125, 6.25, 12.5, 25, 50, 100, 200, 400, 800, 1600, 3200, 200, 1000, 2000 };
 
     double largest = 0;
 
     for (int cenY = 0; cenY < numRows; cenY += 10) {
         if (cenY % 1000 == 0) {
-            cout << "Current lattitude: " << (popTiff.coords(100, cenY)[0]) << endl;
+            cout << "git here hehe" << endl;
+            cout << "Current lattitude: " << (popTiff.coords(100, cenY, 0)) << endl;
+            cout << "Second location" << endl;
         }
+
+        cout << "third location" << endl;
 
         int kernelLength;
         int* kernel = makeKernel(1000, cenY, radiusM, popTiff, kernelLength); // Initializes kernelLength
+
+        cout << "fourth location" << endl;
 
         for (int cenX = 0; cenX < numCols; cenX += 10) {
             double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, pop, popTiff);
 
             if (popWithinNKilometers > largest) {
-                cout << "Population within " << radiusKm << " kilometers of (" << (popTiff.coords(cenX, cenY)[0]) << ", " << (popTiff.coords(cenX, cenY)[1]) << "): " \
+                cout << "Population within " << radiusKm << " kilometers of (" << (popTiff.coords(cenX, cenY, 0)) << ", " << (popTiff.coords(cenX, cenY, 1)) << "): " \
                     << ((long long)popWithinNKilometers) << endl;
                 largest = popWithinNKilometers;
             }
