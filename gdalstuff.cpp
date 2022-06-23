@@ -12,6 +12,8 @@
 #include "cpl_conv.h"
 //#include "gdalwarper.h"
 #include "stdlib.h"
+#include <cmath>
+
 using namespace std;
 
 const int KERNEL_WIDTH = 4;
@@ -52,8 +54,12 @@ public:
     // from memory. 
     ~Geotiff() {
         // close the Geotiff dataset, free memory for array.  
-        GDALClose(geotiffDataset);
-        GDALDestroyDriverManager();
+        try {
+            GDALClose(geotiffDataset);
+            GDALDestroyDriverManager();
+        } catch (...) {
+            cout << "Failed to destroy a Tiff, I think" << endl;
+        }
     }
 
     const char* GetFileName() {
@@ -223,6 +229,105 @@ public:
 
 };
 
+double distance(const double& lat1, const double& lat2, const double& lon1, const double& lon2)
+{
+    double req = 6378137.0;
+    if (lat1 == lat2 && lon1 == lon2) {
+        return 0.0;
+    } else if (lat1 == 0.0 && lat2 == 0.0) {
+        double lonDiff = abs(lon1 - lon2);
+        double fractionOfEquator = lonDiff / 360.0;
+        double equatorLength = 2.0 * 3.14159265358979323 * req;
+        return fractionOfEquator * equatorLength;
+    }
+    
+
+    const double latitude_01 = lat1 * M_PI / 180.0;
+    const double longitude_01 = lon1 * M_PI / 180.0;
+
+    const double latitude_02 = lat2 * M_PI / 180.0;
+    const double longitude_02 = lon2 * M_PI / 180.0;
+
+    const double a = 6378137.0;
+    const double b = 6356752.314245;
+
+    // Flattening
+    const double f = (a - b) / a;
+
+    // tan U1
+    const double tan_U1 = (1 - f) * std::tan(latitude_01);
+    const double tan_U2 = (1 - f) * std::tan(latitude_02);
+
+    // Longitudinal Distance
+    const double cos_U1 = 1 / std::sqrt(1 + tan_U1 * tan_U1);
+    const double cos_U2 = 1 / std::sqrt(1 + tan_U2 * tan_U2);
+    const double sin_U1 = tan_U1 * cos_U1;
+    const double sin_U2 = tan_U2 * cos_U2;
+
+    // Iterate until complete
+    const double L = longitude_02 - longitude_01;
+    double lambda = L;
+    double diff, sigma;
+    double cos_alpha_sq, cos_2sigma_m;
+    double cos_sigma, sin_sigma;
+
+    while (true) {
+
+        // 
+        double sin_lambda = std::sin(lambda);
+        double cos_lambda = std::cos(lambda);
+
+        double c1 = (cos_U2 * sin_lambda) * (cos_U2 * sin_lambda);
+        double c2 = (cos_U1 * sin_U2);
+        double c3 = (sin_U1 * cos_U2 * cos_lambda);
+
+
+        //  sin sigma
+        sin_sigma = std::sqrt(c1 + (c2 - c3) * (c2 - c3));
+
+        // cos sigma
+        cos_sigma = sin_U1 * sin_U2 + cos_U1 * cos_U2 * cos_lambda;
+
+        // sigma
+        sigma = std::atan2(sin_sigma, cos_sigma);
+
+        // sin alpha
+        double sin_alpha = (cos_U1 * cos_U2 * sin_lambda) / (sin_sigma);
+
+        // cos^2 alpha
+        cos_alpha_sq = 1 - (sin_alpha * sin_alpha);
+
+        // cos^2 2sigmam
+        cos_2sigma_m = cos_sigma - (2 * sin_U1 * sin_U2) / (cos_alpha_sq);
+
+        // C
+        double C = (f / 16.0) * cos_alpha_sq * (4 + f * (4 - 3 * cos_alpha_sq));
+
+        // Update Lambda
+        diff = lambda;
+        lambda = L + (1 - C) * f * sin_alpha * (sigma + C * sin_sigma * (cos_2sigma_m + C * cos_sigma * (-1 + 2 * cos_2sigma_m * cos_2sigma_m)));
+        diff = lambda - diff;
+        if (std::fabs(diff) < 0.00001) { break; }
+    }
+
+    // U2
+    double u_sq = cos_alpha_sq * (a * a - b * b) / (b * b);
+
+    // Compute A, B
+    double A = 1 + (u_sq / 16384) * (4096 + u_sq * (-768 + u_sq * (320 - 175 * u_sq)));
+
+    double B = (u_sq / 1024) * (256 + u_sq * (-128 + u_sq * (-128 + u_sq * (74 - 47 * u_sq))));
+
+    // Sigma
+    double cos_2sigma_m_sq = cos_2sigma_m * cos_2sigma_m;
+    double delta_sigma = B * sin_sigma * (cos_2sigma_m + (B / 4.0) * (cos_sigma * (-1 * 2 * cos_2sigma_m_sq) - (B / 6.0) * cos_2sigma_m * (-3 + 4 * sin_sigma * sin_sigma) * (-3 + 4 * cos_2sigma_m_sq)));
+
+    // Distance
+    double s = b * A * (sigma - delta_sigma);
+    return s;
+}
+
+/*
 double distance(double latp, double latc, double longp, double longc) {
     constexpr double req = 6378137.0;             //Radius at equator
     constexpr double flat = 1 / 298.257223563;    //flattening of earth
@@ -279,7 +384,7 @@ double distance(double latp, double latc, double longp, double longc) {
     const double azi1 = atan2((cos(u2) * sin(lam)), (cos(u1) * sin(u2) - sin(u1) * cos(u2) * cos(lam)));
 
     return dis;
-}
+} */
 
 // TODO: make direction an enum
 // Only works for up (0) and down (1)
@@ -288,6 +393,7 @@ int boundingBoxEdge(const int x, const int y, const double radiusM, const int di
     // Turn x and y (indices in the pop data) into geographic coordinates.
     const double cenLat = popTiff.coords(x, y)[0];
     const double cenLon = popTiff.coords(x, y)[1];
+    //cout << "here in my garage" << endl;
 
     int edge = y;
     int edgeOfMap = numRows - 1;
@@ -305,7 +411,13 @@ int boundingBoxEdge(const int x, const int y, const double radiusM, const int di
         double lat, lon;
         lat = popTiff.coords(x, edge)[0];
         lon = popTiff.coords(x, edge)[1];
-        if (distance(lat, cenLat, lon, cenLon) > radiusM) {
+        //cout << lat << endl;
+        //cout << lon << endl;
+        //cout << cenLat << endl;
+        //cout << cenLon << endl;
+        const double distancee = distance(lat, cenLat, lon, cenLon);
+        //cout << distancee << endl;
+        if (distancee > radiusM) {
             edge -= incOrDec; // Went too far, walk it back
             break;
         }
@@ -334,8 +446,13 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
     const int numCols = popTiff.GetDimensions()[1];
     const double cenLat = popTiff.coords(cenX, cenY)[0];
     const double cenLon = popTiff.coords(cenX, cenY)[1];
+    //cout << "here1" << endl;
     const int northEdge = boundingBoxEdge(cenX, cenY, radiusM, 0, popTiff);
+    //cout << "inbetween" << endl;
     const int southEdge = boundingBoxEdge(cenX, cenY, radiusM, 1, popTiff);
+    //cout << northEdge << endl;
+    //cout << southEdge << endl;
+    //cout << "here2" << endl;
     const int maxPossibleLength = southEdge - northEdge + 1;
     // A faster way of doing a 2D array of dimensions maxPossibleSize x KERNEL_WIDTH
     // Each row consists of: {westX, eastX, northY, southY} describing a summation table rectangle (so KERNEL_WIDTH
@@ -378,7 +495,7 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
                 while (true) {
                     y++;
                     if (y > southEdge) {
-                        cout << "Probably shouldn't get here except for maybe at the poles" << endl;
+                        //cout << "Probably shouldn't get here except for maybe at the poles" << endl;
                         tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // Rectangle can't extend below south edge
                         break;
                     }
@@ -405,6 +522,7 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
             }
         }
     }
+    //cout << "here3" << endl;
 
     kernelLength = kernelRow + 1; // Visible to the caller
     //cout << "kernelLength: " << kernelLength << endl;
@@ -459,6 +577,7 @@ void turnIntoSummationTable(double** pop, Geotiff& popTiff) {
     }
 
     cout << "From table: " << pop[3000][3000] << endl;
+    cout << "From table: " << (long long) pop[numRows - 1][numCols - 1] << endl;
 }
 
 // Returns the total population in the specified rectangle. West and north are 1 pixel outside of the rectangle,
@@ -513,11 +632,20 @@ double popWithinKernel(const int cenX, const int cenY, int* kernel, const int ke
 
 int main()
 {
+
+    cout << ((long long) distance(80, 0, -88, 0)) << endl;
+    cout << ((long long)distance(90, 0, -180, 0)) << endl;
+
     // Load population data
+    const string gdpDataFilename = "C:\\Users\\Administrator\\source\\repos\\gdalstuff\\gdalstuff\\gdpPPPdata.tif";
+    Geotiff gdpTiff(gdpDataFilename.c_str());
     const string popDataFilename = "C:\\Users\\Administrator\\source\\repos\\gdalstuff\\gdalstuff\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0\\GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
     Geotiff popTiff(popDataFilename.c_str());
     const int numRows = popTiff.GetDimensions()[0];
     const int numCols = popTiff.GetDimensions()[1];
+    if (numRows != gdpTiff.GetDimensions()[0] || numCols != gdpTiff.GetDimensions()[1]) {
+        cout << "Uh oh" << endl;
+    }
 
     // The population data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
     double** pop = popTiff.GetRasterBand(1);
@@ -528,64 +656,115 @@ int main()
 
     cout << "summed" << endl;
 
-    //double latty = 28;
-    //double lonny = 96;
-    double radiusKm = 4000;
+    double upLat = 90;
+    double downLat = -90;
+    double leftLon = -180;
+    double rightLon = 180;
+
+    double radiusKm = 15000; //8423----------------------------------------------------------------------------
+
     double radiusM = radiusKm * 1000;
     // Turn lat and lon into indices in the pop data.
-    //const int X = ((lonny + 180.0) / 360.0) * numCols;
-    //const int Y = ((-latty + 90.0) / 180.0) * numRows;
+    const int leftX = ((leftLon + 180.0) / 360.0) * numCols;
+    const int rightX = ((rightLon + 180.0) / 360.0) * numCols;
+    const int upY = ((-upLat + 90.0) / 180.0) * numRows;
+    const int downY = ((-downLat + 90.0) / 180.0) * numRows;
 
     //double radii[17] = { 0.390625, 0.78125, 1.5625, 3.125, 6.25, 12.5, 25, 50, 100, 200, 400, 800, 1600, 3200, 200, 1000, 2000 };
 
-    double largest = 0;
-    int step = 10;
+    double smallest = 10000000000;
+    double largest = 10000000;
+    const int smallStep = 16; //1
+    const int mediumStep = 17; //4
+    const int largeStep = 18; //16
+    const int xLStep = 64; //64
+    const int xXLStep = 256; //256
+    
+    int step = smallStep;
+    const bool smallestPopMode = true;
 
-    for (int cenY = 0; cenY < numRows; cenY += step) {
-        if (cenY % 1000 == 0) {
+    for (int cenY = upY; cenY < downY; cenY += step) {
+        if (cenY % 11 == 0) {
             cout << "Current lattitude: " << (popTiff.coords(100, cenY)[0]) << endl;
         }
 
         int kernelLength;
         int* kernel = makeKernel(1000, cenY, radiusM, popTiff, kernelLength); // Initializes kernelLength
 
-        for (int cenX = 0; cenX < numCols; cenX += step) {
+        for (int cenX = leftX; cenX <= rightX; cenX += step) {
             double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, pop, popTiff);
+            if (smallestPopMode) {
+                if (popWithinNKilometers < smallest) {
+                    cout << "Pop within " << radiusKm << " kilometers of (" << (popTiff.coords(cenX, cenY)[0]) << ", " << (popTiff.coords(cenX, cenY)[1]) << "): " \
+                        << ((long long)popWithinNKilometers) << endl;
+                    smallest = popWithinNKilometers;
+                }
 
-            if (popWithinNKilometers > largest) {
-                cout << "Population within " << radiusKm << " kilometers of (" << (popTiff.coords(cenX, cenY)[0]) << ", " << (popTiff.coords(cenX, cenY)[1]) << "): " \
-                    << ((long long)popWithinNKilometers) << endl;
-                largest = popWithinNKilometers;
+                if (popWithinNKilometers < smallest * 1.2) {
+                    if (step > smallStep) {
+                        cenX -= step;
+                    }
+                    step = smallStep;
+                }
+                else if (popWithinNKilometers < smallest * 1.4) {
+                    if (step > mediumStep) {
+                        cenX -= step;
+                    }
+                    step = mediumStep;
+                }
+                else if (popWithinNKilometers < smallest * 1.6) {
+                    if (step > largeStep) {
+                        cenX -= step;
+                    }
+                    step = largeStep;
+                }
+                else if (popWithinNKilometers < smallest * 1.8) {
+                    if (step > xLStep) {
+                        cenX -= step;
+                    }
+                    step = xLStep;
+                }
+                else {
+                    step = xXLStep;
+                }
             }
+            else {
+                if (popWithinNKilometers > largest) {
+                    cout << "Pop within " << radiusKm << " kilometers of (" << (popTiff.coords(cenX, cenY)[0]) << ", " << (popTiff.coords(cenX, cenY)[1]) << "): " \
+                        << ((long long)popWithinNKilometers) << endl;
+                    largest = popWithinNKilometers;
+                }
 
-            if (popWithinNKilometers > largest * 0.85) {
-                if (step > 10) {
-                    cenX -= 10;
+                if (popWithinNKilometers > largest * 0.8) {
+                    if (step > smallStep) {
+                        cenX -= step;
+                    }
+                    step = smallStep;
                 }
-                step = 10;
-            } else if (popWithinNKilometers > largest * 0.8) {
-                if (step > 140) {
-                    cenX -= 70;
+                else if (popWithinNKilometers > largest * 0.6) {
+                    if (step > mediumStep) {
+                        cenX -= step;
+                    }
+                    step = mediumStep;
                 }
-                step = 140;
+                else if (popWithinNKilometers > largest * 0.4) {
+                    if (step > largeStep) {
+                        cenX -= step;
+                    }
+                    step = largeStep;
+                }
+                else if (popWithinNKilometers > largest * 0.2) {
+                    if (step > xLStep) {
+                        cenX -= step;
+                    }
+                    step = xLStep;
+                }
+                else {
+                    step = xXLStep;
+                }
             }
-            else if (popWithinNKilometers > largest * 0.75) {
-                if (step > 200) {
-                    cenX -= 100;
-                }
-                step = 200;
-            } else if (popWithinNKilometers > largest * 0.7) {
-                if (step > 400) {
-                    cenX -= 200;
-                }
-                step = 400;
-            } else {
-                step = 700;
-            }
-            
         }
-
         delete[] kernel;
-        step = 10;
+        step = smallStep;
     }
 }
