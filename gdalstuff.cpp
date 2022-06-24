@@ -6,12 +6,11 @@
 
 #include <iostream>
 #include <gdal.h>
-#include "iostream"
-#include "string"
-#include "gdal_priv.h"
-#include "cpl_conv.h"
+#include <string>
+#include <gdal_priv.h>
+#include <cpl_conv.h>
 //#include "gdalwarper.h"
-#include "stdlib.h"
+#include <stdlib.h>
 using namespace std;
 
 const int KERNEL_WIDTH = 4;
