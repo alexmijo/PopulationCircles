@@ -513,7 +513,7 @@ double popWithinKernel(const int cenX, const int cenY, int* kernel, const int ke
 int main()
 {
     // Load population data
-    const string popDataFilename = "/mnt/c/Users/Administrator/source/repos/gdalstuff/gdalstuff/GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0/GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
+    const string popDataFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
     Geotiff popTiff(popDataFilename.c_str());
     const int numRows = popTiff.GetDimensions()[0];
     const int numCols = popTiff.GetDimensions()[1];
