@@ -1,4 +1,4 @@
-// gdalstuff.cpp : This file contains the 'main' function. Program execution begins and ends there.
+// rasterCircleFinder.cpp : This file contains the 'main' function. Program execution begins and ends there.
 // Needs GDAL library
 // This is an early version of the program. It's still kinda
 // spaghetti code and has code I copied from random places on the internet unattributed (GeoTiff and most of distance())
@@ -536,7 +536,7 @@ double popWithinKernel(const int cenX, const int cenY, int* kernel, const int ke
 int main() {
     // Load population data
     const string popDataFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
-    const string gdpDataFilename = "/mnt/c/Users/Administrator/source/repos/gdalstuff/gdalstuff/gdpPPPdata.tif";
+    const string gdpDataFilename = "/mnt/c/Users/Administrator/source/repos/gdalstuff/gdalstuff/gdpPPPdata.tif";;
     Geotiff gdpTiff(gdpDataFilename.c_str());
     Geotiff popTiff(popDataFilename.c_str());
     const int numRows = popTiff.GetDimensions()[0];
