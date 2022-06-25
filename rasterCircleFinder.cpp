@@ -536,7 +536,7 @@ double popWithinKernel(const int cenX, const int cenY, int* kernel, const int ke
 int main() {
     // Load population data
     const string popDataFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
-    const string gdpDataFilename = "/mnt/c/Users/Administrator/source/repos/gdalstuff/gdalstuff/gdpPPPdata.tif";;
+    const string gdpDataFilename = "gdpPPPdata.tif"; // This is too large to fit in github by the way (11GB)
     Geotiff gdpTiff(gdpDataFilename.c_str());
     Geotiff popTiff(popDataFilename.c_str());
     const int numRows = popTiff.GetDimensions()[0];
