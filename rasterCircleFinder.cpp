@@ -572,12 +572,12 @@ int main() {
     // The pure raster data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
     double** data = dataTiff.GetRasterBand(1);
 
-    cout << "Loaded TODO ? conditional tiff." << endl;
+    cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " tiff." << endl;
 
     // TODO: Write/load a file here. In fact, I might wanna do this with two files, in a Makefile way.
     turnIntoSummationTable(data, dataTiff); // Mutates data
 
-    cout << "Constructed TODO ? conditional summation table." << endl;
+    cout << "Constructed " << (populationMode ? "population" : "GDP PPP") << " summation table." << endl;
 
     double radiusM = radiusKm * 1000;
     int step = smallStep;
@@ -599,7 +599,8 @@ int main() {
             double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, data, dataTiff);
             if (smallestPopMode) {
                 if (popWithinNKilometers < smallest) {
-                    cout << "TODO ? conditional within " << radiusKm << " kilometers of (" << (dataTiff.coords(cenX, cenY, 0)) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
+                    cout << (populationMode ? "Population" : "GDP PPP") << " within " << radiusKm << " kilometers of (" \
+                        << (dataTiff.coords(cenX, cenY, 0)) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
                         << ((long long)popWithinNKilometers) << endl;
                     smallest = popWithinNKilometers;
                 }
@@ -634,7 +635,8 @@ int main() {
             }
             else {
                 if (popWithinNKilometers > largest) {
-                    cout << "TODO ? conditional within " << radiusKm << " kilometers of (" << dataTiff.coords(cenX, cenY, 0) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
+                    cout << (populationMode ? "Population" : "GDP PPP") << " within " << radiusKm << " kilometers of (" \
+                        << dataTiff.coords(cenX, cenY, 0) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
                         << ((long long)popWithinNKilometers) << endl;
                     largest = popWithinNKilometers;
                 }
