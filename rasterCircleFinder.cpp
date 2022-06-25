@@ -323,11 +323,11 @@ double distance(const double& lat1, const double& lat2, const double& lon1, cons
 
 // TODO: make direction an enum
 // Only works for up (0) and down (1)
-int boundingBoxEdge(const int x, const int y, const double radiusM, const int direction, Geotiff& popTiff) {
-    const int numRows = popTiff.GetDimensions()[0];
+int boundingBoxEdge(const int x, const int y, const double radiusM, const int direction, Geotiff& dataTiff) {
+    const int numRows = dataTiff.GetDimensions()[0];
     // Turn x and y (indices in the pop data) into geographic coordinates.
-    const double cenLat = popTiff.coords(x, y, 0);
-    const double cenLon = popTiff.coords(x, y, 1);
+    const double cenLat = dataTiff.coords(x, y, 0);
+    const double cenLon = dataTiff.coords(x, y, 1);
 
     int edge = y;
     int edgeOfMap = numRows - 1;
@@ -343,8 +343,8 @@ int boundingBoxEdge(const int x, const int y, const double radiusM, const int di
 
     while (edge >= 0 && edge <= edgeOfMap) {
         double lat, lon;
-        lat = popTiff.coords(x, edge, 0);
-        lon = popTiff.coords(x, edge, 1);
+        lat = dataTiff.coords(x, edge, 0);
+        lon = dataTiff.coords(x, edge, 1);
         const double distanceFromCen = distance(lat, cenLat, lon, cenLon);
         if (distanceFromCen > radiusM) {
             edge -= incOrDec; // Went too far, walk it back
@@ -371,12 +371,12 @@ inline int kernelIndex(const int i, const int j) {
 // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference parameter kernelLength.
 // Right now it just does one summation table rectangle for each row of the kernel
 // TODO: make rectangles stretch across multiple rows where applicable
-int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& popTiff, int& kernelLength) {
-    const int numCols = popTiff.GetDimensions()[1];
-    const double cenLat = popTiff.coords(cenX, cenY, 0);
-    const double cenLon = popTiff.coords(cenX, cenY, 1);
-    const int northEdge = boundingBoxEdge(cenX, cenY, radiusM, 0, popTiff);
-    const int southEdge = boundingBoxEdge(cenX, cenY, radiusM, 1, popTiff);
+int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& dataTiff, int& kernelLength) {
+    const int numCols = dataTiff.GetDimensions()[1];
+    const double cenLat = dataTiff.coords(cenX, cenY, 0);
+    const double cenLon = dataTiff.coords(cenX, cenY, 1);
+    const int northEdge = boundingBoxEdge(cenX, cenY, radiusM, 0, dataTiff);
+    const int southEdge = boundingBoxEdge(cenX, cenY, radiusM, 1, dataTiff);
     const int maxPossibleLength = southEdge - northEdge + 1;
     // A faster way of doing a 2D array of dimensions maxPossibleSize x KERNEL_WIDTH
     // Each row consists of: {westX, eastX, northY, southY} describing a summation table rectangle (so KERNEL_WIDTH
@@ -387,8 +387,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
     int y = northEdge;
     int horizontalOffset = 0; // From the verticle center line of the kernel
     while (y <= southEdge) {
-        double lat = popTiff.coords(cenX + horizontalOffset, y, 0);
-        double lon = popTiff.coords(cenX + horizontalOffset, y, 1);
+        double lat = dataTiff.coords(cenX + horizontalOffset, y, 0);
+        double lon = dataTiff.coords(cenX + horizontalOffset, y, 1);
         if (distance(lat, cenLat, lon, cenLon) > radiusM) {
             if (horizontalOffset == 0) {
                 cout << "Something went wrong!1" << endl; // TODO: Probably some better way of logging/displaying this error
@@ -402,8 +402,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
                 if (horizontalOffset > numCols / 2) { // This rectangle wraps around the world
                     break;
                 }
-                lat = popTiff.coords(cenX + horizontalOffset, y, 0);
-                lon = popTiff.coords(cenX + horizontalOffset, y, 1);
+                lat = dataTiff.coords(cenX + horizontalOffset, y, 0);
+                lon = dataTiff.coords(cenX + horizontalOffset, y, 1);
             }
             horizontalOffset--; // horizontalOffset is now maximally far (after this decrement)
 
@@ -425,8 +425,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
 
                     // Check if the circle has widened
                     if (horizontalOffset < numCols / 2) { // Rectangles that wrap around the whole world can't widen any more
-                        lat = popTiff.coords(cenX + horizontalOffset + 1, y, 0);
-                        lon = popTiff.coords(cenX + horizontalOffset + 1, y, 1);
+                        lat = dataTiff.coords(cenX + horizontalOffset + 1, y, 0);
+                        lon = dataTiff.coords(cenX + horizontalOffset + 1, y, 1);
                         if (distance(lat, cenLat, lon, cenLon) <= radiusM) {
                             tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The circle has widened; the rectangle is done
                             kernelRow++;
@@ -434,8 +434,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
                         }
                     }
 
-                    lat = popTiff.coords(cenX + horizontalOffset, y, 0);
-                    lon = popTiff.coords(cenX + horizontalOffset, y, 1);
+                    lat = dataTiff.coords(cenX + horizontalOffset, y, 0);
+                    lon = dataTiff.coords(cenX + horizontalOffset, y, 1);
                     if (distance(lat, cenLat, lon, cenLon) > radiusM) {
                         tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The y value can no longer be in the rectangle
                         kernelRow++;
@@ -459,9 +459,9 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& p
 }
 
 // Turn the passed in pop table into a summation table (mutates it)
-void turnIntoSummationTable(double** pop, Geotiff& popTiff) {
-    const int numRows = popTiff.GetDimensions()[0];
-    const int numCols = popTiff.GetDimensions()[1];
+void turnIntoSummationTable(double** pop, Geotiff& dataTiff) {
+    const int numRows = dataTiff.GetDimensions()[0];
+    const int numCols = dataTiff.GetDimensions()[1];
     for (int x = 0; x < numCols; x++) {
         for (int y = 0; y < numRows; y++) {
             if (pop[y][x] < 0) {
@@ -501,13 +501,13 @@ double popWithinRectangle(const int west, const int east, const int north, const
 
 // Returns the population of a circle with a radius of <radiusKm> kilometers centered at the given latittude <cenLat>
 // and longitude <cenLon>.
-// Uses pop as the population data. popTiff must be the Geotiff that pop is from. Need both to avoid constantly making
+// Uses pop as the population data. dataTiff must be the Geotiff that pop is from. Need both to avoid constantly making
 // new arrays I think. Could alternatively modify the Geotiff class to just include the pointer to the array I think.
 // pop must have first dimension corresponding to longitude, second corresponding to reverse lattitude
 // TODO: Make a coordinates class
 // TODO: figure out where to put const around pop type
-double popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength, double** popSumTable, Geotiff& popTiff) {
-    const int numCols = popTiff.GetDimensions()[1];
+double popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength, double** popSumTable, Geotiff& dataTiff) {
+    const int numCols = dataTiff.GetDimensions()[1];
     double totalPop = 0;
 
     for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
@@ -534,29 +534,11 @@ double popWithinKernel(const int cenX, const int cenY, int* kernel, const int ke
 }
 
 int main() {
-    // Load population data
-    const string popDataFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
-    const string gdpDataFilename = "gdpPPPdata.tif"; // This is too large to fit in github by the way (11GB)
-    Geotiff gdpTiff(gdpDataFilename.c_str());
-    Geotiff popTiff(popDataFilename.c_str());
-    const int numRows = popTiff.GetDimensions()[0];
-    const int numCols = popTiff.GetDimensions()[1];
-    if (numRows != gdpTiff.GetDimensions()[0] || numCols != gdpTiff.GetDimensions()[1]) {
-        cout << "Population tiff and GDP tiff aren't same dimensions." << endl; // TODO: Probably some better way to do this
-    }
-    // The population data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
-    double** pop = popTiff.GetRasterBand(1);
-
-    cout << "Loaded population tiff and GDP tiff." << endl;
-
-    turnIntoSummationTable(pop, popTiff); // Mutates pop
-
-    cout << "Constructed population summation table." << endl;
-
     //-------------------------------Parameters---------------------------------------------
     // TODO: Add the ability to use multiple radiuses
-    double radiusKm = 15000;
+    double radiusKm = 1000;
 
+    const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
     const bool smallestPopMode = true;
     
     const int printMod = 11; // Print lattitude when the Y index mod this is 0
@@ -575,6 +557,28 @@ int main() {
     const int xXLStep = 256; //256
     //-------------------------------Parameters-end-----------------------------------------
 
+    // Load tiff data
+    const string popDataFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
+    const string gdpDataFilename = "gdpPPPdata.tif"; // This is too large to fit in github by the way (11GB)
+    string dataFilename;
+    if (populationMode) {
+        dataFilename = popDataFilename;
+    } else {
+        dataFilename = gdpDataFilename;
+    }
+    Geotiff dataTiff(dataFilename.c_str());
+    const int numRows = dataTiff.GetDimensions()[0];
+    const int numCols = dataTiff.GetDimensions()[1];
+    // The pure raster data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
+    double** data = dataTiff.GetRasterBand(1);
+
+    cout << "Loaded TODO ? conditional tiff." << endl;
+
+    // TODO: Write/load a file here. In fact, I might wanna do this with two files, in a Makefile way.
+    turnIntoSummationTable(data, dataTiff); // Mutates data
+
+    cout << "Constructed TODO ? conditional summation table." << endl;
+
     double radiusM = radiusKm * 1000;
     int step = smallStep;
     // Turn lat and lon into indices in the pop data.
@@ -585,17 +589,17 @@ int main() {
 
     for (int cenY = upY; cenY < downY; cenY += step) {
         if (cenY % printMod == 0) {
-            cout << "Current lattitude: " << popTiff.coords(100, cenY, 0) << endl;
+            cout << "Current lattitude: " << dataTiff.coords(100, cenY, 0) << endl;
         }
 
         int kernelLength;
-        int* kernel = makeKernel(1000, cenY, radiusM, popTiff, kernelLength); // Initializes kernelLength
+        int* kernel = makeKernel(1000, cenY, radiusM, dataTiff, kernelLength); // Initializes kernelLength
 
         for (int cenX = leftX; cenX <= rightX; cenX += step) {
-            double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, pop, popTiff);
+            double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, data, dataTiff);
             if (smallestPopMode) {
                 if (popWithinNKilometers < smallest) {
-                    cout << "Population within " << radiusKm << " kilometers of (" << (popTiff.coords(cenX, cenY, 0)) << ", " << popTiff.coords(cenX, cenY, 1) << "): " \
+                    cout << "TODO ? conditional within " << radiusKm << " kilometers of (" << (dataTiff.coords(cenX, cenY, 0)) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
                         << ((long long)popWithinNKilometers) << endl;
                     smallest = popWithinNKilometers;
                 }
@@ -630,7 +634,7 @@ int main() {
             }
             else {
                 if (popWithinNKilometers > largest) {
-                    cout << "Population within " << radiusKm << " kilometers of (" << popTiff.coords(cenX, cenY, 0) << ", " << popTiff.coords(cenX, cenY, 1) << "): " \
+                    cout << "TODO ? conditional within " << radiusKm << " kilometers of (" << dataTiff.coords(cenX, cenY, 0) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
                         << ((long long)popWithinNKilometers) << endl;
                     largest = popWithinNKilometers;
                 }
