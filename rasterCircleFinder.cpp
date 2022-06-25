@@ -10,217 +10,25 @@
 #include <cpl_conv.h>
 #include <stdlib.h>
 #include <cmath>
+#include <fstream>
 
 using namespace std;
 
 const int KERNEL_WIDTH = 4;
+// TODO: Make a class that allows the loaded summation table to include this information
+// (as well as coordinate to indices and vice versa functions)
+const int POP_NUM_ROWS = 2 * 60 * 180;
+const int POP_NUM_COLS = 2 * 60 * 360;
 
-class Geotiff {
-
-private: // NOTE: "private" keyword is redundant here.  
-         // we place it here for emphasis. Because these
-         // variables are declared outside of "public", 
-         // they are private. 
-
-    const char* filename;        // name of Geotiff
-    GDALDataset* geotiffDataset; // Geotiff GDAL datset object. 
-    double geotransform[6];      // 6-element geotranform array.
-    int dimensions[3];           // X,Y, and Z dimensions. 
-    int NROWS, NCOLS, NLEVELS;     // dimensions of data in Geotiff. 
-
-public:
-
-    // define constructor function to instantiate object
-    // of this Geotiff class. 
-    Geotiff(const char* tiffname) {
-        filename = tiffname;
-        GDALAllRegister();
-
-        // set pointer to Geotiff dataset as class member.  
-        geotiffDataset = (GDALDataset*)GDALOpen(filename, GA_ReadOnly);
-
-        // set the dimensions of the Geotiff 
-        NROWS = GDALGetRasterYSize(geotiffDataset);
-        NCOLS = GDALGetRasterXSize(geotiffDataset);
-        NLEVELS = GDALGetRasterCount(geotiffDataset);
-
+// TODO: Make this less jank (final parameter)
+// TODO: This gives very slightly different results than using the Geotiff class's coords function, fix pls
+double coords(const int numRows, const int numCols, const int x, const int y, const int latOrLon) {
+    if (latOrLon == 0) { // latOrLon is 0 if lattitude is wanted
+        return -((((double)y) / ((double)numRows)) * 180.0 - 90.0);
+    } else { // Otherwise, longitude is wanted
+        return (((double)x) / ((double)numCols)) * 360.0 - 180.0;
     }
-
-    // define destructor function to close dataset, 
-    // for when object goes out of scope or is removed
-    // from memory. 
-    ~Geotiff() {
-        // close the Geotiff dataset, free memory for array.
-        GDALClose(geotiffDataset);
-        GDALDestroyDriverManager();
-    }
-
-    const char* GetFileName() {
-        /*
-         * function GetFileName()
-         * This function returns the filename of the Geotiff.
-         */
-        return filename;
-    }
-
-    const char* GetProjection() {
-        /* function const char* GetProjection():
-         *  This function returns a character array (string)
-         *  for the projection of the geotiff file. Note that
-         *  the "->" notation is used. This is because the
-         *  "geotiffDataset" class variable is a pointer
-         *  to an object or structure, and not the object
-         *  itself, so the "." dot notation is not used.
-         */
-        return geotiffDataset->GetProjectionRef();
-    }
-
-    double* GetGeoTransform() {
-        /*
-         * function double *GetGeoTransform()
-         *  This function returns a pointer to a double that
-         *  is the first element of a 6 element array that holds
-         *  the geotransform of the geotiff.
-         */
-        geotiffDataset->GetGeoTransform(geotransform);
-        return geotransform;
-    }
-
-    double coords(int x, int y, int idx) {
-        double* geoTransform = GetGeoTransform();
-        double lon = geoTransform[0] + x * geoTransform[1] + y * geoTransform[2];
-        double lat = geoTransform[3] + x * geoTransform[4] + y * geoTransform[5];
-        double coordinates[2];
-        coordinates[0] = lat;
-        coordinates[1] = lon;
-        return coordinates[idx];
-    };
-
-    double GetNoDataValue() {
-        /*
-         * function GetNoDataValue():
-         *  This function returns the NoDataValue for the Geotiff dataset.
-         *  Returns the NoData as a double.
-         */
-        return (double)geotiffDataset->GetRasterBand(1)->GetNoDataValue();
-    }
-
-    int* GetDimensions() {
-        /*
-         * int *GetDimensions():
-         *
-         *  This function returns a pointer to an array of 3 integers
-         *  holding the dimensions of the Geotiff. The array holds the
-         *  dimensions in the following order:
-         *   (1) number of columns (x size)
-         *   (2) number of rows (y size)
-         *   (3) number of bands (number of bands, z dimension)
-         */
-        dimensions[0] = NROWS;
-        dimensions[1] = NCOLS;
-        dimensions[2] = NLEVELS;
-        return dimensions;
-    }
-
-    double** GetRasterBand(int z) {
-
-        /*
-         * function float** GetRasterBand(int z):
-         * This function reads a band from a geotiff at a
-         * specified vertical level (z value, 1 ...
-         * n bands). To this end, the Geotiff's GDAL
-         * data type is passed to a switch statement,
-         * and the template function GetArray2D (see below)
-         * is called with the appropriate C++ data type.
-         * The GetArray2D function uses the passed-in C++
-         * data type to properly read the band data from
-         * the Geotiff, cast the data to float**, and return
-         * it to this function. This function returns that
-         * float** pointer.
-         */
-
-        double** bandLayer = new double* [NROWS];
-        switch (GDALGetRasterDataType(geotiffDataset->GetRasterBand(z))) {
-        case 0:
-            return NULL; // GDT_Unknown, or unknown data type.
-        case 1:
-            // GDAL GDT_Byte (-128 to 127) - unsigned  char
-            return GetArray2D<unsigned char>(z, bandLayer);
-        case 2:
-            // GDAL GDT_UInt16 - short
-            return GetArray2D<unsigned short>(z, bandLayer);
-        case 3:
-            // GDT_Int16
-            return GetArray2D<short>(z, bandLayer);
-        case 4:
-            // GDT_UInt32
-            return GetArray2D<unsigned int>(z, bandLayer);
-        case 5:
-            // GDT_Int32
-            return GetArray2D<int>(z, bandLayer);
-        case 6:
-            // GDT_Float32
-            return GetArray2D<float>(z, bandLayer);
-        case 7:
-            // GDT_Float64
-            return GetArray2D<double>(z, bandLayer);
-        default:
-            break;
-        }
-        return NULL;
-    }
-
-    template<typename T>
-    double** GetArray2D(int layerIndex, double** bandLayer) {
-
-        /*
-         * function float** GetArray2D(int layerIndex):
-         * This function returns a pointer (to a pointer)
-         * for a float array that holds the band (array)
-         * data from the geotiff, for a specified layer
-         * index layerIndex (1,2,3... for GDAL, for Geotiffs
-         * with more than one band or data layer, 3D that is).
-         *
-         * Note this is a template function that is meant
-         * to take in a valid C++ data type (i.e. char,
-         * short, int, float), for the Geotiff in question
-         * such that the Geotiff band data may be properly
-         * read-in as numbers. Then, this function casts
-         * the data to a float data type automatically.
-         */
-
-         // get the raster data type (ENUM integer 1-12, 
-         // see GDAL C/C++ documentation for more details)        
-        GDALDataType bandType = GDALGetRasterDataType(
-            geotiffDataset->GetRasterBand(layerIndex));
-
-        // get number of bytes per pixel in Geotiff
-        int nbytes = GDALGetDataTypeSizeBytes(bandType);
-
-        // allocate pointer to memory block for one row (scanline) 
-        // in 2D Geotiff array.  
-        T* rowBuff = (T*)CPLMalloc(nbytes * NCOLS);
-
-        for (int row = 0; row < NROWS; row++) {     // iterate through rows
-
-          // read the scanline into the dynamically allocated row-buffer       
-            CPLErr e = geotiffDataset->GetRasterBand(layerIndex)->RasterIO(
-                GF_Read, 0, row, NCOLS, 1, rowBuff, NCOLS, 1, bandType, 0, 0);
-            if (!(e == 0)) {
-                cout << "Warning: Unable to read scanline in Geotiff!" << endl;
-                exit(1);
-            }
-
-            bandLayer[row] = new double[NCOLS];
-            for (int col = 0; col < NCOLS; col++) { // iterate through columns
-                bandLayer[row][col] = (double)rowBuff[col];
-            }
-        }
-        CPLFree(rowBuff);
-        return bandLayer;
-    }
-
-};
+}
 
 double distance(const double& lat1, const double& lat2, const double& lon1, const double& lon2)
 {
@@ -323,11 +131,10 @@ double distance(const double& lat1, const double& lat2, const double& lon1, cons
 
 // TODO: make direction an enum
 // Only works for up (0) and down (1)
-int boundingBoxEdge(const int x, const int y, const double radiusM, const int direction, Geotiff& dataTiff) {
-    const int numRows = dataTiff.GetDimensions()[0];
+int boundingBoxEdge(const int x, const int y, const double radiusM, const int direction, const int numRows, const int numCols) {
     // Turn x and y (indices in the pop data) into geographic coordinates.
-    const double cenLat = dataTiff.coords(x, y, 0);
-    const double cenLon = dataTiff.coords(x, y, 1);
+    const double cenLat = coords(numRows, numCols, x, y, 0);
+    const double cenLon = coords(numRows, numCols, x, y, 1);
 
     int edge = y;
     int edgeOfMap = numRows - 1;
@@ -343,8 +150,8 @@ int boundingBoxEdge(const int x, const int y, const double radiusM, const int di
 
     while (edge >= 0 && edge <= edgeOfMap) {
         double lat, lon;
-        lat = dataTiff.coords(x, edge, 0);
-        lon = dataTiff.coords(x, edge, 1);
+        lat = coords(numRows, numCols, x, edge, 0);
+        lon = coords(numRows, numCols, x, edge, 1);
         const double distanceFromCen = distance(lat, cenLat, lon, cenLon);
         if (distanceFromCen > radiusM) {
             edge -= incOrDec; // Went too far, walk it back
@@ -371,12 +178,11 @@ inline int kernelIndex(const int i, const int j) {
 // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference parameter kernelLength.
 // Right now it just does one summation table rectangle for each row of the kernel
 // TODO: make rectangles stretch across multiple rows where applicable
-int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& dataTiff, int& kernelLength) {
-    const int numCols = dataTiff.GetDimensions()[1];
-    const double cenLat = dataTiff.coords(cenX, cenY, 0);
-    const double cenLon = dataTiff.coords(cenX, cenY, 1);
-    const int northEdge = boundingBoxEdge(cenX, cenY, radiusM, 0, dataTiff);
-    const int southEdge = boundingBoxEdge(cenX, cenY, radiusM, 1, dataTiff);
+int* makeKernel(const int cenX, const int cenY, const double radiusM, const int numRows, const int numCols, int& kernelLength) {
+    const double cenLat = coords(numRows, numCols, cenX, cenY, 0);
+    const double cenLon = coords(numRows, numCols, cenX, cenY, 1);
+    const int northEdge = boundingBoxEdge(cenX, cenY, radiusM, 0, numRows, numCols);
+    const int southEdge = boundingBoxEdge(cenX, cenY, radiusM, 1, numRows, numCols);
     const int maxPossibleLength = southEdge - northEdge + 1;
     // A faster way of doing a 2D array of dimensions maxPossibleSize x KERNEL_WIDTH
     // Each row consists of: {westX, eastX, northY, southY} describing a summation table rectangle (so KERNEL_WIDTH
@@ -387,8 +193,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& d
     int y = northEdge;
     int horizontalOffset = 0; // From the verticle center line of the kernel
     while (y <= southEdge) {
-        double lat = dataTiff.coords(cenX + horizontalOffset, y, 0);
-        double lon = dataTiff.coords(cenX + horizontalOffset, y, 1);
+        double lat = coords(numRows, numCols, cenX + horizontalOffset, y, 0);
+        double lon = coords(numRows, numCols, cenX + horizontalOffset, y, 1);
         if (distance(lat, cenLat, lon, cenLon) > radiusM) {
             if (horizontalOffset == 0) {
                 cout << "Something went wrong!1" << endl; // TODO: Probably some better way of logging/displaying this error
@@ -402,8 +208,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& d
                 if (horizontalOffset > numCols / 2) { // This rectangle wraps around the world
                     break;
                 }
-                lat = dataTiff.coords(cenX + horizontalOffset, y, 0);
-                lon = dataTiff.coords(cenX + horizontalOffset, y, 1);
+                lat = coords(numRows, numCols, cenX + horizontalOffset, y, 0);
+                lon = coords(numRows, numCols, cenX + horizontalOffset, y, 1);
             }
             horizontalOffset--; // horizontalOffset is now maximally far (after this decrement)
 
@@ -425,8 +231,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& d
 
                     // Check if the circle has widened
                     if (horizontalOffset < numCols / 2) { // Rectangles that wrap around the whole world can't widen any more
-                        lat = dataTiff.coords(cenX + horizontalOffset + 1, y, 0);
-                        lon = dataTiff.coords(cenX + horizontalOffset + 1, y, 1);
+                        lat = coords(numRows, numCols, cenX + horizontalOffset + 1, y, 0);
+                        lon = coords(numRows, numCols, cenX + horizontalOffset + 1, y, 1);
                         if (distance(lat, cenLat, lon, cenLon) <= radiusM) {
                             tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The circle has widened; the rectangle is done
                             kernelRow++;
@@ -434,8 +240,8 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& d
                         }
                     }
 
-                    lat = dataTiff.coords(cenX + horizontalOffset, y, 0);
-                    lon = dataTiff.coords(cenX + horizontalOffset, y, 1);
+                    lat = coords(numRows, numCols, cenX + horizontalOffset, y, 0);
+                    lon = coords(numRows, numCols, cenX + horizontalOffset, y, 1);
                     if (distance(lat, cenLat, lon, cenLon) > radiusM) {
                         tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The y value can no longer be in the rectangle
                         kernelRow++;
@@ -456,31 +262,6 @@ int* makeKernel(const int cenX, const int cenY, const double radiusM, Geotiff& d
     }
     delete[] tempKernel;
     return kernel;
-}
-
-// Turn the passed in pop table into a summation table (mutates it)
-void turnIntoSummationTable(double** pop, Geotiff& dataTiff) {
-    const int numRows = dataTiff.GetDimensions()[0];
-    const int numCols = dataTiff.GetDimensions()[1];
-    for (int x = 0; x < numCols; x++) {
-        for (int y = 0; y < numRows; y++) {
-            if (pop[y][x] < 0) {
-                pop[y][x] = 0.0;
-            }
-            if (x == 0 && y == 0) {
-                continue;
-            }
-            else if (x == 0) {
-                pop[y][x] += pop[y - 1][x];
-            }
-            else if (y == 0) {
-                pop[y][x] += pop[y][x - 1];
-            }
-            else {
-                pop[y][x] += pop[y][x - 1] + pop[y - 1][x] - pop[y - 1][x - 1];
-            }
-        }
-    }
 }
 
 // Returns the total population in the specified rectangle. West and north are 1 pixel outside of the rectangle,
@@ -506,8 +287,7 @@ double popWithinRectangle(const int west, const int east, const int north, const
 // pop must have first dimension corresponding to longitude, second corresponding to reverse lattitude
 // TODO: Make a coordinates class
 // TODO: figure out where to put const around pop type
-double popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength, double** popSumTable, Geotiff& dataTiff) {
-    const int numCols = dataTiff.GetDimensions()[1];
+double popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength, double** popSumTable, const int numCols) {
     double totalPop = 0;
 
     for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
@@ -536,48 +316,45 @@ double popWithinKernel(const int cenX, const int cenY, int* kernel, const int ke
 int main() {
     //-------------------------------Parameters---------------------------------------------
     // TODO: Add the ability to use multiple radiuses
-    double radiusKm = 1000;
+    double radiusKm = 500;
 
+    // TODO: Make it so that the program works even if populationMode is false
     const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
-    const bool smallestPopMode = true;
+    const bool smallestPopMode = false;
     
-    const int printMod = 11; // Print lattitude when the Y index mod this is 0
+    const int printMod = 73; // Print lattitude when the Y index mod this is 0
 
-    double upLat = 90;
+    double upLat = 65;
     double downLat = -90;
     double leftLon = -180;
     double rightLon = 180;
 
     double smallest = 100000000000;
     double largest = 0;
-    const int smallStep = 16; //1
-    const int mediumStep = 17; //4
-    const int largeStep = 18; //16
+    const int smallStep = 1; //1
+    const int mediumStep = 4; //4
+    const int largeStep = 16; //16
     const int xLStep = 64; //64
     const int xXLStep = 256; //256
     //-------------------------------Parameters-end-----------------------------------------
 
-    // Load tiff data
-    const string popDataFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
-    const string gdpDataFilename = "gdpPPPdata.tif"; // This is too large to fit in github by the way (11GB)
-    string dataFilename;
-    if (populationMode) {
-        dataFilename = popDataFilename;
-    } else {
-        dataFilename = gdpDataFilename;
+    const int numRows = POP_NUM_ROWS;
+    const int numCols = POP_NUM_COLS;
+
+    // Load the summation table from a file into a pointery 2d array
+    double** dataSumTable = new double*[numRows];
+    fstream dataSumTableFile;
+    dataSumTableFile.open("popSumTable.bin", ios::in | ios::binary);
+    for(int r = 0; r < numRows; r++) {
+        dataSumTable[r] = new double[numCols];
+        for (int c = 0; c < numCols; c++) {
+            // TODO: See if it's faster to read in entire rows at a time
+            dataSumTableFile.read(reinterpret_cast<char *>(&dataSumTable[r][c]), sizeof(double));
+        }
     }
-    Geotiff dataTiff(dataFilename.c_str());
-    const int numRows = dataTiff.GetDimensions()[0];
-    const int numCols = dataTiff.GetDimensions()[1];
-    // The pure raster data as a 2d array. First dimension is reverse lattitude, second dimension is longitude.
-    double** data = dataTiff.GetRasterBand(1);
+    dataSumTableFile.close();
 
-    cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " tiff." << endl;
-
-    // TODO: Write/load a file here. In fact, I might wanna do this with two files, in a Makefile way.
-    turnIntoSummationTable(data, dataTiff); // Mutates data
-
-    cout << "Constructed " << (populationMode ? "population" : "GDP PPP") << " summation table." << endl;
+    cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." << endl;
 
     double radiusM = radiusKm * 1000;
     int step = smallStep;
@@ -589,18 +366,18 @@ int main() {
 
     for (int cenY = upY; cenY < downY; cenY += step) {
         if (cenY % printMod == 0) {
-            cout << "Current lattitude: " << dataTiff.coords(100, cenY, 0) << endl;
+            cout << "Current lattitude: " << coords(numRows, numCols, 100, cenY, 0) << endl;
         }
 
         int kernelLength;
-        int* kernel = makeKernel(1000, cenY, radiusM, dataTiff, kernelLength); // Initializes kernelLength
+        int* kernel = makeKernel(1000, cenY, radiusM, numRows, numCols, kernelLength); // Initializes kernelLength
 
         for (int cenX = leftX; cenX <= rightX; cenX += step) {
-            double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, data, dataTiff);
+            double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength, dataSumTable, numCols);
             if (smallestPopMode) {
                 if (popWithinNKilometers < smallest) {
                     cout << (populationMode ? "Population" : "GDP PPP") << " within " << radiusKm << " kilometers of (" \
-                        << (dataTiff.coords(cenX, cenY, 0)) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
+                        << (coords(numRows, numCols, cenX, cenY, 0)) << ", " << coords(numRows, numCols, cenX, cenY, 1) << "): " \
                         << ((long long)popWithinNKilometers) << endl;
                     smallest = popWithinNKilometers;
                 }
@@ -636,7 +413,7 @@ int main() {
             else {
                 if (popWithinNKilometers > largest) {
                     cout << (populationMode ? "Population" : "GDP PPP") << " within " << radiusKm << " kilometers of (" \
-                        << dataTiff.coords(cenX, cenY, 0) << ", " << dataTiff.coords(cenX, cenY, 1) << "): " \
+                        << coords(numRows, numCols, cenX, cenY, 0) << ", " << coords(numRows, numCols, cenX, cenY, 1) << "): " \
                         << ((long long)popWithinNKilometers) << endl;
                     largest = popWithinNKilometers;
                 }
