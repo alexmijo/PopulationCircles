@@ -20,6 +20,19 @@ const int KERNEL_WIDTH = 4;
 const int POP_NUM_ROWS = 2 * 60 * 180;
 const int POP_NUM_COLS = 2 * 60 * 360;
 
+class RasterData {
+    //coords
+    //getNumRows
+    //getNumCols
+    // Actually, the more I think about it, the more I think I can just move everything in here.
+    // Actually, totally nevermind on the above thing, cause of the whole kernel issue. Instead I maybe should just
+    //  use a struct.
+    // Unless, I actually even put most of main's functionality in here (which honestly doesn't sound like a bad idea).
+    //  By that I'm thinking like "most poplous circle in range" function (taking radius and range for center, also
+    //  like a parameter about how much to print while doing it and how skippy to be). Yeah the more I think about it
+    //  the more that seems like a good idea. I guess I should maybe do 6.031 first and see if that helps me decide.
+};
+
 // TODO: Make this less jank (final parameter)
 // TODO: This gives very slightly different results than using the Geotiff class's coords function, fix pls
 double coords(const int numRows, const int numCols, const int x, const int y, const int latOrLon) {
@@ -338,13 +351,23 @@ int main() {
     const int xXLStep = 256; //256
     //-------------------------------Parameters-end-----------------------------------------
 
-    const int numRows = POP_NUM_ROWS;
-    const int numCols = POP_NUM_COLS;
-
-    // Load the summation table from a file into a pointery 2d array
-    double** dataSumTable = new double*[numRows];
     fstream dataSumTableFile;
     dataSumTableFile.open("popSumTable.bin", ios::in | ios::binary);
+    int numRows;
+    int numCols;
+    dataSumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
+    dataSumTableFile.read(reinterpret_cast<char *>(&numCols), sizeof(int));
+    if (numRows != POP_NUM_ROWS || numCols != POP_NUM_COLS) {
+        std::cout << "Pop summation table isn't expected dimensions" << std::endl;
+        return 1;
+    }
+
+    double geoTransform[6];
+    for (int i = 0; i < 6; i++) {
+        dataSumTableFile.read(reinterpret_cast<char *>(&geoTransform[i]), sizeof(double));
+    }
+
+    double** dataSumTable = new double*[numRows];
     for(int r = 0; r < numRows; r++) {
         dataSumTable[r] = new double[numCols];
         for (int c = 0; c < numCols; c++) {

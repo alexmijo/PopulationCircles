@@ -247,30 +247,29 @@ int main() {
     // const std::string gdpTiffFilename = "gdpPPPdata.tif"; // This is too large to fit in github by the way (11GB)
     Geotiff popTiff(popTiffFilename.c_str());
     // Geotiff gdpTiff(gdpTiffFilename.c_str());
-    if (popTiff.GetDimensions()[0] != POP_NUM_ROWS || popTiff.GetDimensions()[1] != POP_NUM_COLS) {
-    //  || gdpTiff.GetDimensions()[0] != GDP_NUM_ROWS || gdpTiff.GetDimensions()[1] != GDP_NUM_COLS) {
-        std::cout << "Tiff files weren't expected dimensions" << std::endl;
-    }
+    
 
+    int numRows = popTiff.GetDimensions()[0];
+    int numCols = popTiff.GetDimensions()[1];
+    if (popTiff.GetDimensions()[0] != POP_NUM_ROWS || popTiff.GetDimensions()[1] != POP_NUM_COLS) {
+        std::cout << "Pop tiff isn't expected dimensions" << std::endl;
+        return 1;
+    }
+    double *geoTransform = popTiff.GetGeoTransform();
     double **popData = popTiff.GetRasterBand(1);
     turnIntoSummationTable(popData, POP_NUM_ROWS, POP_NUM_COLS); // Mutates popdata
 
     std::fstream popSumTableFile;
     popSumTableFile.open("popSumTable.bin", std::ios::out | std::ios::binary);
+    popSumTableFile.write(reinterpret_cast<char *>(&numRows), sizeof(int));
+    popSumTableFile.write(reinterpret_cast<char *>(&numCols), sizeof(int));
+    for (int i = 0; i < 6; i++) {
+        popSumTableFile.write(reinterpret_cast<char *>(&geoTransform[i]), sizeof(double));
+    }
     for (int r = 0; r < POP_NUM_ROWS; r++) {
         for (int c = 0; c < POP_NUM_COLS; c++) {
             popSumTableFile.write(reinterpret_cast<char *>(&popData[r][c]), sizeof(double));
         }
     }
     popSumTableFile.close();
-    
-    // double **gdpData = gdpTiff.GetRasterBand(1);
-    // std::fstream gdpSumTableFile;
-    // gdpSumTableFile.open("gdpSumTable.bin", std::ios::out | std::ios::binary);
-    // for (int r = 0; r < GDP_NUM_ROWS; r++) {
-    //     for (int c = 0; c < GDP_NUM_COLS; c++) {
-    //         gdpSumTableFile.write(reinterpret_cast<char *>(&gdpData[r][c]), GDP_NUM_ROWS * GDP_NUM_COLS * sizeof(double));
-    //     }
-    // }
-    // gdpSumTableFile.close();
 }
