@@ -12,19 +12,12 @@
 #include <cmath>
 #include <fstream>
 
-const int KERNEL_WIDTH = 4;
-// TODO: Make a class that allows the loaded summation table to include this information
-// (as well as coordinate to indices and vice versa functions)
-const int POP_NUM_ROWS = 2 * 60 * 180;
-const int POP_NUM_COLS = 2 * 60 * 360;
-
-class RasterData {
+class EquirectRasterData {
 
 private:
 
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
     int numRows, numCols;
-    double geoTransform[6];
     double** sumTable; // first index is y (lat), second is x (lon)
 
     // TODO: make direction an enum
@@ -213,42 +206,34 @@ private:
 
     // Get longitude of a column
     double lon(int x) {
-        // geoTransform[0] + x * geoTransform[1] + y * geoTransform[2]; // Would be used if non-equirectangular
-        return (((double)x) / ((double)numCols)) * 360.0 -180.0;
+        return (((double)x) / ((double)numCols)) * 360.0 - 180.0;
     }
 
     // Get lattitude of a row
     double lat(int y) {
-        // geoTransform[3] + x * geoTransform[4] + y * geoTransform[5]; // Would be used if non-equirectangular
         return -((((double)y) / ((double)numRows)) * 180.0 - 90.0);
     }
     
     // The inverse of the lon function
     int lonToX(double lon) {
-        // Would have to use geoTransform[5] as well if non-equirectangular
         return ((lon + 180.0) / 360.0) * numCols;
     }
 
     // The inverse of the lat function
     int latToY(double lat) {
-        // Would have to use geoTransform[5] as well if non-equirectangular
         return ((-lat + 90.0) / 180.0) * numRows;
     }
 
 public:
 
-    // File must consist of an int for numRows, and int for numCols, 6 doubles for the geoTransform, and then
+    // File must consist of an int for numRows, and int for numCols, and then
     //  numRows*numCols doubles representing all of the data in the summation table.
     // Projection must be equirectangular.
-    RasterData(const std::string& sumTableFilename) {
+    EquirectRasterData(const std::string& sumTableFilename) {
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
         sumTableFile.read(reinterpret_cast<char *>(&numCols), sizeof(int));
-
-        for (int i = 0; i < 6; i++) {
-            sumTableFile.read(reinterpret_cast<char *>(&geoTransform[i]), sizeof(double));
-        }
 
         sumTable = new double*[numRows];
         for(int r = 0; r < numRows; r++) {
@@ -261,7 +246,7 @@ public:
         sumTableFile.close();
     }
 
-    ~RasterData() {
+    ~EquirectRasterData() {
         delete[] sumTable;
     }
 
@@ -558,7 +543,7 @@ int main() {
     //-------------------------------Parameters-end-----------------------------------------
 
     std::string sumTableFilename = "popSumTable.bin";
-    RasterData data(sumTableFilename);
+    EquirectRasterData data(sumTableFilename);
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." << std::endl;
 

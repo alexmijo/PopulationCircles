@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <fstream>
 
+// TODO: Eliminate this class entirely, if it makes sense to do so
 class Geotiff {
 
 private: // NOTE: "private" keyword is redundant here.  
@@ -255,7 +256,6 @@ int main() {
         std::cout << "Pop tiff isn't expected dimensions" << std::endl;
         return 1;
     }
-    double *geoTransform = popTiff.GetGeoTransform();
     double **popData = popTiff.GetRasterBand(1);
     turnIntoSummationTable(popData, POP_NUM_ROWS, POP_NUM_COLS); // Mutates popdata
 
@@ -263,9 +263,6 @@ int main() {
     popSumTableFile.open("popSumTable.bin", std::ios::out | std::ios::binary);
     popSumTableFile.write(reinterpret_cast<char *>(&numRows), sizeof(int));
     popSumTableFile.write(reinterpret_cast<char *>(&numCols), sizeof(int));
-    for (int i = 0; i < 6; i++) {
-        popSumTableFile.write(reinterpret_cast<char *>(&geoTransform[i]), sizeof(double));
-    }
     for (int r = 0; r < POP_NUM_ROWS; r++) {
         for (int c = 0; c < POP_NUM_COLS; c++) {
             popSumTableFile.write(reinterpret_cast<char *>(&popData[r][c]), sizeof(double));
