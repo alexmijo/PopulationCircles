@@ -11,14 +11,22 @@
 #include <stdlib.h>
 #include <cmath>
 #include <fstream>
+#include <map>
+
+const double WORLD_POP_2015 = 7346242908.863955;
 
 class EquirectRasterData {
 
 private:
 
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
+    const static int SMALLEST_CIRCLES_VALUE_LENGTH = 4; // lon, lat, sum
+    // key is radius, value is array holding lon, lat, sum
+    std::map<int, double*> smallestCircleResults;
     int numRows, numCols;
-    double** sumTable; // first index is y (lat), second is x (lon)
+    // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
+    //  right)
+    double **sumTable;
 
     // Used for boundingBoxEdge
     enum direction {
@@ -211,37 +219,43 @@ private:
         return totalPop;
     }
 
-    // Get longitude of a column
+    // Get longitude of the center of the <x>th (0 indexed) column
     double lon(int x) {
-        return (((double)x) / ((double)numCols)) * 360.0 - 180.0;
+        return (((double)x + 0.5) / (double)numCols) * 360.0 - 180.0;
     }
 
-    // Get lattitude of a row
+    // Get lattitude of the center of the <y>th (0 indexed) row
     double lat(int y) {
-        return -((((double)y) / ((double)numRows)) * 180.0 - 90.0);
+        return -((((double)y + 0.5) / (double)numRows) * 180.0 - 90.0);
     }
     
     // The inverse of the lon function
     int lonToX(double lon) {
-        return ((lon + 180.0) / 360.0) * numCols;
+        return ((lon + 180.0) / 360.0) * numCols - 0.5;
     }
 
     // The inverse of the lat function
     int latToY(double lat) {
-        return ((-lat + 90.0) / 180.0) * numRows;
+        return ((-lat + 90.0) / 180.0) * numRows - 0.5;
     }
 
 public:
 
-    // File must consist of an int for numRows, and int for numCols, and then
-    //  numRows*numCols doubles representing all of the data in the summation table.
+    // File specified by <sumTableFilename> must consist of an int for numRows, and int for
+    //  numCols, and then numRows * numCols doubles representing all of the data in the summation
+    //  table.
     // Projection must be equirectangular.
-    EquirectRasterData(const std::string& sumTableFilename) {
+    // File specified by <smallestCircleResultsFilename> must consist of an int for
+    //  numSmallestCircleResults, and then numSmallestCircleResults "rows" each consisting of 1 int
+    //  followed by SMALLEST_CIRCLES_VALUE_LENGTH doubles.
+    // TODO: Include some information in smallestCircleResultsFile to make sure it corresponds to
+    //  this sumTableFile.
+    EquirectRasterData(const std::string& sumTableFilename,
+                       const std::string& smallestCircleResultsFilename) {
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
         sumTableFile.read(reinterpret_cast<char *>(&numCols), sizeof(int));
-
         sumTable = new double*[numRows];
         for(int r = 0; r < numRows; r++) {
             sumTable[r] = new double[numCols];
@@ -251,10 +265,45 @@ public:
             }
         }
         sumTableFile.close();
+
+        std::fstream smallestCircleResultsFile;
+        smallestCircleResultsFile.open(smallestCircleResultsFilename,
+                                       std::ios::in | std::ios::binary);
+        // See if file is empty
+        std::streampos begin, end;
+        begin = smallestCircleResultsFile.tellg();
+        smallestCircleResultsFile.seekg(0, std::ios::end);
+        end = smallestCircleResultsFile.tellg();
+        smallestCircleResultsFile.seekg(0, std::ios::beg);
+        if (begin - end == 0) {
+            std::cout << smallestCircleResultsFilename << " is empty." << std::endl;
+        } else {
+            int numSmallestCircleResults;
+            smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
+                                        sizeof(int));
+            for (int i = 0; i < numSmallestCircleResults; i++) {
+                int radius;
+                smallestCircleResultsFile.read(reinterpret_cast<char *>(&radius), sizeof(int));
+                // TODO: Don't really need this as a variable
+                double *smallestCirclesValue = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
+                // TODO: See if I can just read in entire arrays at once
+                // TODO: See if std::vector would make more sense here
+                for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
+                    smallestCircleResultsFile.read(reinterpret_cast<char *>(&smallestCirclesValue[j]),
+                                                   sizeof(double));
+                }
+                smallestCircleResults[radius] = smallestCirclesValue;
+            }
+        }
+        smallestCircleResultsFile.close();
     }
 
     ~EquirectRasterData() {
         delete[] sumTable;
+        for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
+             it != smallestCircleResults.end(); it++) {
+            delete[] (it->second);
+        }
     }
 
     // Returns distance in kilometers between two points on Earth's surface
@@ -380,10 +429,10 @@ public:
     double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, const double rightLon=180,
                                           const double upLat=90, const double downLat=-90) {
         const int smallStep = 1; //1
-        const int mediumStep = 4; //4
-        const int largeStep = 16; //16
-        const int xLStep = 64; //64
-        const int xXLStep = 256; //256
+        const int mediumStep = std::max((int)(radius / 128), 1); //4
+        const int largeStep = std::max((int)(radius / 32), 1); //16
+        const int xLStep = std::max((int)(radius / 8), 1); //64
+        const int xXLStep = std::max((int)(radius / 2), 1); //256
         const int printMod = 73; // Print lattitude when the Y index mod this is 0
 
         int step = smallStep;
@@ -538,6 +587,48 @@ public:
         returnValues[2] = smallestSum;
         return returnValues;
     }
+
+    // TODO: Make a spec comment for this
+    // TODO: Make this use some sort of dictionary of past results to avoid redoing tons of computation
+    double* smallestCircleWithGivenSum(const double sum, const double leftLon=-180, const double rightLon=180,
+                                       const double upLat=90, const double downLat=-90) {
+        // Radii will be ints cause only interested in getting to the nearest kilometer
+        const int EQUATOR_LEN = 40075;
+        int upperBound = EQUATOR_LEN / 2;
+        int lowerBound = 0;
+        int radius = lowerBound + (upperBound - lowerBound) / 10; // The 10 is a particularly magic number here lol
+        double *first3ReturnValues;
+        bool first3ReturnValuesAssigned = false; // Pointer not yet pointing to an array
+
+        while (upperBound - lowerBound > 1) {
+            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, leftLon, rightLon, upLat, downLat);
+            if (largestSumCircle[2] >= sum) {
+                upperBound = radius;
+                if (first3ReturnValuesAssigned) {
+                    delete[] first3ReturnValues;
+                }
+                first3ReturnValues = largestSumCircle;
+                first3ReturnValuesAssigned = true;
+            } else {
+                lowerBound = radius;
+                delete[] largestSumCircle;
+            }
+            radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
+        }
+        if (!first3ReturnValuesAssigned) {
+            // TODO: Figure out a better way to do these sort of things (probably throw an exception)
+            std::cout << "smallestCircleWithGivenSum wasn't able to find a circle with a large enough sum. "
+                      << "Either the sum (" << sum << ") was too large, or a bug occurred." << std::endl;
+        }
+
+        double *returnValues = new double[4];
+        returnValues[0] = first3ReturnValues[0];
+        returnValues[1] = first3ReturnValues[1];
+        returnValues[2] = first3ReturnValues[2];
+        returnValues[3] = radius;
+        delete[] first3ReturnValues;
+        return returnValues;
+    }
 };
 
 int main() {
@@ -545,21 +636,26 @@ int main() {
     // TODO: Make it so that the program works even if populationMode is false
     const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
     const bool smallestPopMode = false;
+    double percent = 1;
 
     double leftLon = -180;
     double rightLon = 180;
-    double upLat = 65;
-    double downLat = -90;
+    double upLat = 70;
+    double downLat = -60;
     //-------------------------------Parameters-end-----------------------------------------
 
     std::string sumTableFilename = "popSumTable.bin";
-    EquirectRasterData data(sumTableFilename);
+    std::string smallestCircleResultsFilename = "popSmallestCircleResults";
+    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." << std::endl;
 
-    double *largestSumCircle = data.largestSumCircleOfGivenRadius(500, leftLon, rightLon, upLat, downLat);
+    double *smallestCircle = data.smallestCircleWithGivenSum((WORLD_POP_2015 / 100.0) * percent, leftLon, rightLon, upLat, downLat);
 
-    std::cout << std::endl << "Most populous circle of radius 500:" << std::endl;
-    std::cout << "Population within 500 km of (" << largestSumCircle[1] << ", " << largestSumCircle[0] << "): "
-              << ((long long)(largestSumCircle[2])) << std::endl;
+    std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's population ("
+              << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" << std::endl;
+    std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] << ", " << smallestCircle[0] << "): "
+              << ((long long)(smallestCircle[2])) << std::endl;
+
+    delete[] smallestCircle;
 }
