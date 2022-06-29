@@ -597,36 +597,34 @@ public:
         int upperBound = EQUATOR_LEN / 2;
         int lowerBound = 0;
         int radius = lowerBound + (upperBound - lowerBound) / 10; // The 10 is a particularly magic number here lol
-        double *first3ReturnValues;
-        bool first3ReturnValuesAssigned = false; // Pointer not yet pointing to an array
+        double *returnValues;
+        bool returnValuesAssigned = false; // Pointer not yet pointing to an array
 
         while (upperBound - lowerBound > 1) {
             double *largestSumCircle = largestSumCircleOfGivenRadius(radius, leftLon, rightLon, upLat, downLat);
             if (largestSumCircle[2] >= sum) {
                 upperBound = radius;
-                if (first3ReturnValuesAssigned) {
-                    delete[] first3ReturnValues;
+                if (returnValuesAssigned) {
+                    delete[] returnValues;
                 }
-                first3ReturnValues = largestSumCircle;
-                first3ReturnValuesAssigned = true;
+                returnValues = new double[4];
+                returnValues[0] = largestSumCircle[0];
+                returnValues[1] = largestSumCircle[1];
+                returnValues[2] = largestSumCircle[2];
+                returnValues[3] = radius;
+                returnValuesAssigned = true;
+                delete[] largestSumCircle;
             } else {
                 lowerBound = radius;
                 delete[] largestSumCircle;
             }
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
         }
-        if (!first3ReturnValuesAssigned) {
+        if (!returnValuesAssigned) {
             // TODO: Figure out a better way to do these sort of things (probably throw an exception)
             std::cout << "smallestCircleWithGivenSum wasn't able to find a circle with a large enough sum. "
                       << "Either the sum (" << sum << ") was too large, or a bug occurred." << std::endl;
         }
-
-        double *returnValues = new double[4];
-        returnValues[0] = first3ReturnValues[0];
-        returnValues[1] = first3ReturnValues[1];
-        returnValues[2] = first3ReturnValues[2];
-        returnValues[3] = radius;
-        delete[] first3ReturnValues;
         return returnValues;
     }
 };
