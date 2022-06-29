@@ -23,6 +23,7 @@ private:
     const static int SMALLEST_CIRCLES_VALUE_LENGTH = 4; // lon, lat, sum
     // key is radius, value is array holding lon, lat, sum
     std::map<int, double*> smallestCircleResults;
+    std::string smallestCircleResultsFilename;
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
@@ -251,7 +252,8 @@ public:
     // TODO: Include some information in smallestCircleResultsFile to make sure it corresponds to
     //  this sumTableFile.
     EquirectRasterData(const std::string& sumTableFilename,
-                       const std::string& smallestCircleResultsFilename) {
+                       const std::string& smallestCircleResultsFilename) : 
+                       smallestCircleResultsFilename(smallestCircleResultsFilename) { // TODO: see if this shouldn't be pass by reference
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
@@ -419,6 +421,8 @@ public:
 
     // TODO: Check if the following two functions actually give the correct answers
     //  (by brute forcing some circles with the original pop data)
+
+// NEXT TODO!!!: Make largestSumCircleOfGivenRadius take an initial sum when it's called by smallestCircleWithGivenSum.
 
     // Finds the circle of the given radius that maximizes the sum of the data inside it. Returns
     //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
@@ -596,10 +600,27 @@ public:
         const int EQUATOR_LEN = 40075;
         int upperBound = EQUATOR_LEN / 2;
         int lowerBound = 0;
-        int radius = lowerBound + (upperBound - lowerBound) / 10; // The 10 is a particularly magic number here lol
         double *returnValues;
         bool returnValuesAssigned = false; // Pointer not yet pointing to an array
 
+        // Tighten bounds as much as possible using previous results
+        for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
+             it != smallestCircleResults.end(); it++) {
+            if ((it->second)[2] < sum) {
+                lowerBound = it->first;
+            } else if ((it->second)[2] >= sum) {
+                upperBound = it->first;
+                returnValues = new double[4];
+                returnValues[0] = (it->second)[0];
+                returnValues[1] = (it->second)[1];
+                returnValues[2] = (it->second)[2];
+                returnValues[3] = it->first;
+                returnValuesAssigned = true;
+                break;
+            }
+        }
+
+        int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
         while (upperBound - lowerBound > 1) {
             double *largestSumCircle = largestSumCircleOfGivenRadius(radius, leftLon, rightLon, upLat, downLat);
             if (largestSumCircle[2] >= sum) {
@@ -613,11 +634,43 @@ public:
                 returnValues[2] = largestSumCircle[2];
                 returnValues[3] = radius;
                 returnValuesAssigned = true;
-                delete[] largestSumCircle;
             } else {
                 lowerBound = radius;
-                delete[] largestSumCircle;
             }
+
+            // Add result to smallestCircleResults and its file
+            std::map<int, double*>::iterator it = smallestCircleResults.find(radius); // TODO: Combine this line and the next one
+            if (it != smallestCircleResults.end()) {
+                // TODO: Figure out a better way to do these sort of things (probably throw an exception)
+                std::cout << "smallestCircleWithGivenSum had an error involving smallestCircleResults" << std::endl;
+                std::cerr << "smallestCircleWithGivenSum had an error involving smallestCircleResults" << std::endl; // Above line might get drowned out
+            } else {
+                std::fstream smallestCircleResultsFile;
+                smallestCircleResultsFile.open(smallestCircleResultsFilename,
+                                               std::ios::in | std::ios::out | std::ios::binary);
+                int numSmallestCircleResults;
+                if (smallestCircleResults.empty()) {
+                    numSmallestCircleResults = 0;
+                } else {
+                    smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
+                                                   sizeof(int));
+                }
+                numSmallestCircleResults++;
+                smallestCircleResultsFile.seekg(0, std::ios::beg);
+                smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults),
+                                                sizeof(int));
+                smallestCircleResultsFile.seekg(0, std::ios::end);
+                smallestCircleResultsFile.write(reinterpret_cast<char *>(&radius), sizeof(int));
+                // TODO: See if I can just write the entire array at once
+                for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
+                    smallestCircleResultsFile.write(reinterpret_cast<char *>(&largestSumCircle[j]),
+                                                    sizeof(double));
+                }
+                smallestCircleResultsFile.close();
+                smallestCircleResults[radius] = largestSumCircle;
+            }
+
+            delete[] largestSumCircle;
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
         }
         if (!returnValuesAssigned) {
@@ -643,7 +696,7 @@ int main() {
     //-------------------------------Parameters-end-----------------------------------------
 
     std::string sumTableFilename = "popSumTable.bin";
-    std::string smallestCircleResultsFilename = "popSmallestCircleResults";
+    std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." << std::endl;
