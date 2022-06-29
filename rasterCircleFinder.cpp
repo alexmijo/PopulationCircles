@@ -446,7 +446,7 @@ public:
         double largestSumCenLat;
         double largestSum = 0;
 
-        for (int cenY = upY; cenY < downY; cenY += step) {
+        for (int cenY = upY; cenY <= downY; cenY += step) {
             if (cenY % printMod == 0) {
                 std::cout << "Current lattitude: " << lat(cenY) << std::endl;
             }
@@ -454,7 +454,7 @@ public:
             int kernelLength;
             int* kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
 
-            for (int cenX = leftX; cenX < rightX; cenX += step) {
+            for (int cenX = leftX; cenX <= rightX; cenX += step) {
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
                 if (popWithinNKilometers > largestSum) {
                     std::cout << "Sum within " << radius << " kilometers of (" \
@@ -530,7 +530,7 @@ public:
         double smallestSumCenLat;
         double smallestSum = 100000000000; // One hundred billion
 
-        for (int cenY = upY; cenY < downY; cenY += step) {
+        for (int cenY = upY; cenY <= downY; cenY += step) {
             if (cenY % printMod == 0) {
                 std::cout << "Current lattitude: " << lat(cenY) << std::endl;
             }
