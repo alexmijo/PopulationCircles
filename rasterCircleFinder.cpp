@@ -20,9 +20,15 @@ private:
     int numRows, numCols;
     double** sumTable; // first index is y (lat), second is x (lon)
 
-    // TODO: make direction an enum
-    // Only works for up (0) and down (1)
-    int boundingBoxEdge(const int x, const int y, const double radius, const int direction) {
+    // Used for boundingBoxEdge
+    enum direction {
+        north,
+        south
+    };
+
+    // Returns the northmost or southmost row containing any pixel within <radius> km of the given
+    //  pixel (specified by <x> and <y>).
+    int boundingBoxEdge(const int x, const int y, const double radius, direction northOrSouth) {
         // Turn x and y (indices in the pop data) into geographic coordinates.
         const double cenLon = lon(x);
         const double cenLat = lat(y);
@@ -32,12 +38,13 @@ private:
         int edgeOfMap = numRows - 1;
         // Added to edge to move one pixel in desired direction. 0 = up, 1 = down
         int incOrDec;
-        // 0 = up, 1 = down
-        if (direction == 1) {
-            incOrDec = 1; // Down: increasing
-        }
-        else {
-            incOrDec = -1; // Up: decreasing
+        if (northOrSouth == north) {
+            incOrDec = -1;
+        } else if (northOrSouth == south) {
+            incOrDec = 1;
+        } else {
+            // TODO: Throw an exception instead?
+            std::cout << "boundingBoxEdge called with illegal direction" << std::endl;
         }
 
         while (edge >= 0 && edge <= edgeOfMap) {
@@ -72,8 +79,8 @@ private:
     int* makeKernel(const int cenX, const int cenY, const double radius, int& kernelLength) {
         const double cenLon = lon(cenX);
         const double cenLat = lat(cenY);
-        const int northEdge = boundingBoxEdge(cenX, cenY, radius, 0);
-        const int southEdge = boundingBoxEdge(cenX, cenY, radius, 1);
+        const int northEdge = boundingBoxEdge(cenX, cenY, radius, north);
+        const int southEdge = boundingBoxEdge(cenX, cenY, radius, south);
         const int maxPossibleLength = southEdge - northEdge + 1;
         // A faster way of doing a 2D array of dimensions maxPossibleSize x KERNEL_WIDTH
         // Each row consists of: {westX, eastX, northY, southY} describing a summation table rectangle (so KERNEL_WIDTH
@@ -360,6 +367,9 @@ public:
     int getNumCols() {
         return numCols;
     }
+
+    // TODO: Check if the following two functions actually give the correct answers
+    //  (by brute forcing some circles with the original pop data)
 
     // Finds the circle of the given radius that maximizes the sum of the data inside it. Returns
     //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
