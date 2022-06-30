@@ -697,7 +697,7 @@ int main() {
 
     double leftLon = -180;
     double rightLon = 180;
-    double upLat = 70;
+    double upLat = 90;
     double downLat = -60;
     //-------------------------------Parameters-end-----------------------------------------
 
