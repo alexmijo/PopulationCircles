@@ -442,7 +442,7 @@ public:
         const int largeStep = std::max((int)(radius / 32), 1); //16
         const int xLStep = std::max((int)(radius / 8), 1); //64
         const int xXLStep = std::max((int)(radius / 2), 1); //256
-        const int printMod = 73; // Print lattitude when the Y index mod this is 0
+        const int printMod = 163; // Print lattitude when the Y index mod this is 0
 
         int step = smallStep;
         // Turn lat and lon into indices in the pop data.
@@ -524,11 +524,11 @@ public:
     double* smallestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, const double rightLon=180,
                                            const double upLat=90, const double downLat=-90, const double initialSmallestSum=1000000000000000) {
         const int smallStep = 1; //1
-        const int mediumStep = 4; //4
-        const int largeStep = 16; //16
-        const int xLStep = 64; //64
-        const int xXLStep = 256; //256
-        const int printMod = 73; // Print lattitude when the Y index mod this is 0
+        const int mediumStep = std::max((int)(radius / 128), 1); //4
+        const int largeStep = std::max((int)(radius / 32), 1); //16
+        const int xLStep = std::max((int)(radius / 8), 1); //64
+        const int xXLStep = std::max((int)(radius / 2), 1); //256
+        const int printMod = 163; // Print lattitude when the Y index mod this is 0
 
         int step = smallStep;
         // Turn lat and lon into indices in the pop data.
@@ -695,10 +695,10 @@ int main() {
     const bool smallestPopMode = false;
     double percent;
 
-    double leftLon = -180;
+    double leftLon = -5; // TODO: Change this if I want to find more than 50%
     double rightLon = 180;
     double upLat = 90;
-    double downLat = -60;
+    double downLat = -10;
     //-------------------------------Parameters-end-----------------------------------------
 
     std::string sumTableFilename = "popSumTable.bin";
@@ -707,7 +707,7 @@ int main() {
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." << std::endl;
 
-    for (int i = 1; i <= 100; i++) {
+    for (int i = 1; i <= 50; i++) {
         percent = i;
 
         double *smallestCircle = data.smallestCircleWithGivenSum((WORLD_POP_2015 / 100.0) * percent, leftLon, rightLon, upLat, downLat);
