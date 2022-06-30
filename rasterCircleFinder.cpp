@@ -20,7 +20,7 @@ class EquirectRasterData {
 private:
 
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
-    const static int SMALLEST_CIRCLES_VALUE_LENGTH = 4; // lon, lat, sum
+    const static int SMALLEST_CIRCLES_VALUE_LENGTH = 3; // lon, lat, sum
     // key is radius, value is array holding lon, lat, sum
     std::map<int, double*> smallestCircleResults;
     std::string smallestCircleResultsFilename; // TODO: Make this a human readable text file instead of binary
@@ -271,14 +271,19 @@ public:
         std::fstream smallestCircleResultsFile;
         smallestCircleResultsFile.open(smallestCircleResultsFilename,
                                        std::ios::in | std::ios::binary);
-        // See if file is empty
+        // See if file is empty. If so, make it
         std::streampos begin, end;
         begin = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::end);
         end = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::beg);
         if (begin - end == 0) {
-            std::cout << smallestCircleResultsFilename << " is empty." << std::endl;
+            std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it non-empty and existing." << std::endl;
+            smallestCircleResultsFile.close();
+            // Make the file
+            smallestCircleResultsFile.open(smallestCircleResultsFilename, std::ios::out | std::ios::binary);
+            int numSmallestCircleResults = 0;
+            smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults), sizeof(int));
         } else {
             int numSmallestCircleResults;
             smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
@@ -647,32 +652,28 @@ public:
             std::map<int, double*>::iterator it = smallestCircleResults.find(radius); // TODO: Combine this line and the next one
             if (it != smallestCircleResults.end()) {
                 // TODO: Figure out a better way to do these sort of things (probably throw an exception)
+                // TODO: See if there's a way to send a string to both streams
                 std::cout << "smallestCircleWithGivenSum had an error involving smallestCircleResults" << std::endl;
                 std::cerr << "smallestCircleWithGivenSum had an error involving smallestCircleResults" << std::endl; // Above line might get drowned out
             } else {
                 std::fstream smallestCircleResultsFile;
-                smallestCircleResultsFile.open(smallestCircleResultsFilename,
-                                               std::ios::in | std::ios::out | std::ios::binary);
+                smallestCircleResultsFile.open(smallestCircleResultsFilename, std::ios::in | std::ios::out | std::ios::binary);
                 int numSmallestCircleResults;
-                if (smallestCircleResults.empty()) {
-                    numSmallestCircleResults = 0;
-                } else {
-                    smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
-                                                   sizeof(int));
-                }
+                smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults), sizeof(int));
                 numSmallestCircleResults++;
                 smallestCircleResultsFile.seekg(0, std::ios::beg);
-                smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults),
-                                                sizeof(int));
+                smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults), sizeof(int));
                 smallestCircleResultsFile.seekg(0, std::ios::end);
                 smallestCircleResultsFile.write(reinterpret_cast<char *>(&radius), sizeof(int));
                 // TODO: See if I can just write the entire array at once
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    smallestCircleResultsFile.write(reinterpret_cast<char *>(&largestSumCircle[j]),
-                                                    sizeof(double));
+                    smallestCircleResultsFile.write(reinterpret_cast<char *>(&largestSumCircle[j]), sizeof(double));
                 }
                 smallestCircleResultsFile.close();
-                smallestCircleResults[radius] = largestSumCircle;
+                smallestCircleResults[radius] = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
+                smallestCircleResults[radius][0] = largestSumCircle[0];
+                smallestCircleResults[radius][1] = largestSumCircle[1];
+                smallestCircleResults[radius][2] = largestSumCircle[2]; // TODO: Instead of this workaround, just don't delete[] largestSumCircle in this case
             }
 
             delete[] largestSumCircle;
