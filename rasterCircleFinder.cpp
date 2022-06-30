@@ -1,7 +1,6 @@
-// rasterCircleFinder.cpp : This file contains the 'main' function. Program execution begins and ends there.
 // Needs GDAL library
-// This is an early version of the program. It's still kinda
-// spaghetti code and has code I copied from random places on the internet unattributed (GeoTiff and most of distance())
+// This is an early version of the program. It's still kinda spaghetti code and has code I copied
+//  from random places on the internet unattributed (GeoTiff and most of distance())
 
 #include <iostream>
 #include <gdal.h>
@@ -23,7 +22,8 @@ private:
     const static int SMALLEST_CIRCLES_VALUE_LENGTH = 3; // lon, lat, sum
     // key is radius, value is array holding lon, lat, sum
     std::map<int, double*> smallestCircleResults;
-    std::string smallestCircleResultsFilename; // TODO: Make this a human readable text file instead of binary
+    std::string smallestCircleResultsFilename; // TODO: Make this a human readable text file instead
+                                               //  of binary
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
@@ -59,7 +59,8 @@ private:
         while (edge >= 0 && edge <= edgeOfMap) {
             double currLat, currLon;
             currLat = lat(edge);
-            currLon = cenLon; // Since this function only works for up (0) and down (1), lon never changes
+            currLon = cenLon; // Since this function only works for up (0) and down (1), lon never
+                              //  changes
             const double distanceFromCen = distance(currLat, currLon, cenLat, cenLon);
             if (distanceFromCen > radius) {
                 edge -= incOrDec; // Went too far, walk it back
@@ -83,7 +84,8 @@ private:
         return KERNEL_WIDTH * row + col;
     }
 
-    // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference parameter kernelLength.
+    // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference
+    //  parameter kernelLength.
     // TODO: Make the kernel an actual 2d array
     // TODO: See if this double counts part of 1 column when wrapping around all longitudes
     int* makeKernel(const int cenX, const int cenY, const double radius, int& kernelLength) {
@@ -93,9 +95,10 @@ private:
         const int southEdge = boundingBoxEdge(cenX, cenY, radius, south);
         const int maxPossibleLength = southEdge - northEdge + 1;
         // A faster way of doing a 2D array of dimensions maxPossibleSize x KERNEL_WIDTH
-        // Each row consists of: {westX, eastX, northY, southY} describing a summation table rectangle (so KERNEL_WIDTH
-        // must be 4) relative to cenX and cenY
-        int* tempKernel = new int[maxPossibleLength * KERNEL_WIDTH]; // Temp just cause we don't know length of real kernel yet
+        // Each row consists of: {westX, eastX, northY, southY} describing a summation table
+        //  rectangle (so KERNEL_WIDTH must be 4) relative to cenX and cenY
+        // Temp just cause we don't know length of real kernel yet
+        int* tempKernel = new int[maxPossibleLength * KERNEL_WIDTH];
 
         int kernelRow = 0; // First index into kernel
         int y = northEdge;
@@ -105,7 +108,8 @@ private:
             double currLat = lat(y);
             if (distance(currLat, currLon, cenLat, cenLon) > radius) {
                 if (horizontalOffset == 0) {
-                    std::cout << "Something went wrong!1" << std::endl; // TODO: Probably some better way of logging/displaying this error
+                    // TODO: Probably some better way of logging/displaying this error
+                    std::cout << "Something went wrong!1" << std::endl;
                 }
                 horizontalOffset--;
             }
@@ -125,7 +129,8 @@ private:
                 tempKernel[kernelIndex(kernelRow, 0)] = -horizontalOffset - 1;
                 tempKernel[kernelIndex(kernelRow, 1)] = horizontalOffset;
                 tempKernel[kernelIndex(kernelRow, 2)] = y - cenY - 1;
-                if (y == southEdge) { // If we just started a new rectangle at southEdge, it must end there too
+                if (y == southEdge) { // If we just started a new rectangle at southEdge, it must
+                                      //  end there too
                     tempKernel[kernelIndex(kernelRow, 3)] = y - cenY;
                     break;
                 }
@@ -133,16 +138,19 @@ private:
                     while (true) {
                         y++;
                         if (y > southEdge) {
-                            tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // Rectangle can't extend below south edge
+                            // Rectangle can't extend below south edge
+                            tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1;
                             break;
                         }
 
                         // Check if the circle has widened
-                        if (horizontalOffset < numCols / 2) { // Rectangles that wrap around the whole world can't widen any more
+                        if (horizontalOffset < numCols / 2) { // Rectangles that wrap around the
+                                                              //  whole world can't widen any more
                             currLon = lon(cenX + horizontalOffset + 1);
                             currLat = lat(y);
                             if (distance(currLat, currLon, cenLat, cenLon) <= radius) {
-                                tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The circle has widened; the rectangle is done
+                                // The circle has widened; the rectangle is done
+                                tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1;
                                 kernelRow++;
                                 break;
                             }
@@ -151,7 +159,8 @@ private:
                         currLon = lon(cenX + horizontalOffset);
                         currLat = lat(y);
                         if (distance(currLat, currLon, cenLat, cenLon) > radius) {
-                            tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1; // The y value can no longer be in the rectangle
+                            // The y value can no longer be in the rectangle
+                            tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1;
                             kernelRow++;
                             break;
                         }
@@ -161,40 +170,41 @@ private:
         }
 
         kernelLength = kernelRow + 1; // Visible to the caller
-        // Now that we know the length of kernel, we can construct it using the data in tempKernel and then return it
+        // Now that we know the length of kernel, we can construct it using the data in tempKernel
+        //  and then return it
         int* kernel = new int[kernelLength * KERNEL_WIDTH];
         for (kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
             for (int kernelCol = 0; kernelCol < KERNEL_WIDTH; kernelCol++) {
-                kernel[kernelIndex(kernelRow, kernelCol)] = tempKernel[kernelIndex(kernelRow, kernelCol)];
+                kernel[kernelIndex(kernelRow, kernelCol)] 
+                    = tempKernel[kernelIndex(kernelRow, kernelCol)];
             }
         }
         delete[] tempKernel;
         return kernel;
     }
 
-    // Returns the total population in the specified rectangle. West and north are 1 pixel outside of the rectangle,
-    // east and south are 1 pixel inside of the rectangle.
-    // TODO: Make this not use conditional logic by just padding the north and west sides of popSumTable with 0s
+    // Returns the total population in the specified rectangle. West and north are 1 pixel outside
+    //  of the rectangle, east and south are 1 pixel inside of the rectangle.
+    // TODO: Make this not use conditional logic by just padding the north and west sides of
+    //  popSumTable with 0s
     // TODO: If this makes the program slow, see if making it inline helps
     double popWithinRectangle(const int west, const int east, const int north, const int south) {
         if (west == -1) {
             if (north == -1) {
-                return sumTable[south][east]; // West side of rectangle on the antimeridian and north side of rectangle on the north pole
+                return sumTable[south][east]; // West side of rectangle on the antimeridian and
+                                              //  north side of rectangle on the north pole
             }
-            return sumTable[south][east] - sumTable[north][east]; // West side of rectangle on the antimeridian
+            return sumTable[south][east] - sumTable[north][east]; // West side of rectangle on the
+                                                                  //  antimeridian
         } else if (north == -1) { // North side of rectangle on the north pole
             return sumTable[south][east] - sumTable[south][west];
         }
-        return sumTable[south][east] - sumTable[north][east] - sumTable[south][west] + sumTable[north][west];
+        return sumTable[south][east] - sumTable[north][east] - sumTable[south][west] 
+               + sumTable[north][west];
     }
 
-    // Returns the population of a circle with a radius of <radius> kilometers centered at the given latittude <cenLat>
-    // and longitude <cenLon>. TODO: Make this comment make more sense
-    // Uses pop as the population data. dataTiff must be the Geotiff that pop is from. Need both to avoid constantly making
-    // new arrays I think. Could alternatively modify the Geotiff class to just include the pointer to the array I think.
-    // pop must have first dimension corresponding to longitude, second corresponding to reverse lattitude
-    // TODO: Make a coordinates class
-    // TODO: figure out where to put const around pop type
+    // Returns the population of a circle with a radius of <radius> kilometers centered at the given
+    //  latittude <cenLat> and longitude <cenLon>. TODO: Make this comment make more sense
     double popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength) {
         double totalPop = 0;
 
@@ -205,12 +215,14 @@ private:
             const int north = kernel[kernelIndex(kernelRow, 2)] + cenY;
             const int south = kernel[kernelIndex(kernelRow, 3)] + cenY;
 
-            if (kernel[kernelIndex(kernelRow, 1)] == numCols / 2) { // This rectangle encircles the entire latitude
+            if (kernel[kernelIndex(kernelRow, 1)] == numCols / 2) { // This rectangle encircles the
+                                                                    //  entire latitude
                 totalPop += popWithinRectangle(-1, numCols - 1, north, south);
             } else if (west < -1) { // Need to wrap around the antimeridian, creating two rectangles
                 totalPop += popWithinRectangle(-1, east, north, south);
                 totalPop += popWithinRectangle(numCols + west, numCols - 1, north, south);
-            } else if (east >= numCols) { // Need to wrap around the antimeridian, creating two rectangles
+            } else if (east >= numCols) { // Need to wrap around the antimeridian, creating two
+                                          //  rectangles
                 totalPop += popWithinRectangle(west, numCols - 1, north, south);
                 totalPop += popWithinRectangle(-1, east - numCols, north, south);
             } else {
@@ -252,9 +264,10 @@ public:
     //  followed by SMALLEST_CIRCLES_VALUE_LENGTH doubles.
     // TODO: Include some information in smallestCircleResultsFile to make sure it corresponds to
     //  this sumTableFile.
+    // TODO: see if smallestCircleResultsFilename shouldn't be pass by reference
     EquirectRasterData(const std::string& sumTableFilename,
                        const std::string& smallestCircleResultsFilename) : 
-                       smallestCircleResultsFilename(smallestCircleResultsFilename) { // TODO: see if this shouldn't be pass by reference
+                       smallestCircleResultsFilename(smallestCircleResultsFilename) {
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
@@ -279,12 +292,15 @@ public:
         end = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::beg);
         if (begin - end == 0) {
-            std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it non-empty and existing." << std::endl;
+            std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it "
+                "non-empty and existing." << std::endl;
             smallestCircleResultsFile.close();
             // Make the file
-            smallestCircleResultsFile.open(smallestCircleResultsFilename, std::ios::out | std::ios::binary);
+            smallestCircleResultsFile.open(smallestCircleResultsFilename, 
+                                           std::ios::out | std::ios::binary);
             int numSmallestCircleResults = 0;
-            smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults), sizeof(int));
+            smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults),
+                                            sizeof(int));
         } else {
             int numSmallestCircleResults;
             smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
@@ -297,8 +313,8 @@ public:
                 // TODO: See if I can just read in entire arrays at once
                 // TODO: See if std::vector would make more sense here
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    smallestCircleResultsFile.read(reinterpret_cast<char *>(&smallestCirclesValue[j]),
-                                                   sizeof(double));
+                    smallestCircleResultsFile.read(
+                        reinterpret_cast<char *>(&smallestCirclesValue[j]), sizeof(double));
                 }
                 smallestCircleResults[radius] = smallestCirclesValue;
             }
@@ -315,7 +331,8 @@ public:
     }
 
     // Returns distance in kilometers between two points on Earth's surface
-    static double distance(const double& lat1, const double& lon1, const double& lat2, const double& lon2) {
+    static double distance(const double& lat1, const double& lon1, const double& lat2, 
+                           const double& lon2) {
         double req = 6378137.0;
 
         // alexmijo added code for dealing with equatorial points or identical points
@@ -393,7 +410,8 @@ public:
 
             // Update Lambda
             diff = lambda;
-            lambda = L + (1 - C) * f * sin_alpha * (sigma + C * sin_sigma * (cos_2sigma_m + C * cos_sigma * (-1 + 2 * cos_2sigma_m * cos_2sigma_m)));
+            lambda = L + (1 - C) * f * sin_alpha * (sigma + C * sin_sigma * (cos_2sigma_m + C 
+                     * cos_sigma * (-1 + 2 * cos_2sigma_m * cos_2sigma_m)));
             diff = lambda - diff;
             if (std::fabs(diff) < 0.00001) { break; }
         }
@@ -408,7 +426,9 @@ public:
 
         // Sigma
         double cos_2sigma_m_sq = cos_2sigma_m * cos_2sigma_m;
-        double delta_sigma = B * sin_sigma * (cos_2sigma_m + (B / 4.0) * (cos_sigma * (-1 * 2 * cos_2sigma_m_sq) - (B / 6.0) * cos_2sigma_m * (-3 + 4 * sin_sigma * sin_sigma) * (-3 + 4 * cos_2sigma_m_sq)));
+        double delta_sigma = B * sin_sigma * (cos_2sigma_m + (B / 4.0) * (cos_sigma * (-1 * 2 
+                             * cos_2sigma_m_sq) - (B / 6.0) * cos_2sigma_m * (-3 + 4 * sin_sigma 
+                             * sin_sigma) * (-3 + 4 * cos_2sigma_m_sq)));
 
         // Distance
         double s = b * A * (sigma - delta_sigma);
@@ -433,11 +453,13 @@ public:
     //  circle and the sum of the data inside the circle [2].
     // Can optionally constrain the center of the circle to be within given ranges of latitudes and
     //  longitudes with leftLon, rightLon, upLat and downLat.
-    // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure known to
-    //  be at least as small as what the largestSum will end up being.
+    // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure
+    //  known to be at least as small as what the largestSum will end up being.
     // Radius given in kilometers.
-    double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, const double rightLon=180,
-                                          const double upLat=90, const double downLat=-90, const double initialLargestSum=0) {
+    double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
+                                          const double rightLon=180, const double upLat=90, 
+                                          const double downLat=-90, 
+                                          const double initialLargestSum=0) {
         const int smallStep = 1; //1
         const int mediumStep = std::max((int)(radius / 128), 1); //4
         const int largeStep = std::max((int)(radius / 32), 1); //16
@@ -467,8 +489,8 @@ public:
             for (int cenX = leftX; cenX <= rightX; cenX += step) {
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
                 if (popWithinNKilometers >= largestSum) {
-                    std::cout << "Sum within " << radius << " kilometers of (" \
-                        << lat(cenY) << ", " << lon(cenX) << "): " \
+                    std::cout << "Sum within " << radius << " kilometers of ("
+                        << lat(cenY) << ", " << lon(cenX) << "): "
                         << ((long long)popWithinNKilometers) << std::endl;
                     largestSumCenLon = lon(cenX);
                     largestSumCenLat = lat(cenY);
@@ -522,8 +544,10 @@ public:
     // The parameter initialSmallestSum can speed up computation if it is passed in. Must be for sure known to
     //  be at least as large as what the smallestSum will end up being.
     // Radius given in kilometers.
-    double* smallestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, const double rightLon=180,
-                                           const double upLat=90, const double downLat=-90, const double initialSmallestSum=1000000000000000) {
+    double* smallestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
+                                           const double rightLon=180, const double upLat=90, 
+                                           const double downLat=-90, 
+                                           const double initialSmallestSum=1000000000000000) {
         const int smallStep = 1; //1
         const int mediumStep = std::max((int)(radius / 128), 1); //4
         const int largeStep = std::max((int)(radius / 32), 1); //16
@@ -553,8 +577,8 @@ public:
             for (int cenX = leftX; cenX <= rightX; cenX += step) {
                 double sumWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
                 if (sumWithinNKilometers <= smallestSum) {
-                    std::cout << "Sum within " << radius << " kilometers of (" \
-                        << lat(cenY) << ", " << lon(cenX) << "): " \
+                    std::cout << "Sum within " << radius << " kilometers of ("
+                        << lat(cenY) << ", " << lon(cenX) << "): "
                         << ((long long)sumWithinNKilometers) << std::endl;
                     smallestSumCenLon = lon(cenX);
                     smallestSumCenLat = lat(cenY);
@@ -601,10 +625,11 @@ public:
     }
 
     // TODO: Make a spec comment for this
-    // Kind of dangerous to pass in the last 4 args to this function, since the smallestCircleResultsFile
-    //  might get spurious data added to it then
-    double* smallestCircleWithGivenSum(const double sum, const double leftLon=-180, const double rightLon=180,
-                                       const double upLat=90, const double downLat=-90) {
+    // Kind of dangerous to pass in the last 4 args to this function, since the
+    //  smallestCircleResultsFile might get spurious data added to it then
+    double* smallestCircleWithGivenSum(const double sum, const double leftLon=-180, 
+                                       const double rightLon=180, const double upLat=90, 
+                                       const double downLat=-90) {
         // Radii will be ints cause only interested in getting to the nearest kilometer
         const int EQUATOR_LEN = 40075;
         int upperBound = EQUATOR_LEN / 2;
@@ -637,7 +662,8 @@ public:
             double narrowRightLon = rightLon;
             double narrowUpLat = upLat;
             double narrowDownLat = downLat;
-            // May be able to use knowledge from past map results (the ones on reddit) to narrow the search area
+            // May be able to use knowledge from past map results (the ones on reddit) to narrow the
+            //  search area
             if (radius < 117) {
                 // Uncharted territory, don't narrow search area
             } else if (radius <= 8500) {
@@ -649,7 +675,10 @@ public:
                 narrowDownLat = -53;
             }
 
-            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, narrowLeftLon, narrowRightLon, narrowUpLat, narrowDownLat, initialLargestSum);
+            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, narrowLeftLon, 
+                                                                     narrowRightLon, narrowUpLat, 
+                                                                     narrowDownLat, 
+                                                                     initialLargestSum);
             if (largestSumCircle[2] >= sum) {
                 upperBound = radius;
                 if (returnValuesAssigned) {
@@ -667,40 +696,52 @@ public:
             }
 
             // Add result to smallestCircleResults and its file
-            std::map<int, double*>::iterator it = smallestCircleResults.find(radius); // TODO: Combine this line and the next one
+            // TODO: Combine this line and the next one
+            std::map<int, double*>::iterator it = smallestCircleResults.find(radius);
             if (it != smallestCircleResults.end()) {
-                // TODO: Figure out a better way to do these sort of things (probably throw an exception)
+                // TODO: Figure out a better way to do these sort of things (probably throw an
+                //  exception)
                 // TODO: See if there's a way to send a string to both streams
-                std::cout << "smallestCircleWithGivenSum had an error involving smallestCircleResults" << std::endl;
-                std::cerr << "smallestCircleWithGivenSum had an error involving smallestCircleResults" << std::endl; // Above line might get drowned out
+                std::cout << "smallestCircleWithGivenSum had an error involving "
+                    "smallestCircleResults" << std::endl;
+                std::cerr << "smallestCircleWithGivenSum had an error involving "
+                    "smallestCircleResults" << std::endl; // Above line might get drowned out
             } else {
                 std::fstream smallestCircleResultsFile;
-                smallestCircleResultsFile.open(smallestCircleResultsFilename, std::ios::in | std::ios::out | std::ios::binary);
+                smallestCircleResultsFile.open(smallestCircleResultsFilename, 
+                                               std::ios::in | std::ios::out | std::ios::binary);
                 int numSmallestCircleResults;
-                smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults), sizeof(int));
+                smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults), 
+                                               sizeof(int));
                 numSmallestCircleResults++;
                 smallestCircleResultsFile.seekg(0, std::ios::beg);
-                smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults), sizeof(int));
+                smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults),
+                                                sizeof(int));
                 smallestCircleResultsFile.seekg(0, std::ios::end);
                 smallestCircleResultsFile.write(reinterpret_cast<char *>(&radius), sizeof(int));
                 // TODO: See if I can just write the entire array at once
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    smallestCircleResultsFile.write(reinterpret_cast<char *>(&largestSumCircle[j]), sizeof(double));
+                    smallestCircleResultsFile.write(reinterpret_cast<char *>(&largestSumCircle[j]), 
+                                                    sizeof(double));
                 }
                 smallestCircleResultsFile.close();
+                // TODO: Instead of this workaround, just don't delete[] largestSumCircle in this
+                //  case
                 smallestCircleResults[radius] = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
                 smallestCircleResults[radius][0] = largestSumCircle[0];
                 smallestCircleResults[radius][1] = largestSumCircle[1];
-                smallestCircleResults[radius][2] = largestSumCircle[2]; // TODO: Instead of this workaround, just don't delete[] largestSumCircle in this case
+                smallestCircleResults[radius][2] = largestSumCircle[2];
             }
 
             delete[] largestSumCircle;
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
         }
         if (!returnValuesAssigned) {
-            // TODO: Figure out a better way to do these sort of things (probably throw an exception)
-            std::cout << "smallestCircleWithGivenSum wasn't able to find a circle with a large enough sum. "
-                      << "Either the sum (" << sum << ") was too large, or a bug occurred." << std::endl;
+            // TODO: Figure out a better way to do these sort of things (probably throw an
+            //  exception)
+            std::cout << "smallestCircleWithGivenSum wasn't able to find a circle with a large "
+                "enough sum. Either the sum (" << sum << ") was too large, or a bug occurred." 
+                << std::endl;
         }
         return returnValues;
     }
@@ -719,17 +760,21 @@ int main() {
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
 
-    std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." << std::endl;
+    std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." 
+        << std::endl;
 
     for (int i = 1; i <= 50; i++) {
         percent = i;
 
-        double *smallestCircle = data.smallestCircleWithGivenSum((WORLD_POP_2015 / 100.0) * percent);
+        double *smallestCircle = data.smallestCircleWithGivenSum(
+                                     (WORLD_POP_2015 / 100.0) * percent);
 
-        std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's population ("
-                << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" << std::endl;
-        std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] << ", " << smallestCircle[0] << "): "
-                << ((long long)(smallestCircle[2])) << std::endl << std::endl;
+        std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's"
+            " population (" << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" 
+            << std::endl;
+        std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] 
+            << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl 
+            << std::endl;
 
         delete[] smallestCircle;
     }
