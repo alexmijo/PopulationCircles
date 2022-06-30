@@ -693,7 +693,7 @@ int main() {
     // TODO: Make it so that the program works even if populationMode is false
     const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
     const bool smallestPopMode = false;
-    double percent = 1;
+    double percent;
 
     double leftLon = -180;
     double rightLon = 180;
@@ -707,12 +707,16 @@ int main() {
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." << std::endl;
 
-    double *smallestCircle = data.smallestCircleWithGivenSum((WORLD_POP_2015 / 100.0) * percent, leftLon, rightLon, upLat, downLat);
+    for (int i = 1; i <= 100; i++) {
+        percent = i;
 
-    std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's population ("
-              << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" << std::endl;
-    std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] << ", " << smallestCircle[0] << "): "
-              << ((long long)(smallestCircle[2])) << std::endl;
+        double *smallestCircle = data.smallestCircleWithGivenSum((WORLD_POP_2015 / 100.0) * percent, leftLon, rightLon, upLat, downLat);
 
-    delete[] smallestCircle;
+        std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's population ("
+                << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" << std::endl;
+        std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] << ", " << smallestCircle[0] << "): "
+                << ((long long)(smallestCircle[2])) << std::endl;
+
+        delete[] smallestCircle;
+    }
 }
