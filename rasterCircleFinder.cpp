@@ -85,6 +85,7 @@ private:
 
     // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference parameter kernelLength.
     // TODO: Make the kernel an actual 2d array
+    // TODO: See if this double counts part of 1 column when wrapping around all longitudes
     int* makeKernel(const int cenX, const int cenY, const double radius, int& kernelLength) {
         const double cenLon = lon(cenX);
         const double cenLat = lat(cenY);
@@ -480,19 +481,19 @@ public:
                     }
                     step = smallStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.6) {
+                else if (popWithinNKilometers > largestSum * 0.63) {
                     if (step > mediumStep) {
                         cenX -= step;
                     }
                     step = mediumStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.4) {
+                else if (popWithinNKilometers > largestSum * 0.45) {
                     if (step > largeStep) {
                         cenX -= step;
                     }
                     step = largeStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.2) {
+                else if (popWithinNKilometers > largestSum * 0.3) {
                     if (step > xLStep) {
                         cenX -= step;
                     }
@@ -600,7 +601,8 @@ public:
     }
 
     // TODO: Make a spec comment for this
-    // TODO: Make this use some sort of dictionary of past results to avoid redoing tons of computation
+    // Kind of dangerous to pass in the last 4 args to this function, since the smallestCircleResultsFile
+    //  might get spurious data added to it then
     double* smallestCircleWithGivenSum(const double sum, const double leftLon=-180, const double rightLon=180,
                                        const double upLat=90, const double downLat=-90) {
         // Radii will be ints cause only interested in getting to the nearest kilometer
@@ -631,7 +633,23 @@ public:
 
         int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
         while (upperBound - lowerBound > 1) {
-            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, leftLon, rightLon, upLat, downLat, initialLargestSum);
+            double narrowLeftLon = leftLon;
+            double narrowRightLon = rightLon;
+            double narrowUpLat = upLat;
+            double narrowDownLat = downLat;
+            // May be able to use knowledge from past map results (the ones on reddit) to narrow the search area
+            if (radius < 117) {
+                // Uncharted territory, don't narrow search area
+            } else if (radius <= 8500) {
+                narrowLeftLon = 42;
+                narrowRightLon = 135;
+                narrowUpLat = 53;
+                narrowDownLat = 11;
+            } else if (radius < 15000) {
+                narrowDownLat = -53;
+            }
+
+            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, narrowLeftLon, narrowRightLon, narrowUpLat, narrowDownLat, initialLargestSum);
             if (largestSumCircle[2] >= sum) {
                 upperBound = radius;
                 if (returnValuesAssigned) {
@@ -692,13 +710,9 @@ int main() {
     //-------------------------------Parameters---------------------------------------------
     // TODO: Make it so that the program works even if populationMode is false
     const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
-    const bool smallestPopMode = false;
+    // TODO: Actually use smallestPopMode
+    // const bool smallestPopMode = false;
     double percent;
-
-    double leftLon = -5; // TODO: Change this if I want to find more than 50%
-    double rightLon = 180;
-    double upLat = 90;
-    double downLat = -10;
     //-------------------------------Parameters-end-----------------------------------------
 
     std::string sumTableFilename = "popSumTable.bin";
@@ -710,12 +724,12 @@ int main() {
     for (int i = 1; i <= 50; i++) {
         percent = i;
 
-        double *smallestCircle = data.smallestCircleWithGivenSum((WORLD_POP_2015 / 100.0) * percent, leftLon, rightLon, upLat, downLat);
+        double *smallestCircle = data.smallestCircleWithGivenSum((WORLD_POP_2015 / 100.0) * percent);
 
         std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's population ("
                 << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" << std::endl;
         std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] << ", " << smallestCircle[0] << "): "
-                << ((long long)(smallestCircle[2])) << std::endl;
+                << ((long long)(smallestCircle[2])) << std::endl << std::endl;
 
         delete[] smallestCircle;
     }
