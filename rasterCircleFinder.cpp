@@ -23,7 +23,7 @@ private:
     const static int SMALLEST_CIRCLES_VALUE_LENGTH = 4; // lon, lat, sum
     // key is radius, value is array holding lon, lat, sum
     std::map<int, double*> smallestCircleResults;
-    std::string smallestCircleResultsFilename;
+    std::string smallestCircleResultsFilename; // TODO: Make this a human readable text file instead of binary
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
@@ -422,16 +422,16 @@ public:
     // TODO: Check if the following two functions actually give the correct answers
     //  (by brute forcing some circles with the original pop data)
 
-// NEXT TODO!!!: Make largestSumCircleOfGivenRadius take an initial sum when it's called by smallestCircleWithGivenSum.
-
     // Finds the circle of the given radius that maximizes the sum of the data inside it. Returns
     //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
     //  circle and the sum of the data inside the circle [2].
     // Can optionally constrain the center of the circle to be within given ranges of latitudes and
     //  longitudes with leftLon, rightLon, upLat and downLat.
+    // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure known to
+    //  be at least as small as what the largestSum will end up being.
     // Radius given in kilometers.
     double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, const double rightLon=180,
-                                          const double upLat=90, const double downLat=-90) {
+                                          const double upLat=90, const double downLat=-90, const double initialLargestSum=0) {
         const int smallStep = 1; //1
         const int mediumStep = std::max((int)(radius / 128), 1); //4
         const int largeStep = std::max((int)(radius / 32), 1); //16
@@ -448,7 +448,7 @@ public:
 
         double largestSumCenLon;
         double largestSumCenLat;
-        double largestSum = 0;
+        double largestSum = initialLargestSum;
 
         for (int cenY = upY; cenY <= downY; cenY += step) {
             if (cenY % printMod == 0) {
@@ -460,7 +460,7 @@ public:
 
             for (int cenX = leftX; cenX <= rightX; cenX += step) {
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
-                if (popWithinNKilometers > largestSum) {
+                if (popWithinNKilometers >= largestSum) {
                     std::cout << "Sum within " << radius << " kilometers of (" \
                         << lat(cenY) << ", " << lon(cenX) << "): " \
                         << ((long long)popWithinNKilometers) << std::endl;
@@ -513,9 +513,11 @@ public:
     //  circle and the sum of the data inside the circle [2].
     // Can optionally constrain the center of the circle to be within given ranges of latitudes and
     //  longitudes with leftLon, rightLon, upLat and downLat.
+    // The parameter initialSmallestSum can speed up computation if it is passed in. Must be for sure known to
+    //  be at least as large as what the smallestSum will end up being.
     // Radius given in kilometers.
     double* smallestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, const double rightLon=180,
-                                           const double upLat=90, const double downLat=-90) {
+                                           const double upLat=90, const double downLat=-90, const double initialSmallestSum=1000000000000000) {
         const int smallStep = 1; //1
         const int mediumStep = 4; //4
         const int largeStep = 16; //16
@@ -532,7 +534,7 @@ public:
 
         double smallestSumCenLon;
         double smallestSumCenLat;
-        double smallestSum = 100000000000; // One hundred billion
+        double smallestSum = initialSmallestSum;
 
         for (int cenY = upY; cenY <= downY; cenY += step) {
             if (cenY % printMod == 0) {
@@ -544,7 +546,7 @@ public:
 
             for (int cenX = leftX; cenX <= rightX; cenX += step) {
                 double sumWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
-                if (sumWithinNKilometers < smallestSum) {
+                if (sumWithinNKilometers <= smallestSum) {
                     std::cout << "Sum within " << radius << " kilometers of (" \
                         << lat(cenY) << ", " << lon(cenX) << "): " \
                         << ((long long)sumWithinNKilometers) << std::endl;
@@ -602,12 +604,14 @@ public:
         int lowerBound = 0;
         double *returnValues;
         bool returnValuesAssigned = false; // Pointer not yet pointing to an array
+        double initialLargestSum = 0; // To be passed into largestSumCircleOfGivenRadius()
 
         // Tighten bounds as much as possible using previous results
         for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
              it != smallestCircleResults.end(); it++) {
             if ((it->second)[2] < sum) {
                 lowerBound = it->first;
+                initialLargestSum = (it->second)[2];
             } else if ((it->second)[2] >= sum) {
                 upperBound = it->first;
                 returnValues = new double[4];
@@ -622,7 +626,7 @@ public:
 
         int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
         while (upperBound - lowerBound > 1) {
-            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, leftLon, rightLon, upLat, downLat);
+            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, leftLon, rightLon, upLat, downLat, initialLargestSum);
             if (largestSumCircle[2] >= sum) {
                 upperBound = radius;
                 if (returnValuesAssigned) {
@@ -636,6 +640,7 @@ public:
                 returnValuesAssigned = true;
             } else {
                 lowerBound = radius;
+                initialLargestSum = largestSumCircle[2];
             }
 
             // Add result to smallestCircleResults and its file
