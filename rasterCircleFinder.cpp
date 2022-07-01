@@ -497,25 +497,25 @@ public:
                     largestSum = popWithinNKilometers;
                 }
 
-                if (popWithinNKilometers > largestSum * 0.8) {
+                if (popWithinNKilometers > largestSum * 0.82) {
                     if (step > smallStep) {
                         cenX -= step;
                     }
                     step = smallStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.63) {
+                else if (popWithinNKilometers > largestSum * 0.65) {
                     if (step > mediumStep) {
                         cenX -= step;
                     }
                     step = mediumStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.45) {
+                else if (popWithinNKilometers > largestSum * 0.47) {
                     if (step > largeStep) {
                         cenX -= step;
                     }
                     step = largeStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.3) {
+                else if (popWithinNKilometers > largestSum * 0.32) {
                     if (step > xLStep) {
                         cenX -= step;
                     }
@@ -666,7 +666,7 @@ public:
             //  search area
             if (radius < 117) {
                 // Uncharted territory, don't narrow search area
-            } else if (radius <= 8500) {
+            } else if (radius <= 8000) {
                 narrowLeftLon = 42;
                 narrowRightLon = 135;
                 narrowUpLat = 53;
