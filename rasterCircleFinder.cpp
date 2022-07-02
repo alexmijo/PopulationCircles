@@ -11,6 +11,7 @@
 #include <cmath>
 #include <fstream>
 #include <map>
+#include <iomanip>
 
 const double WORLD_POP_2015 = 7346242908.863955;
 
@@ -773,7 +774,10 @@ int main() {
             " population (" << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" 
             << std::endl;
         std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] 
-            << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl 
+            << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl; 
+        // For entering into the python map making code:
+        std::cout << percent << ": (" << smallestCircle[3] << ", (" << std::setprecision(8)
+            << smallestCircle[1] << ", " << smallestCircle[0] << "))" << std::setprecision(6)
             << std::endl;
 
         delete[] smallestCircle;
