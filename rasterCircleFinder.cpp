@@ -460,14 +460,19 @@ public:
     double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
                                           const double rightLon=180, const double upLat=90, 
                                           const double downLat=-90, 
-                                          const double initialLargestSum=0) {
+                                          const double initialLargestSum=0, const int minStep=1) {
         const int smallStep = 1; //1
         const int mediumStep = std::max((int)(radius / 128), 1); //4
         const int largeStep = std::max((int)(radius / 32), 1); //16
         const int xLStep = std::max((int)(radius / 8), 1); //64
         const int xXLStep = std::max((int)(radius / 2), 1); //256
-        const int printMod = 163; // Print lattitude when the Y index mod this is 0
 
+        const double smallCutoff = 0.99; // 0.82
+        const double mediumCutoff = 0.98; // 0.65
+        const double largeCutoff = 0.97; // 0.47
+        const double xLCutoff = 0.96; // 0.32
+        
+        const int printMod = 163; // Print lattitude when the Y index mod this is 0
         int step = smallStep;
         // Turn lat and lon into indices in the pop data.
         const int leftX = lonToX(leftLon);
@@ -498,25 +503,25 @@ public:
                     largestSum = popWithinNKilometers;
                 }
 
-                if (popWithinNKilometers > largestSum * 0.82) {
+                if (popWithinNKilometers > largestSum * smallCutoff) {
                     if (step > smallStep) {
                         cenX -= step;
                     }
                     step = smallStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.65) {
+                else if (popWithinNKilometers > largestSum * mediumCutoff) {
                     if (step > mediumStep) {
                         cenX -= step;
                     }
                     step = mediumStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.47) {
+                else if (popWithinNKilometers > largestSum * largeCutoff) {
                     if (step > largeStep) {
                         cenX -= step;
                     }
                     step = largeStep;
                 }
-                else if (popWithinNKilometers > largestSum * 0.32) {
+                else if (popWithinNKilometers > largestSum * xLCutoff) {
                     if (step > xLStep) {
                         cenX -= step;
                     }
@@ -748,7 +753,24 @@ public:
     }
 };
 
-int main() {
+// See what I can get away with
+void testCircleSkipping() {
+    double radius = 11029;
+
+    std::cout << "Loading population summation table." << std::endl;
+    std::string sumTableFilename = "popSumTable.bin";
+    std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
+    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
+    std::cout << "Loaded population summation table." << std::endl;
+
+    double *smallestCircle = data.largestSumCircleOfGivenRadius(radius, -180, 180, 55, -90, 7140000000);
+    std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] 
+        << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl;
+    delete[] smallestCircle;
+}
+
+// What was in the main function before.
+void normalMain() {
     //-------------------------------Parameters---------------------------------------------
     // TODO: Make it so that the program works even if populationMode is false
     const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
@@ -782,4 +804,8 @@ int main() {
 
         delete[] smallestCircle;
     }
+}
+
+int main() {
+    testCircleSkipping();
 }
