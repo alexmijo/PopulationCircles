@@ -292,6 +292,9 @@ public:
         smallestCircleResultsFile.seekg(0, std::ios::end);
         end = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::beg);
+        std::ofstream textResults;
+        std::string textResultsFilename = "testSmallestCircleResults.txt";
+        textResults.open(textResultsFilename);
         if (begin - end == 0) {
             std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it "
                 "non-empty and existing." << std::endl;
@@ -306,6 +309,7 @@ public:
             int numSmallestCircleResults;
             smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
                                         sizeof(int));
+            textResults << numSmallestCircleResults << std::endl;
             for (int i = 0; i < numSmallestCircleResults; i++) {
                 int radius;
                 smallestCircleResultsFile.read(reinterpret_cast<char *>(&radius), sizeof(int));
@@ -318,9 +322,13 @@ public:
                         reinterpret_cast<char *>(&smallestCirclesValue[j]), sizeof(double));
                 }
                 smallestCircleResults[radius] = smallestCirclesValue;
+                textResults << radius << " " << std::setprecision(17) << smallestCirclesValue[0]
+                    << " " << smallestCirclesValue[1] << " " << smallestCirclesValue[2]
+                    << std::setprecision(6) << std::endl;
             }
         }
         smallestCircleResultsFile.close();
+        textResults.close();
     }
 
     ~EquirectRasterData() {
@@ -769,6 +777,14 @@ void testCircleSkipping() {
     delete[] smallestCircle;
 }
 
+void convertResultsToText() {
+    std::cout << "Loading population summation table." << std::endl;
+    std::string sumTableFilename = "popSumTable.bin";
+    std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
+    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
+    std::cout << "Loaded population summation table." << std::endl;
+}
+
 // What was in the main function before.
 void normalMain() {
     //-------------------------------Parameters---------------------------------------------
@@ -807,5 +823,5 @@ void normalMain() {
 }
 
 int main() {
-    testCircleSkipping();
+    convertResultsToText();
 }
