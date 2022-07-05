@@ -12,6 +12,7 @@
 #include <fstream>
 #include <map>
 #include <iomanip>
+#include <vector>
 
 const double WORLD_POP_2015 = 7346242908.863955;
 
@@ -266,8 +267,10 @@ public:
     // TODO: Include some information in smallestCircleResultsFile to make sure it corresponds to
     //  this sumTableFile.
     // TODO: see if smallestCircleResultsFilename shouldn't be pass by reference
+    // TODO: Make it just use the text file instead of sometimes creating it from the binary one
     EquirectRasterData(const std::string& sumTableFilename,
-                       const std::string& smallestCircleResultsFilename) : 
+                       const std::string& smallestCircleResultsFilename,
+                       const bool alsoCreateTextFile=false) : 
                        smallestCircleResultsFilename(smallestCircleResultsFilename) {
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
@@ -293,8 +296,10 @@ public:
         end = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::beg);
         std::ofstream textResults;
-        std::string textResultsFilename = "testSmallestCircleResults.txt";
-        textResults.open(textResultsFilename);
+        if (alsoCreateTextFile) {
+            std::string textResultsFilename = "testSmallestCircleResults.txt"; // Change sometimes
+            textResults.open(textResultsFilename);
+        }
         if (begin - end == 0) {
             std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it "
                 "non-empty and existing." << std::endl;
@@ -309,7 +314,9 @@ public:
             int numSmallestCircleResults;
             smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
                                         sizeof(int));
-            textResults << numSmallestCircleResults << std::endl;
+            if (alsoCreateTextFile) {
+                textResults << numSmallestCircleResults << std::endl;
+            }
             for (int i = 0; i < numSmallestCircleResults; i++) {
                 int radius;
                 smallestCircleResultsFile.read(reinterpret_cast<char *>(&radius), sizeof(int));
@@ -322,13 +329,17 @@ public:
                         reinterpret_cast<char *>(&smallestCirclesValue[j]), sizeof(double));
                 }
                 smallestCircleResults[radius] = smallestCirclesValue;
-                textResults << radius << " " << std::setprecision(17) << smallestCirclesValue[0]
-                    << " " << smallestCirclesValue[1] << " " << smallestCirclesValue[2]
-                    << std::setprecision(6) << std::endl;
+                if (alsoCreateTextFile) {
+                    textResults << radius << " " << std::setprecision(17) << smallestCirclesValue[0]
+                        << " " << smallestCirclesValue[1] << " " << smallestCirclesValue[2]
+                        << std::setprecision(6) << std::endl;
+                }
             }
         }
         smallestCircleResultsFile.close();
-        textResults.close();
+        if (alsoCreateTextFile) {
+            textResults.close();
+        }
     }
 
     ~EquirectRasterData() {
@@ -468,17 +479,17 @@ public:
     double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
                                           const double rightLon=180, const double upLat=90, 
                                           const double downLat=-90, 
-                                          const double initialLargestSum=0, const int minStep=1) {
+                                          const double initialLargestSum=0) {
         const int smallStep = 1; //1
         const int mediumStep = std::max((int)(radius / 128), 1); //4
         const int largeStep = std::max((int)(radius / 32), 1); //16
         const int xLStep = std::max((int)(radius / 8), 1); //64
         const int xXLStep = std::max((int)(radius / 2), 1); //256
 
-        const double smallCutoff = 0.99; // 0.82
-        const double mediumCutoff = 0.98; // 0.65
-        const double largeCutoff = 0.97; // 0.47
-        const double xLCutoff = 0.96; // 0.32
+        const double smallCutoff = 0.82; // 0.82
+        const double mediumCutoff = 0.65; // 0.65
+        const double largeCutoff = 0.47; // 0.47
+        const double xLCutoff = 0.32; // 0.32
         
         const int printMod = 163; // Print lattitude when the Y index mod this is 0
         int step = smallStep;
@@ -548,6 +559,137 @@ public:
         returnValues[1] = largestSumCenLat;
         returnValues[2] = largestSum;
         return returnValues;
+    }
+
+    // First new approach to optimizing the function
+    // TODO: Make this less spagettiish
+    // Doesn't really restrict strictly to range yet (TODO)
+    // TODO: Doesnt check easternmost or southernmost part of the world
+    double* largestSumCircleOfGivenRadiusOpt1(const double radius, const double leftLon=-180, 
+                                              const double rightLon=180, const double upLat=90, 
+                                              const double downLat=-90) {
+        // TODO: Don't look at centers outside these ranges
+        // Turn lat and lon into indices in the pop data.
+        const int leftX = lonToX(leftLon);
+        const int rightX = lonToX(rightLon);
+        const int upY = latToY(upLat);
+        const int downY = latToY(downLat);
+
+        double cutoff = 0.95;
+        int step = 256; // Must be a power of 4, I think
+        // TODO: Make this one vector instead of three
+        std::vector<int> topCenXs;
+        std::vector<int> topCenYs;
+        std::vector<double> topSums;
+        double largestSum = 0;
+
+        std::cout << "step: " << step << std::endl;
+        largestSumCirclesOfGivenRadiusOpt1PixelBoundaries(radius, leftX, rightX, upY, downY, step,
+                                                          topCenXs, topCenYs, topSums, largestSum,
+                                                          cutoff, -100, -100);
+        std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
+        std::cout << "largestSum: " << largestSum << std::endl;
+        cutUnderperformingCircles(topCenXs, topCenYs, topSums, largestSum, cutoff);
+
+        while (step > 1) {
+            step /= 4;
+            std::cout << "step: " << step << std::endl;
+            std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
+            std::cout << "largestSum: " << largestSum << std::endl;
+            if (step <= 4) {
+                cutoff = 0.99;
+            } else if (step <= 16) {
+                cutoff = 0.98;
+            } else if (step <= 64) {
+                cutoff = 0.97;
+            }
+            const int numCirclesToSum = topCenXs.size();
+            for (int i = 0; i < numCirclesToSum; i++) {
+                int sectionLeftX = topCenXs[i] - step * 2;
+                int sectionRightX = topCenXs[i] + step * 2 - 1;
+                int sectionUpY = topCenYs[i] - step * 2;
+                int sectionDownY = topCenYs[i] + step * 2 - 1;
+                largestSumCirclesOfGivenRadiusOpt1PixelBoundaries(radius, sectionLeftX,
+                                                                  sectionRightX, sectionUpY,
+                                                                  sectionDownY, step, topCenXs,
+                                                                  topCenYs, topSums, largestSum,
+                                                                  cutoff, topCenXs[i], topCenYs[i]);
+            }
+            cutUnderperformingCircles(topCenXs, topCenYs, topSums, largestSum, cutoff);
+        }
+
+        for (int i = 0; i < topCenXs.size(); i++) {
+            if (topSums[i] == largestSum) {
+                double *returnValues = new double[3];
+                returnValues[0] = lon(topCenXs[i]);
+                returnValues[1] = lat(topCenYs[i]);
+                returnValues[2] = largestSum;
+                return returnValues;
+            }
+        }
+
+        // TODO: Throw an exception here.
+        std::cerr << "Never get here!!! No return value for Opt1" << std::endl;
+        double *placeholder;
+        return placeholder;
+    }
+
+    // TODO: Make this private, probably
+    // Passed in ranges are inclusive.
+    // Adds all centers that are at least 90% the sum of the largest center to topCenXs and topCenYs
+    // Reassigns largestSum if necessary
+    void largestSumCirclesOfGivenRadiusOpt1PixelBoundaries(const double radius, const int leftX,
+                                                              const int rightX, const int upY,
+                                                              const int downY, const int step,
+                                                              std::vector<int>& topCenXs,
+                                                              std::vector<int>& topCenYs,
+                                                              std::vector<double>& topSums,
+                                                              double& largestSum,
+                                                              const double cutoff, const int skipX,
+                                                              const int skipY) {
+        for (int cenY = upY; cenY <= downY; cenY += step) {
+            if (cenY < 0 || cenY >= numRows) {
+                continue;
+            }
+            int kernelLength;
+            int* kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
+
+            for (int cenX = leftX; cenX <= rightX; cenX += step) {
+                if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
+                    continue;
+                }
+                double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
+                if (popWithinNKilometers > largestSum * cutoff) {
+                    std::cout << "Sum within " << radius << " kilometers of ("
+                        << lat(cenY) << ", " << lon(cenX) << "): "
+                        << ((long long)popWithinNKilometers) << std::endl;
+                    topCenXs.push_back(cenX);
+                    topCenYs.push_back(cenY);
+                    topSums.push_back(popWithinNKilometers);
+                    if (popWithinNKilometers > largestSum) {
+                        largestSum = popWithinNKilometers;
+                    }
+                }
+            }
+        }
+    }
+
+    // TODO: spec
+    // TODO: remove duplicates (actually, probably pass center into above function to prevent that)
+    void cutUnderperformingCircles(std::vector<int>& topCenXs, std::vector<int>& topCenYs,
+                                   std::vector<double>& topSums, const double largestSum,
+                                   const double cutoff) {
+        std::vector<int> indicesToErase;
+        for (int i = topSums.size() - 1; i >= 0; i--) {
+            if (topSums[i] < largestSum * cutoff) {
+                indicesToErase.push_back(i);
+            }
+        }
+        for (int indexToErase : indicesToErase) {
+            topCenXs.erase(topCenXs.begin() + indexToErase);
+            topCenYs.erase(topCenYs.begin() + indexToErase);
+            topSums.erase(topSums.begin() + indexToErase);
+        }
     }
 
     // Finds the circle of the given radius that minimizes the sum of the data inside it. Returns
@@ -771,17 +913,18 @@ void testCircleSkipping() {
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
-    double *smallestCircle = data.largestSumCircleOfGivenRadius(radius, -180, 180, 55, -90, 7140000000);
-    std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] 
+    double *smallestCircle = data.largestSumCircleOfGivenRadiusOpt1(radius);
+    std::cout << "Population within " << radius << " km of (" << smallestCircle[1] 
         << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl;
     delete[] smallestCircle;
 }
 
+// Just used to check what answers an optimization gave
 void convertResultsToText() {
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
-    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
+    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename, true);
     std::cout << "Loaded population summation table." << std::endl;
 }
 
@@ -823,5 +966,5 @@ void normalMain() {
 }
 
 int main() {
-    convertResultsToText();
+    testCircleSkipping();
 }
