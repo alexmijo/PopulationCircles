@@ -568,6 +568,7 @@ public:
     double* largestSumCircleOfGivenRadiusOpt1(const double radius, const double leftLon=-180, 
                                               const double rightLon=180, const double upLat=90, 
                                               const double downLat=-90) {
+        std::cout << "Radius:" << radius << std::endl;
         // TODO: Don't look at centers outside these ranges
         // Turn lat and lon into indices in the pop data.
         const int leftX = lonToX(leftLon);
@@ -575,8 +576,49 @@ public:
         const int upY = latToY(upLat);
         const int downY = latToY(downLat);
 
-        double cutoff = 0.95;
-        int step = 256; // Must be a power of 4, I think
+        int initialStep;
+        double cutoff256;
+        double cutoff64;
+        double cutoff16;
+        double cutoff4;
+        if (radius >= 9500) {
+            initialStep = 256;
+            cutoff256 = 0.92;
+            cutoff64 = 0.98;
+            cutoff16 = 0.996;
+            cutoff4 = 0.9985;
+        } else if (radius >= 950) {
+            initialStep = 256;
+            cutoff256 = 0.95;
+            cutoff64 = 0.97;
+            cutoff16 = 0.98;
+            cutoff4 = 0.99;
+        } else if (radius >= 300) {
+            initialStep = 64;
+            cutoff64 = 0.95;
+            cutoff16 = 0.97;
+            cutoff4 = 0.98;
+        } else if (radius >= 100) {
+            initialStep = 16;
+            cutoff16 = 0.95;
+            cutoff4 = 0.97;
+        } else if (radius >= 20) {
+            initialStep = 4;
+            cutoff4 = 0.7;
+        } else {
+            initialStep = 1;
+            cutoff4 = 0.999;
+        }
+
+        int step = initialStep; // Must be a power of 4, I think
+        double cutoff = cutoff256;
+        if (step <= 4) {
+            cutoff = cutoff4;
+        } else if (step <= 16) {
+            cutoff = cutoff16;
+        } else if (step <= 64) {
+            cutoff = cutoff64;
+        }
         // TODO: Make this one vector instead of three
         std::vector<int> topCenXs;
         std::vector<int> topCenYs;
@@ -588,20 +630,19 @@ public:
                                                           topCenXs, topCenYs, topSums, largestSum,
                                                           cutoff, -100, -100);
         std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
-        std::cout << "largestSum: " << largestSum << std::endl;
         cutUnderperformingCircles(topCenXs, topCenYs, topSums, largestSum, cutoff);
 
         while (step > 1) {
             step /= 4;
             std::cout << "step: " << step << std::endl;
             std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
-            std::cout << "largestSum: " << largestSum << std::endl;
+            std::cout << "largestSum: " << ((long)largestSum) << std::endl;
             if (step <= 4) {
-                cutoff = 0.99;
+                cutoff = cutoff4;
             } else if (step <= 16) {
-                cutoff = 0.98;
+                cutoff = cutoff16;
             } else if (step <= 64) {
-                cutoff = 0.97;
+                cutoff = cutoff64;
             }
             const int numCirclesToSum = topCenXs.size();
             for (int i = 0; i < numCirclesToSum; i++) {
@@ -624,12 +665,15 @@ public:
                 returnValues[0] = lon(topCenXs[i]);
                 returnValues[1] = lat(topCenYs[i]);
                 returnValues[2] = largestSum;
+                std::cout << "Sum within " << radius << " kilometers of (" << returnValues[1]
+                    << ", " << returnValues[0] << "): " << ((long)largestSum) << std::endl;
                 return returnValues;
             }
         }
 
         // TODO: Throw an exception here.
         std::cerr << "Never get here!!! No return value for Opt1" << std::endl;
+        std::cout << "Never get here!!! No return value for Opt1" << std::endl;
         double *placeholder;
         return placeholder;
     }
@@ -660,9 +704,9 @@ public:
                 }
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
                 if (popWithinNKilometers > largestSum * cutoff) {
-                    std::cout << "Sum within " << radius << " kilometers of ("
-                        << lat(cenY) << ", " << lon(cenX) << "): "
-                        << ((long long)popWithinNKilometers) << std::endl;
+                    // std::cout << "Sum within " << radius << " kilometers of ("
+                    //     << lat(cenY) << ", " << lon(cenX) << "): "
+                    //     << ((long long)popWithinNKilometers) << std::endl;
                     topCenXs.push_back(cenX);
                     topCenYs.push_back(cenY);
                     topSums.push_back(popWithinNKilometers);
@@ -671,6 +715,7 @@ public:
                     }
                 }
             }
+            delete[] kernel;
         }
     }
 
@@ -812,7 +857,7 @@ public:
             }
         }
 
-        int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
+        int radius = 10;//lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
         while (upperBound - lowerBound > 1) {
             double narrowLeftLon = leftLon;
             double narrowRightLon = rightLon;
@@ -822,19 +867,18 @@ public:
             //  search area
             if (radius < 117) {
                 // Uncharted territory, don't narrow search area
-            } else if (radius <= 8000) {
+            } else if (radius <= 8100) {
                 narrowLeftLon = 42;
                 narrowRightLon = 135;
                 narrowUpLat = 53;
                 narrowDownLat = 11;
-            } else if (radius < 15000) {
-                narrowDownLat = -53;
+            } else if (radius < 18000) {
+                narrowDownLat = -20;
             }
 
-            double *largestSumCircle = largestSumCircleOfGivenRadius(radius, narrowLeftLon, 
+            double *largestSumCircle = largestSumCircleOfGivenRadiusOpt1(radius, narrowLeftLon, 
                                                                      narrowRightLon, narrowUpLat, 
-                                                                     narrowDownLat, 
-                                                                     initialLargestSum);
+                                                                     narrowDownLat);
             if (largestSumCircle[2] >= sum) {
                 upperBound = radius;
                 if (returnValuesAssigned) {
@@ -891,6 +935,7 @@ public:
 
             delete[] largestSumCircle;
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
+            break;
         }
         if (!returnValuesAssigned) {
             // TODO: Figure out a better way to do these sort of things (probably throw an
@@ -923,7 +968,7 @@ void testCircleSkipping() {
 void convertResultsToText() {
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
-    std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
+    std::string smallestCircleResultsFilename = "popSmallestCircleResultsOpt1.bin";
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename, true);
     std::cout << "Loaded population summation table." << std::endl;
 }
@@ -939,13 +984,13 @@ void normalMain() {
     //-------------------------------Parameters-end-----------------------------------------
 
     std::string sumTableFilename = "popSumTable.bin";
-    std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
+    std::string smallestCircleResultsFilename = "popSmallestCircleResultsOpt1.bin";
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." 
         << std::endl;
 
-    for (int i = 1; i <= 50; i++) {
+    for (int i = 1; i <= 100; i++) {
         percent = i;
 
         double *smallestCircle = data.smallestCircleWithGivenSum(
