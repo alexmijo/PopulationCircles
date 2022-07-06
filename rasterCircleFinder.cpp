@@ -875,10 +875,10 @@ public:
             if (radius < 117) {
                 // Uncharted territory, don't narrow search area
             } else if (radius <= 8100) {
-                narrowLeftLon = 42;
-                narrowRightLon = 135;
-                narrowUpLat = 53;
-                narrowDownLat = 11;
+                narrowLeftLon = 41;
+                narrowRightLon = 136;
+                narrowUpLat = 54;
+                narrowDownLat = 8;
             } else if (radius < 18000) {
                 narrowDownLat = -20;
             }
