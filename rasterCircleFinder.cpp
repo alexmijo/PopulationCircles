@@ -343,6 +343,9 @@ public:
     }
 
     ~EquirectRasterData() {
+        for (int r = 0; r < numRows; r++) {
+            delete[] sumTable[r];
+        }
         delete[] sumTable;
         for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
              it != smallestCircleResults.end(); it++) {
