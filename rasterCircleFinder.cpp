@@ -658,6 +658,7 @@ public:
             }
             cutUnderperformingCircles(topCenXs, topCenYs, topSums, largestSum, cutoff);
         }
+        std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
 
         for (int i = 0; i < topCenXs.size(); i++) {
             if (topSums[i] == largestSum) {
@@ -703,7 +704,8 @@ public:
                     continue;
                 }
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
-                if (popWithinNKilometers > largestSum * cutoff) {
+                // TODO: Make this logic simpler lol
+                if (step != 1 && popWithinNKilometers > largestSum * cutoff) {
                     // std::cout << "Sum within " << radius << " kilometers of ("
                     //     << lat(cenY) << ", " << lon(cenX) << "): "
                     //     << ((long long)popWithinNKilometers) << std::endl;
@@ -713,6 +715,11 @@ public:
                     if (popWithinNKilometers > largestSum) {
                         largestSum = popWithinNKilometers;
                     }
+                } else if (step == 1 && popWithinNKilometers >= largestSum) {
+                    topCenXs.push_back(cenX);
+                    topCenYs.push_back(cenY);
+                    topSums.push_back(popWithinNKilometers);
+                    largestSum = popWithinNKilometers;
                 }
             }
             delete[] kernel;
@@ -857,7 +864,7 @@ public:
             }
         }
 
-        int radius = 10;//lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
+        int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
         while (upperBound - lowerBound > 1) {
             double narrowLeftLon = leftLon;
             double narrowRightLon = rightLon;
@@ -935,7 +942,6 @@ public:
 
             delete[] largestSumCircle;
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
-            break;
         }
         if (!returnValuesAssigned) {
             // TODO: Figure out a better way to do these sort of things (probably throw an
@@ -983,6 +989,7 @@ void normalMain() {
     double percent;
     //-------------------------------Parameters-end-----------------------------------------
 
+    std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
     std::string smallestCircleResultsFilename = "popSmallestCircleResultsOpt1.bin";
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
@@ -1011,5 +1018,5 @@ void normalMain() {
 }
 
 int main() {
-    testCircleSkipping();
+    normalMain();
 }
