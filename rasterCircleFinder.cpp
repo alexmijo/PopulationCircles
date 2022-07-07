@@ -570,6 +570,12 @@ public:
             cutoff64 = 0.95;
             cutoff16 = 0.996;
             cutoff4 = 0.9985;
+        } else if (radius >= 6700) {
+            initialStep = 256;
+            cutoff256 = 0.82;
+            cutoff64 = 0.945;
+            cutoff16 = 0.982;
+            cutoff4 = 0.9921;
         } else if (radius >= 1150) {
             initialStep = 256;
             cutoff256 = 0.81;
