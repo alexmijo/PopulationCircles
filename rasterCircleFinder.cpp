@@ -269,8 +269,7 @@ public:
     // TODO: see if smallestCircleResultsFilename shouldn't be pass by reference
     // TODO: Make it just use the text file instead of sometimes creating it from the binary one
     EquirectRasterData(const std::string& sumTableFilename,
-                       const std::string& smallestCircleResultsFilename,
-                       const bool alsoCreateTextFile=false) : 
+                       const std::string& smallestCircleResultsFilename) : 
                        smallestCircleResultsFilename(smallestCircleResultsFilename) {
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
@@ -287,59 +286,40 @@ public:
         sumTableFile.close();
 
         std::fstream smallestCircleResultsFile;
-        smallestCircleResultsFile.open(smallestCircleResultsFilename,
-                                       std::ios::in | std::ios::binary);
+        smallestCircleResultsFile.open(smallestCircleResultsFilename);
         // See if file is empty. If so, make it
         std::streampos begin, end;
         begin = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::end);
         end = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::beg);
-        std::ofstream textResults;
-        if (alsoCreateTextFile) {
-            std::string textResultsFilename = "testSmallestCircleResults.txt"; // Change sometimes
-            textResults.open(textResultsFilename);
-        }
         if (begin - end == 0) {
+            // TODO: See if any of this is even necessary
             std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it "
                 "non-empty and existing." << std::endl;
             smallestCircleResultsFile.close();
             // Make the file
-            smallestCircleResultsFile.open(smallestCircleResultsFilename, 
-                                           std::ios::out | std::ios::binary);
-            int numSmallestCircleResults = 0;
-            smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults),
-                                            sizeof(int));
+            // TODO: See if this is still needed now that it's text not binary
+            smallestCircleResultsFile.open(smallestCircleResultsFilename, std::ios::out);
         } else {
-            int numSmallestCircleResults;
-            smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults),
-                                        sizeof(int));
-            if (alsoCreateTextFile) {
-                textResults << numSmallestCircleResults << std::endl;
-            }
-            for (int i = 0; i < numSmallestCircleResults; i++) {
-                int radius;
-                smallestCircleResultsFile.read(reinterpret_cast<char *>(&radius), sizeof(int));
+            std::string resultString;
+            while (getline(smallestCircleResultsFile, resultString)) {
+                std::stringstream resultSS(resultString);
+                std::string radiusString;
+                getline(resultSS, radiusString, ' ');
+                const int radius = std::stoi(radiusString);
                 // TODO: Don't really need this as a variable
                 double *smallestCirclesValue = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
-                // TODO: See if I can just read in entire arrays at once
                 // TODO: See if std::vector would make more sense here
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    smallestCircleResultsFile.read(
-                        reinterpret_cast<char *>(&smallestCirclesValue[j]), sizeof(double));
+                    std::string doubleString;
+                    getline(resultSS, doubleString, ' ');
+                    smallestCirclesValue[j] = std::stod(doubleString);
                 }
                 smallestCircleResults[radius] = smallestCirclesValue;
-                if (alsoCreateTextFile) {
-                    textResults << radius << " " << std::setprecision(17) << smallestCirclesValue[0]
-                        << " " << smallestCirclesValue[1] << " " << smallestCirclesValue[2]
-                        << std::setprecision(6) << std::endl;
-                }
             }
         }
         smallestCircleResultsFile.close();
-        if (alsoCreateTextFile) {
-            textResults.close();
-        }
     }
 
     ~EquirectRasterData() {
@@ -918,22 +898,14 @@ public:
                     "smallestCircleResults" << std::endl; // Above line might get drowned out
             } else {
                 std::fstream smallestCircleResultsFile;
-                smallestCircleResultsFile.open(smallestCircleResultsFilename, 
-                                               std::ios::in | std::ios::out | std::ios::binary);
-                int numSmallestCircleResults;
-                smallestCircleResultsFile.read(reinterpret_cast<char *>(&numSmallestCircleResults), 
-                                               sizeof(int));
-                numSmallestCircleResults++;
-                smallestCircleResultsFile.seekg(0, std::ios::beg);
-                smallestCircleResultsFile.write(reinterpret_cast<char *>(&numSmallestCircleResults),
-                                                sizeof(int));
+                smallestCircleResultsFile.open(smallestCircleResultsFilename);
                 smallestCircleResultsFile.seekg(0, std::ios::end);
-                smallestCircleResultsFile.write(reinterpret_cast<char *>(&radius), sizeof(int));
+                smallestCircleResultsFile << radius << std::setprecision(17);
                 // TODO: See if I can just write the entire array at once
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    smallestCircleResultsFile.write(reinterpret_cast<char *>(&largestSumCircle[j]), 
-                                                    sizeof(double));
+                    smallestCircleResultsFile << " " << largestSumCircle[j];
                 }
+                smallestCircleResultsFile << std::setprecision(6) << "\n";
                 smallestCircleResultsFile.close();
                 // TODO: Instead of this workaround, just don't delete[] largestSumCircle in this
                 //  case
@@ -963,7 +935,7 @@ void testCircleSkipping() {
 
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
-    std::string smallestCircleResultsFilename = "popSmallestCircleResults.bin";
+    std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
@@ -971,15 +943,6 @@ void testCircleSkipping() {
     std::cout << "Population within " << radius << " km of (" << smallestCircle[1] 
         << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl;
     delete[] smallestCircle;
-}
-
-// Just used to check what answers an optimization gave
-void convertResultsToText() {
-    std::cout << "Loading population summation table." << std::endl;
-    std::string sumTableFilename = "popSumTable.bin";
-    std::string smallestCircleResultsFilename = "popSmallestCircleResultsOpt1.bin";
-    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename, true);
-    std::cout << "Loaded population summation table." << std::endl;
 }
 
 // What was in the main function before.
@@ -994,7 +957,7 @@ void normalMain() {
 
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
-    std::string smallestCircleResultsFilename = "popSmallestCircleResultsOpt1.bin";
+    std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." 
