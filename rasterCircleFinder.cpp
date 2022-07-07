@@ -566,19 +566,19 @@ public:
         double cutoff4;
         if (radius >= 9500) {
             initialStep = 256;
-            cutoff256 = 0.92;
-            cutoff64 = 0.98;
+            cutoff256 = 0.85;
+            cutoff64 = 0.95;
             cutoff16 = 0.996;
             cutoff4 = 0.9985;
         } else if (radius >= 1150) {
             initialStep = 256;
-            cutoff256 = 0.95;
-            cutoff64 = 0.97;
+            cutoff256 = 0.81;
+            cutoff64 = 0.94;
             cutoff16 = 0.98;
             cutoff4 = 0.99;
         } else if (radius >= 300) {
             initialStep = 64;
-            cutoff64 = 0.95;
+            cutoff64 = 0.93;
             cutoff16 = 0.97;
             cutoff4 = 0.98;
         } else if (radius >= 100) {
@@ -709,7 +709,8 @@ public:
         }
     }
 
-    // TODO: spec
+    // Removes from topCenXs, topCenYs, and topSums any circles whose sum is less than largestSum *
+    //  cutoff.
     // TODO: remove duplicates (actually, probably pass center into above function to prevent that)
     void cutUnderperformingCircles(std::vector<int>& topCenXs, std::vector<int>& topCenYs,
                                    std::vector<double>& topSums, const double largestSum,
