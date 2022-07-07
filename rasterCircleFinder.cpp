@@ -864,13 +864,13 @@ public:
             //  search area
             if (radius < 117) {
                 // Uncharted territory, don't narrow search area
-            } else if (radius <= 8100) {
-                narrowLeftLon = 35;
-                narrowRightLon = 136;
-                narrowUpLat = 57;
-                narrowDownLat = 0;
+            } else if (radius <= 3500) {
+                narrowLeftLon = 15;
+                narrowRightLon = 156;
+                narrowUpLat = 67;
+                narrowDownLat = -10;
             } else if (radius < 18000) {
-                narrowDownLat = -20;
+                narrowDownLat = -50;
             }
 
             double *largestSumCircle = largestSumCircleOfGivenRadiusOpt1(radius, narrowLeftLon, 
