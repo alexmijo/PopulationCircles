@@ -8,17 +8,16 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.NumberFormat;
-
 import javax.imageio.ImageIO;
-import javax.swing.JPanel;
 
 /**
  * @see https://stackoverflow.com/questions/2658663
  */
-class ImageManipulation extends JPanel {
+class ImageManipulation {
 
-    private static final int percent = 4;
+    private static final int percent = 5;
 
+    // TODO: Spec
     private static void manipulateImage(String inputImageFileName, String outputImageFilename) {
         BufferedImage image;
         try {
@@ -40,6 +39,7 @@ class ImageManipulation extends JPanel {
         }
     }
 
+    // TODO: Spec
     private static BufferedImage process(BufferedImage old) {
         // Placeholder values for now
         long population = -1;
@@ -52,8 +52,8 @@ class ImageManipulation extends JPanel {
             while (line != null) {
                 String[] foundPercentCircle = line.split(" ");
                 if (Integer.parseInt(foundPercentCircle[0]) == percent) {
-                    population = Long.parseLong(foundPercentCircle[1]);
-                    radius = Integer.parseInt(foundPercentCircle[2]);
+                    population = (long)Double.parseDouble(foundPercentCircle[4]);
+                    radius = Integer.parseInt(foundPercentCircle[1]);
                     populationAndRadiusInitialized = true;
                     break;
                 }

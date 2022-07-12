@@ -15,6 +15,9 @@
 #include <vector>
 
 const double WORLD_POP_2015 = 7346242908.863955;
+// See https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
+const int DOUBLE_ROUND_TRIP_PRECISION =
+    (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
 
 class EquirectRasterData {
 
@@ -907,7 +910,8 @@ public:
                 std::fstream smallestCircleResultsFile;
                 smallestCircleResultsFile.open(smallestCircleResultsFilename);
                 smallestCircleResultsFile.seekg(0, std::ios::end);
-                smallestCircleResultsFile << radius << std::setprecision(17);
+                smallestCircleResultsFile << radius
+                                          << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
                 // TODO: See if I can just write the entire array at once
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
                     smallestCircleResultsFile << " " << largestSumCircle[j];
@@ -959,7 +963,6 @@ void normalMain() {
     const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
     // TODO: Actually use smallestPopMode
     // const bool smallestPopMode = false;
-    double percent;
     //-------------------------------Parameters-end-----------------------------------------
 
     std::cout << "Loading population summation table." << std::endl;
@@ -970,34 +973,40 @@ void normalMain() {
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." 
         << std::endl;
 
-    // Used by imageManipulation.java so that it knows what text to add
+    // Used by imageManipulation.java so that it knows what text to add, as well as by
+    //  percentageCirclesMapMakerTextInJSONOut.cpp so it knows where and how large to draw the
+    //  circles
     std::string percentCirclesFilename = "foundPercentageCircles.txt";
     std::ofstream percentCirclesFile;
-    // TODO: See if this should be opened and reclosed in each iteration to make sure recent results are written before any
-    //  keyboard interrupt.
+    // TODO: See if this should be opened and reclosed in each iteration to make sure recent results
+    //  are written before any keyboard interrupt.
     percentCirclesFile.open(percentCirclesFilename);
-    for (int i = 1; i <= 100; i++) {
-        percent = i;
+    for (int percent = 1; percent <= 100; percent++) {
+        const double desiredPopulation = (WORLD_POP_2015 / 100.0) * percent;
+        std::cout << std::endl << "Now finding smallest possible circle with " << percent
+                  << "\% of the world's population (" << ((long)desiredPopulation) << " people)"
+                  << std::endl;
+        double *smallestCircle = data.smallestCircleWithGivenSum(desiredPopulation);
+        // TODO: Fewer magic numbers for indexing into smallestCircle (probably make a circle class)
+        const double longitude = smallestCircle[0];
+        const double lattitude = smallestCircle[1];
+        const double population = smallestCircle[2];
+        const int radius = smallestCircle[3];
+        delete[] smallestCircle;
 
-        double *smallestCircle = data.smallestCircleWithGivenSum(
-                                     (WORLD_POP_2015 / 100.0) * percent);
-
-        std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's"
-            " population (" << ((long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" 
-            << std::endl;
-        // TODO: Fewer magic numbers for indexing into smallestCircle
-        std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] 
-            << ", " << smallestCircle[0] << "): " << ((long)(smallestCircle[2])) << std::endl; 
+        std::cout << "Smallest possible circle with " << percent << "\% of the world's population ("
+                  << ((long)desiredPopulation) << " people):" << std::endl;
+        std::cout << "Population within " << radius << " km of (" << lattitude << ", " << longitude
+                  << "): " << ((long)population) << std::endl; 
         // Used to be for entering into the python map making code, now just to match the format in
         //  the google doc
-        std::cout << percent << ": (" << smallestCircle[3] << ", (" << std::setprecision(8)
-            << smallestCircle[1] << ", " << smallestCircle[0] << "))" << std::setprecision(6)
-            << std::endl;
+        std::cout << percent << ": (" << radius << ", (" << std::setprecision(8) << lattitude
+                  << ", " << longitude << "))" << std::setprecision(6) << std::endl;
 
-        percentCirclesFile << ((int)percent) << " " << ((long)(smallestCircle[2])) << " "
-                           << ((long)(smallestCircle[3])) << std::endl;
-
-        delete[] smallestCircle;
+        // TODO: Remove the magic number 6
+        percentCirclesFile << ((int)percent) << " " << radius << " "
+                           << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION) << longitude << " "
+                           << lattitude << " " << population << std::setprecision(6) << std::endl;
     }
     percentCirclesFile.close();
 }
