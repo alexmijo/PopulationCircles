@@ -1,7 +1,8 @@
 import rasterio
 import json
 
-circleToDraw = 4
+# Between 1 and 100 (inclusive). Must already have been JSONized.
+circleToDraw = 1
 
 printDimensions = True
 printProgress = True
@@ -48,7 +49,7 @@ cm = {
     1: (128, 128, 128)  # Grey
     }
 
-colorsJSONFilename = "colorsJSON" + str(circleToDraw) + ".txt"
+colorsJSONFilename = "ColorsJSONFiles/colorsJSON" + str(circleToDraw) + ".txt"
 colorsJSON = open(colorsJSONFilename, 'r')
 colors = json.load(colorsJSON)
 colorsJSON.close()
