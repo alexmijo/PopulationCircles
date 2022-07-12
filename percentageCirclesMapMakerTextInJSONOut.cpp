@@ -767,10 +767,10 @@ double lat(int y) {
 
 int main() {
     // 4% Circle
-    int percent = 4;
-    double cenLat = 24.529167;
-    double cenLon = 87.795833;
-    double radius = 294;
+    int percent = 63;
+    double cenLat = 40.945833;
+    double cenLon = 70.5125;
+    double radius = 5019;
 
     // TODO: Make a JSON-ize function for arrays, or find one
     // int output[NUM_ROWS][NUM_COLS];
@@ -778,6 +778,7 @@ int main() {
     std::ifstream landNBorders;
     landNBorders.open("landNBorders.txt");
     std::ofstream colorsJSON;
+    // TODO: Make a specific subdirectory for these
     std::string colorsJSONFilename = "colorsJSON" + std::to_string(percent) + ".txt";
     colorsJSON.open(colorsJSONFilename);
     colorsJSON << "[";
