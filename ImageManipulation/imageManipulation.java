@@ -2,7 +2,10 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.text.NumberFormat;
 
@@ -14,9 +17,7 @@ import javax.swing.JPanel;
  */
 class ImageManipulation extends JPanel {
 
-    private static final int percent = 2;
-    private static final int population = 147265836;
-    private static final int radius = 177;
+    private static final int percent = 4;
 
     private static void manipulateImage(String inputImageFileName, String outputImageFilename) {
         BufferedImage image;
@@ -27,6 +28,11 @@ class ImageManipulation extends JPanel {
             return;
         }
         image = process(image);
+        // TODO: Do something better for this case
+        if (image == null) {
+            System.out.println("image was null, nothing written.");
+            return;
+        }
         try {
             ImageIO.write(image, "png", new File(outputImageFilename));
         } catch (IOException e) {
@@ -35,6 +41,37 @@ class ImageManipulation extends JPanel {
     }
 
     private static BufferedImage process(BufferedImage old) {
+        // Placeholder values for now
+        long population = -1;
+        int radius = -1;
+        boolean populationAndRadiusInitialized = false;
+        final String foundPercentCirclesFilename = 
+            "/home/alexmijo/PopulationCircles/foundPercentageCircles.txt";
+        try(BufferedReader br = new BufferedReader(new FileReader(foundPercentCirclesFilename))) {
+            String line = br.readLine();
+            while (line != null) {
+                String[] foundPercentCircle = line.split(" ");
+                if (Integer.parseInt(foundPercentCircle[0]) == percent) {
+                    population = Long.parseLong(foundPercentCircle[1]);
+                    radius = Integer.parseInt(foundPercentCircle[2]);
+                    populationAndRadiusInitialized = true;
+                    break;
+                }
+                line = br.readLine();
+            }
+        // TODO: Something better when an exception happens, probably
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+        if (!populationAndRadiusInitialized) {
+            System.out.println(
+                "Desired percentage circle wasn't in " + foundPercentCirclesFilename);
+            return null;
+        }
         int bigFontHeight = 120;
         int smallFontHeight = 60;
         double lineSpacing = 1.3;
