@@ -766,17 +766,48 @@ double lat(int y) {
 }
 
 int main() {
-    // 4% Circle
-    int percent = 63;
-    double cenLat = 40.945833;
-    double cenLon = 70.5125;
-    double radius = 5019;
+    // TODO: Make this a function taking the percent as a parameter.
+    int percent = 65;
+    double cenLat;
+    double cenLon;
+    double radius;
+    bool centerCoordsAndRadiusInitialized = false;
+
+    std::string foundPercentageCirclesFilename = "foundPercentageCircles.txt";
+    std::ifstream foundPercentageCircles;
+    foundPercentageCircles.open(foundPercentageCirclesFilename);
+    std::string percentageCircleString;
+    while (getline(foundPercentageCircles, percentageCircleString)) {
+        std::stringstream percentageCircleSS(percentageCircleString);
+        std::string percentString;
+        getline(percentageCircleSS, percentString, ' ');
+        if (std::stoi(percentString) == percent) {
+            std::string radiusString;
+            // TODO: See how to get bool from these getlines to see if file is formatted correctly
+            getline(percentageCircleSS, radiusString, ' ');
+            radius = std::stoi(radiusString);
+            std::string lonString;
+            getline(percentageCircleSS, lonString, ' ');
+            cenLon = std::stod(lonString);
+            std::string latString;
+            getline(percentageCircleSS, latString, ' ');
+            cenLat = std::stod(latString);
+            centerCoordsAndRadiusInitialized = true;
+        }
+    }
+    foundPercentageCircles.close();
+    if (!centerCoordsAndRadiusInitialized) {
+        std::cout << "Desired percentage circle wasn't in " + foundPercentageCirclesFilename
+                  << std::endl;
+        return 1;
+    }
 
     // TODO: Make a JSON-ize function for arrays, or find one
     // int output[NUM_ROWS][NUM_COLS];
 
+    std::string landNBordersFileName = "landNBorders.txt";
     std::ifstream landNBorders;
-    landNBorders.open("landNBorders.txt");
+    landNBorders.open(landNBordersFileName);
     std::ofstream colorsJSON;
     // TODO: Make a specific subdirectory for these
     std::string colorsJSONFilename = "colorsJSON" + std::to_string(percent) + ".txt";
