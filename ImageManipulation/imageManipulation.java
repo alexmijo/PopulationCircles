@@ -14,9 +14,9 @@ import javax.swing.JPanel;
  */
 class ImageManipulation extends JPanel {
 
-    private static final int percent = 3;
-    private static final int population = 220522340;
-    private static final int radius = 239;
+    private static final int percent = 2;
+    private static final int population = 147265836;
+    private static final int radius = 177;
 
     private static void manipulateImage(String inputImageFileName, String outputImageFilename) {
         BufferedImage image;
@@ -63,8 +63,11 @@ class ImageManipulation extends JPanel {
     }
 
     public static void main(String[] args) {
-        String inputImageFileName = "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/3PercentCircle.png";
-        String outputImageFileName = "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/3PercentCircleWithText.png";
+        String inputImageFileName = "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/"
+                                    + percent + "PercentCircle.png";
+        String outputImageFileName =
+            "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent
+            + "PercentCircleWithText.png";
         manipulateImage(inputImageFileName, outputImageFileName);
     }
 }
