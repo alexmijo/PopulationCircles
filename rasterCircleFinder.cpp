@@ -970,6 +970,12 @@ void normalMain() {
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." 
         << std::endl;
 
+    // Used by imageManipulation.java so that it knows what text to add
+    std::string percentCirclesFilename = "foundPercentageCircles.txt";
+    std::ofstream percentCirclesFile;
+    // TODO: See if this should be opened and reclosed in each iteration to make sure recent results are written before any
+    //  keyboard interrupt.
+    percentCirclesFile.open(percentCirclesFilename);
     for (int i = 1; i <= 100; i++) {
         percent = i;
 
@@ -977,17 +983,23 @@ void normalMain() {
                                      (WORLD_POP_2015 / 100.0) * percent);
 
         std::cout << std::endl << "Smallest possible circle with " << percent << "\% of the world's"
-            " population (" << ((long long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" 
+            " population (" << ((long)((WORLD_POP_2015 / 100.0) * percent)) << " people):" 
             << std::endl;
+        // TODO: Fewer magic numbers for indexing into smallestCircle
         std::cout << "Population within " << smallestCircle[3] << " km of (" << smallestCircle[1] 
-            << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl; 
-        // For entering into the python map making code:
+            << ", " << smallestCircle[0] << "): " << ((long)(smallestCircle[2])) << std::endl; 
+        // Used to be for entering into the python map making code, now just to match the format in
+        //  the google doc
         std::cout << percent << ": (" << smallestCircle[3] << ", (" << std::setprecision(8)
             << smallestCircle[1] << ", " << smallestCircle[0] << "))" << std::setprecision(6)
             << std::endl;
 
+        percentCirclesFile << ((int)percent) << " " << ((long)(smallestCircle[2])) << " "
+                           << ((long)(smallestCircle[3])) << std::endl;
+
         delete[] smallestCircle;
     }
+    percentCirclesFile.close();
 }
 
 int main() {
