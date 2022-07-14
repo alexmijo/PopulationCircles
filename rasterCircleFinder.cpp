@@ -20,12 +20,18 @@ const int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
 const int EQUATOR_LEN = 40075;
 
+// TODO: Deal with the fact that I am using new in the constuctor paired with delete in the
+//  destructor, which is really bad if an instance of this is ever copied (rhs of assignment, passed
+//  into a function, etc.)
 class EquirectRasterData {
 
 private:
 
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
     const static int SMALLEST_CIRCLES_VALUE_LENGTH = 3; // lon, lat, sum
+    // TODO: add the ability to have semi-results that cutoff before full calculation, when it is
+    //  apparent already that the circle is too large for what it's looking for right then (but it
+    //  could then revisit it when it is looking for something else that's closer).
     // key is radius, value is array holding lon, lat, sum
     std::map<int, double*> smallestCircleResults;
     std::string smallestCircleResultsFilename; // TODO: Make this a human readable text file instead
