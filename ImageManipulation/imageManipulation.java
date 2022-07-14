@@ -97,13 +97,18 @@ class ImageManipulation {
         g2d.setFont(new Font("Serif", Font.BOLD, smallFontHeight));
         g2d.drawString(populationString, 5, smallFontHeight + (int)(bigFontHeight * lineSpacing));
         g2d.drawString(radiusString, 5, smallFontHeight + (int)(smallFontHeight * lineSpacing)
-        + (int)(bigFontHeight * lineSpacing));
-        String dataYearString = "2015 population data";
+                       + (int)(bigFontHeight * lineSpacing));
+                       
+        String dataResolutionString = "30 arcsecond resolution";
         g2d.setFont(new Font("Serif", Font.BOLD, verySmallFontHeight));
         g2d.setPaint(Color.WHITE);
         FontMetrics fm = g2d.getFontMetrics();
+        int dataResolutionX = width - fm.stringWidth(dataResolutionString) - 5;
+        int dataResolutionY = height - (int)(verySmallFontHeight * (lineSpacing - 1)) - 5;
+        g2d.drawString(dataResolutionString, dataResolutionX, dataResolutionY);
+        String dataYearString = "2015 population data";
         int dataYearX = width - fm.stringWidth(dataYearString) - 5;
-        int dataYearY = height - (int)(verySmallFontHeight * (lineSpacing - 1)) - 5;
+        int dataYearY = dataResolutionY - (int)(verySmallFontHeight * lineSpacing);
         g2d.drawString(dataYearString, dataYearX, dataYearY);
         g2d.dispose();
         return img;
