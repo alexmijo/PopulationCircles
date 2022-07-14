@@ -18,6 +18,7 @@ const double WORLD_POP_2015 = 7346242908.863955;
 // See https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
 const int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
+const int EQUATOR_LEN = 40075;
 
 class EquirectRasterData {
 
@@ -236,6 +237,53 @@ private:
         }
 
         return totalPop;
+    }
+
+    // Does the same thing as popWithinKernel, except faster for circles that cover more than half
+    //  of the earth. It does this by summing up the area outside of the circle and then subtracting
+    //  that from the total world population instead of summing up the area inside the circle.
+    double popWithinKernelLargeCircle(const int cenX, const int cenY, int* kernel,
+                                      const int kernelLength) {
+        double popOutsideCircle = 0;
+        // TODO: Fewer magic numbers please
+        const int firstNorth = kernel[kernelIndex(0, 2)] + cenY;
+        if (firstNorth > -1) {
+            // Add all population north of the circle
+            popOutsideCircle += popWithinRectangle(-1, numCols - 1, -1, firstNorth);
+        }
+
+        for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
+            // Sides of the original rectangle
+            const int west = kernel[kernelIndex(kernelRow, 0)] + cenX;
+            const int east = kernel[kernelIndex(kernelRow, 1)] + cenX;
+            const int north = kernel[kernelIndex(kernelRow, 2)] + cenY;
+            const int south = kernel[kernelIndex(kernelRow, 3)] + cenY;
+
+            if (kernel[kernelIndex(kernelRow, 1)] == numCols / 2) {
+                // Original rectangle encircles the entire latitude
+                continue;
+            } else if (west < -1) {
+                // Originally needed to wrap around the antimeridian, creating two rectangles.
+                //  Therefore we don't do that.
+                popOutsideCircle += popWithinRectangle(east, numCols + west, north, south);
+            } else if (east >= numCols) {
+                // Originally needed to wrap around the antimeridian, creating two rectangles.
+                //  Therefore we don't do that.
+                popOutsideCircle += popWithinRectangle(east - numCols, west, north, south);
+            } else {
+                // Originally didn't need to wrap around the antimeridian, so now we do need to.
+                popOutsideCircle += popWithinRectangle(-1, west, north, south);
+                popOutsideCircle += popWithinRectangle(east, numCols - 1, north, south);
+            }
+        }
+
+        const int lastSouth = kernel[kernelIndex(kernelLength - 1, 3)] + cenY;
+        if (lastSouth < numRows - 1) {
+            // Add all population south of the circle
+            popOutsideCircle += popWithinRectangle(-1, numCols - 1, lastSouth, numRows - 1);
+        }
+
+        return WORLD_POP_2015 - popOutsideCircle;
     }
 
     // Get longitude of the center of the <x>th (0 indexed) column
@@ -567,7 +615,7 @@ public:
         double cutoff64;
         double cutoff16;
         double cutoff4;
-        if (radius >= 9500) {
+        if (radius >= 10400) {
             initialStep = 256;
             cutoff256 = 0.85;
             cutoff64 = 0.95;
@@ -695,7 +743,13 @@ public:
                 if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
                     continue;
                 }
-                double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
+                double popWithinNKilometers;
+                if (radius <= EQUATOR_LEN / 4) {
+                    popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
+                } else {
+                    popWithinNKilometers =
+                        popWithinKernelLargeCircle(cenX, cenY, kernel, kernelLength);
+                }
                 // TODO: Make this logic simpler lol
                 if (step != 1 && popWithinNKilometers > largestSum * cutoff) {
                     // std::cout << "Sum within " << radius << " kilometers of ("
@@ -832,7 +886,6 @@ public:
                                        const double rightLon=180, const double upLat=90, 
                                        const double downLat=-90) {
         // Radii will be ints cause only interested in getting to the nearest kilometer
-        const int EQUATOR_LEN = 40075;
         int upperBound = EQUATOR_LEN / 2;
         int lowerBound = 0;
         double *returnValues;
