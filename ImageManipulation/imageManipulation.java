@@ -1,5 +1,6 @@
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
@@ -11,11 +12,11 @@ import java.text.NumberFormat;
 import javax.imageio.ImageIO;
 
 /**
- * @see https://stackoverflow.com/questions/2658663
+ * Based off of https://stackoverflow.com/questions/2658663
  */
 class ImageManipulation {
 
-    private static final int percent = 5;
+    private static int percent;
 
     // TODO: Spec
     private static void manipulateImage(String inputImageFileName, String outputImageFilename) {
@@ -47,6 +48,7 @@ class ImageManipulation {
         boolean populationAndRadiusInitialized = false;
         final String foundPercentCirclesFilename = 
             "/home/alexmijo/PopulationCircles/foundPercentageCircles.txt";
+        // TODO: Modularize into a function
         try(BufferedReader br = new BufferedReader(new FileReader(foundPercentCirclesFilename))) {
             String line = br.readLine();
             while (line != null) {
@@ -74,13 +76,14 @@ class ImageManipulation {
         }
         int bigFontHeight = 120;
         int smallFontHeight = 60;
+        int verySmallFontHeight = 40;
         double lineSpacing = 1.3;
-        int w = old.getWidth();
-        int h = old.getHeight() + (int)(bigFontHeight * lineSpacing);
-        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        int width = old.getWidth();
+        int height = old.getHeight() + (int)(bigFontHeight * lineSpacing);
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = img.createGraphics();
         g2d.setColor(Color.BLACK);
-        g2d.fillRect(0, 0, w, h);
+        g2d.fillRect(0, 0, width, height);
         g2d.setPaint(Color.RED);
         g2d.setFont(new Font("Serif", Font.BOLD, bigFontHeight));
         NumberFormat commasFormat = NumberFormat.getInstance();
@@ -89,22 +92,31 @@ class ImageManipulation {
                        + "% of the world's population";
         String populationString = commasFormat.format(population) + " people";
         String radiusString = "Radius: " + commasFormat.format(radius) +" km";
-        g2d.drawImage(old, 0, h - old.getHeight(), null); // ImageObserver not needed
+        g2d.drawImage(old, 0, height - old.getHeight(), null); // ImageObserver not needed
         g2d.drawString(title, 5, bigFontHeight);
         g2d.setFont(new Font("Serif", Font.BOLD, smallFontHeight));
         g2d.drawString(populationString, 5, smallFontHeight + (int)(bigFontHeight * lineSpacing));
         g2d.drawString(radiusString, 5, smallFontHeight + (int)(smallFontHeight * lineSpacing)
-                       + (int)(bigFontHeight * lineSpacing));
+        + (int)(bigFontHeight * lineSpacing));
+        String dataYearString = "2015 population data";
+        g2d.setFont(new Font("Serif", Font.BOLD, verySmallFontHeight));
+        g2d.setPaint(Color.WHITE);
+        FontMetrics fm = g2d.getFontMetrics();
+        int dataYearX = width - fm.stringWidth(dataYearString) - 5;
+        int dataYearY = height - (int)(verySmallFontHeight * (lineSpacing - 1)) - 5;
+        g2d.drawString(dataYearString, dataYearX, dataYearY);
         g2d.dispose();
         return img;
     }
 
     public static void main(String[] args) {
-        String inputImageFileName = "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/"
-                                    + percent + "PercentCircle.png";
-        String outputImageFileName =
-            "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent
-            + "PercentCircleWithText.png";
-        manipulateImage(inputImageFileName, outputImageFileName);
+        for (percent = 1; percent <= 69; percent++) {
+            String inputImageFileName = "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/"
+                                        + percent + "PercentCircle.png";
+            String outputImageFileName =
+                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent
+                + "PercentCircleWithText.png";
+            manipulateImage(inputImageFileName, outputImageFileName);
+        }
     }
 }
