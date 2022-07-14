@@ -76,7 +76,7 @@ class ImageManipulation {
         }
         int bigFontHeight = 120;
         int smallFontHeight = 60;
-        int verySmallFontHeight = 40;
+        int verySmallFontHeight = 35;
         double lineSpacing = 1.3;
         int width = old.getWidth();
         int height = old.getHeight() + (int)(bigFontHeight * lineSpacing);
@@ -98,13 +98,17 @@ class ImageManipulation {
         g2d.drawString(populationString, 5, smallFontHeight + (int)(bigFontHeight * lineSpacing));
         g2d.drawString(radiusString, 5, smallFontHeight + (int)(smallFontHeight * lineSpacing)
                        + (int)(bigFontHeight * lineSpacing));
-                       
-        String dataResolutionString = "30 arcsecond resolution";
+        
         g2d.setFont(new Font("Serif", Font.BOLD, verySmallFontHeight));
         g2d.setPaint(Color.WHITE);
         FontMetrics fm = g2d.getFontMetrics();
+        String dataSourceString = "https://ghsl.jrc.ec.europa.eu/ghs_pop2019.php";
+        int dataSourceX = width - fm.stringWidth(dataSourceString) - 5;
+        int dataSourceY = height - (int)(verySmallFontHeight * (lineSpacing - 1)) - 5;
+        g2d.drawString(dataSourceString, dataSourceX, dataSourceY);
+        String dataResolutionString = "30 arcsecond resolution";
         int dataResolutionX = width - fm.stringWidth(dataResolutionString) - 5;
-        int dataResolutionY = height - (int)(verySmallFontHeight * (lineSpacing - 1)) - 5;
+        int dataResolutionY = dataSourceY - (int)(verySmallFontHeight * lineSpacing);
         g2d.drawString(dataResolutionString, dataResolutionX, dataResolutionY);
         String dataYearString = "2015 population data";
         int dataYearX = width - fm.stringWidth(dataYearString) - 5;
