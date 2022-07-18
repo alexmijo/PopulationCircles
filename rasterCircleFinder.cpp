@@ -623,20 +623,20 @@ public:
         double cutoff4;
         if (radius >= 10400) {
             initialStep = 256;
-            cutoff256 = 0.85;
-            cutoff64 = 0.95;
+            cutoff256 = 0.55;
+            cutoff64 = 0.85;
             cutoff16 = 0.996;
             cutoff4 = 0.9985;
         } else if (radius >= 6700) {
             initialStep = 256;
-            cutoff256 = 0.82;
-            cutoff64 = 0.945;
+            cutoff256 = 0.52;
+            cutoff64 = 0.845;
             cutoff16 = 0.982;
             cutoff4 = 0.9921;
         } else if (radius >= 1150) {
             initialStep = 256;
-            cutoff256 = 0.81;
-            cutoff64 = 0.94;
+            cutoff256 = 0.51;
+            cutoff64 = 0.84;
             cutoff16 = 0.98;
             cutoff4 = 0.99;
         } else if (radius >= 300) {
