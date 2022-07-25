@@ -888,6 +888,8 @@ public:
     // TODO: Make a spec comment for this
     // Kind of dangerous to pass in the last 4 args to this function, since the
     //  smallestCircleResultsFile might get spurious data added to it then
+    // TODO: Figure out why largestSum seems to stay the same after searching at a step that's 1/4
+    //  the size something like 1/4 of the time rather than 1/16 of the time like expected.
     double* smallestCircleWithGivenSum(const double sum, const double leftLon=-180, 
                                        const double rightLon=180, const double upLat=90, 
                                        const double downLat=-90) {
