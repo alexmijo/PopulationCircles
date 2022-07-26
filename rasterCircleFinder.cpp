@@ -605,9 +605,9 @@ public:
     // TODO: Make this less spagettiish
     // Doesn't really restrict strictly to range yet (TODO)
     // TODO: Doesnt check easternmost or southernmost part of the world
-    double* largestSumCircleOfGivenRadiusOpt1(const double radius, const double leftLon=-180, 
-                                              const double rightLon=180, const double upLat=90, 
-                                              const double downLat=-90) {
+    double* largestSumCircleOfGivenRadiusOpt1(const double radius, const double desiredSum,
+                                              const double leftLon=-180, const double rightLon=180,
+                                              const double upLat=90, const double downLat=-90) {
         std::cout << "Radius:" << radius << std::endl;
         // TODO: Don't look at centers outside these ranges
         // Turn lat and lon into indices in the pop data.
@@ -683,6 +683,25 @@ public:
             std::cout << "step: " << step << std::endl;
             std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
             std::cout << "largestSum: " << ((long)largestSum) << std::endl;
+            
+            if (largestSum > desiredSum) {
+                for (int i = 0; i < topCenXs.size(); i++) {
+                    if (topSums[i] == largestSum) {
+                        double *returnValues = new double[4]; // TODO: No magic 4
+                        returnValues[0] = lon(topCenXs[i]);
+                        returnValues[1] = lat(topCenYs[i]);
+                        returnValues[2] = largestSum;
+                        returnValues[3] = true;
+                        std::cout << "Sum within " << radius << " kilometers of ("
+                            << returnValues[1] << ", " << returnValues[0] << "): "
+                            << ((long)largestSum) << std::endl;
+                        std::cout << ">= " << ((long)desiredSum) << ". Short circuiting."
+                            << std::endl;
+                        return returnValues;
+                    }
+                }
+            }
+
             if (step <= 4) {
                 cutoff = cutoff4;
             } else if (step <= 16) {
@@ -708,10 +727,11 @@ public:
 
         for (int i = 0; i < topCenXs.size(); i++) {
             if (topSums[i] == largestSum) {
-                double *returnValues = new double[3];
+                double *returnValues = new double[4]; // TODO: No magic 4
                 returnValues[0] = lon(topCenXs[i]);
                 returnValues[1] = lat(topCenYs[i]);
                 returnValues[2] = largestSum;
+                returnValues[3] = false;
                 std::cout << "Sum within " << radius << " kilometers of (" << returnValues[1]
                     << ", " << returnValues[0] << "): " << ((long)largestSum) << std::endl;
                 return returnValues;
@@ -899,6 +919,7 @@ public:
         double *returnValues;
         bool returnValuesAssigned = false; // Pointer not yet pointing to an array
         double initialLargestSum = 0; // To be passed into largestSumCircleOfGivenRadius()
+        bool softUpperBound = false;
 
         // Tighten bounds as much as possible using previous results
         for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
@@ -919,7 +940,7 @@ public:
         }
 
         int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
-        while (upperBound - lowerBound > 1) {
+        while (upperBound - lowerBound > 1 || softUpperBound) {
             double narrowLeftLon = leftLon;
             double narrowRightLon = rightLon;
             double narrowUpLat = upLat;
@@ -933,14 +954,31 @@ public:
                 narrowRightLon = 156;
                 narrowUpLat = 67;
                 narrowDownLat = -10;
-            } else if (radius < 18000) {
+            } else if (radius < 16000) {
                 narrowDownLat = -50;
             }
 
-            double *largestSumCircle = largestSumCircleOfGivenRadiusOpt1(radius, narrowLeftLon, 
-                                                                     narrowRightLon, narrowUpLat, 
+            double *largestSumCircle;
+            if (upperBound - lowerBound <= 3) {
+                if (upperBound - lowerBound == 1) {
+                    // Need to make upperBound not soft
+                    radius = upperBound;
+                }
+                // Huge desired sum since we don't want it to short circuit
+                largestSumCircle = largestSumCircleOfGivenRadiusOpt1(radius, 10000000000000,
+                                                                     narrowLeftLon, narrowRightLon,
+                                                                     narrowUpLat, narrowDownLat);
+            } else {
+                largestSumCircle = largestSumCircleOfGivenRadiusOpt1(radius, sum, narrowLeftLon,
+                                                                     narrowRightLon, narrowUpLat,
                                                                      narrowDownLat);
+            }
             if (largestSumCircle[2] >= sum) {
+                if (largestSumCircle[3]) {
+                    softUpperBound = true;
+                } else {
+                    softUpperBound = false;
+                }
                 upperBound = radius;
                 if (returnValuesAssigned) {
                     delete[] returnValues;
@@ -956,35 +994,37 @@ public:
                 initialLargestSum = largestSumCircle[2];
             }
 
-            // Add result to smallestCircleResults and its file
-            // TODO: Combine this line and the next one
-            std::map<int, double*>::iterator it = smallestCircleResults.find(radius);
-            if (it != smallestCircleResults.end()) {
-                // TODO: Figure out a better way to do these sort of things (probably throw an
-                //  exception)
-                // TODO: See if there's a way to send a string to both streams
-                std::cout << "smallestCircleWithGivenSum had an error involving "
-                    "smallestCircleResults" << std::endl;
-                std::cerr << "smallestCircleWithGivenSum had an error involving "
-                    "smallestCircleResults" << std::endl; // Above line might get drowned out
-            } else {
-                std::fstream smallestCircleResultsFile;
-                smallestCircleResultsFile.open(smallestCircleResultsFilename);
-                smallestCircleResultsFile.seekg(0, std::ios::end);
-                smallestCircleResultsFile << radius
-                                          << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
-                // TODO: See if I can just write the entire array at once
-                for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    smallestCircleResultsFile << " " << largestSumCircle[j];
+            if (!largestSumCircle[3]) {
+                // Add result to smallestCircleResults and its file
+                // TODO: Combine this line and the next one
+                std::map<int, double*>::iterator it = smallestCircleResults.find(radius);
+                if (it != smallestCircleResults.end()) {
+                    // TODO: Figure out a better way to do these sort of things (probably throw an
+                    //  exception)
+                    // TODO: See if there's a way to send a string to both streams
+                    std::cout << "smallestCircleWithGivenSum had an error involving "
+                        "smallestCircleResults" << std::endl;
+                    std::cerr << "smallestCircleWithGivenSum had an error involving "
+                        "smallestCircleResults" << std::endl; // Above line might get drowned out
+                } else {
+                    std::fstream smallestCircleResultsFile;
+                    smallestCircleResultsFile.open(smallestCircleResultsFilename);
+                    smallestCircleResultsFile.seekg(0, std::ios::end);
+                    smallestCircleResultsFile << radius
+                                              << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
+                    // TODO: See if I can just write the entire array at once
+                    for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
+                        smallestCircleResultsFile << " " << largestSumCircle[j];
+                    }
+                    smallestCircleResultsFile << std::setprecision(6) << "\n";
+                    smallestCircleResultsFile.close();
+                    // TODO: Instead of this workaround, just don't delete[] largestSumCircle in
+                    //  this case
+                    smallestCircleResults[radius] = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
+                    smallestCircleResults[radius][0] = largestSumCircle[0];
+                    smallestCircleResults[radius][1] = largestSumCircle[1];
+                    smallestCircleResults[radius][2] = largestSumCircle[2];
                 }
-                smallestCircleResultsFile << std::setprecision(6) << "\n";
-                smallestCircleResultsFile.close();
-                // TODO: Instead of this workaround, just don't delete[] largestSumCircle in this
-                //  case
-                smallestCircleResults[radius] = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
-                smallestCircleResults[radius][0] = largestSumCircle[0];
-                smallestCircleResults[radius][1] = largestSumCircle[1];
-                smallestCircleResults[radius][2] = largestSumCircle[2];
             }
 
             delete[] largestSumCircle;
@@ -1011,7 +1051,8 @@ void testCircleSkipping() {
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
-    double *smallestCircle = data.largestSumCircleOfGivenRadiusOpt1(radius);
+    // Huge desiredSum so that it doesn't short circuit
+    double *smallestCircle = data.largestSumCircleOfGivenRadiusOpt1(radius, 10000000000000);
     std::cout << "Population within " << radius << " km of (" << smallestCircle[1] 
         << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl;
     delete[] smallestCircle;
