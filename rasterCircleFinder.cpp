@@ -34,8 +34,7 @@ private:
     //  could then revisit it when it is looking for something else that's closer).
     // key is radius, value is array holding lon, lat, sum
     std::map<int, double*> smallestCircleResults;
-    std::string smallestCircleResultsFilename; // TODO: Make this a human readable text file instead
-                                               //  of binary
+    std::string smallestCircleResultsFilename;
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
@@ -324,7 +323,6 @@ public:
     // TODO: Include some information in smallestCircleResultsFile to make sure it corresponds to
     //  this sumTableFile.
     // TODO: see if smallestCircleResultsFilename shouldn't be pass by reference
-    // TODO: Make it just use the text file instead of sometimes creating it from the binary one
     EquirectRasterData(const std::string& sumTableFilename,
                        const std::string& smallestCircleResultsFilename) : 
                        smallestCircleResultsFilename(smallestCircleResultsFilename) {
@@ -366,12 +364,27 @@ public:
                 getline(resultSS, radiusString, ' ');
                 const int radius = std::stoi(radiusString);
                 // TODO: Don't really need this as a variable
-                double *smallestCirclesValue = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
+                // The + 1 is to hold whether or not it's a >= result
+                // TODO: Hold the boolean some better way, probably by making this whole thing a
+                //  class
+                double *smallestCirclesValue = new double[SMALLEST_CIRCLES_VALUE_LENGTH + 1];
                 // TODO: See if std::vector would make more sense here
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
                     std::string doubleString;
                     getline(resultSS, doubleString, ' ');
                     smallestCirclesValue[j] = std::stod(doubleString);
+                }
+                std::string possibleGreaterThanOrEqualString;
+                if (getline(resultSS, possibleGreaterThanOrEqualString)) {
+                    if (possibleGreaterThanOrEqualString != ">=") {
+                        // TODO: Print the actual name of the file
+                        std::cout << "Incorrectly formatted smallestCircleResultsFile" << std::endl;
+                        std::cerr << "Incorrectly formatted smallestCircleResultsFile" << std::endl;
+                        throw 1776; // TODO: Make an actually descriptive exception here
+                    }
+                    smallestCirclesValue[SMALLEST_CIRCLES_VALUE_LENGTH] = true;
+                } else {
+                    smallestCirclesValue[SMALLEST_CIRCLES_VALUE_LENGTH] = false;
                 }
                 smallestCircleResults[radius] = smallestCirclesValue;
             }
@@ -516,6 +529,7 @@ public:
     // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure
     //  known to be at least as small as what the largestSum will end up being.
     // Radius given in kilometers.
+    // TODO: Update or remove this
     double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
                                           const double rightLon=180, const double upLat=90, 
                                           const double downLat=-90, 
@@ -598,6 +612,7 @@ public:
         returnValues[0] = largestSumCenLon;
         returnValues[1] = largestSumCenLat;
         returnValues[2] = largestSum;
+        // TODO: Deal with possible >=
         return returnValues;
     }
 
@@ -805,6 +820,7 @@ public:
     // The parameter initialSmallestSum can speed up computation if it is passed in. Must be for sure known to
     //  be at least as large as what the smallestSum will end up being.
     // Radius given in kilometers.
+    // TODO: Update or remove this (to deal with possible >= issue)
     double* smallestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
                                            const double rightLon=180, const double upLat=90, 
                                            const double downLat=-90, 
