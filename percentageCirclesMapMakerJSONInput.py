@@ -2,7 +2,7 @@ import rasterio
 import json
 
 # Between 1 and 100 (inclusive). Must already have been JSONized.
-circleToDraw = 79
+circleToDraw = 81
 
 printDimensions = True
 printProgress = True
