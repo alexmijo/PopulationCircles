@@ -34,8 +34,7 @@ private:
     //  could then revisit it when it is looking for something else that's closer).
     // key is radius, value is array holding lon, lat, sum
     std::map<int, double*> smallestCircleResults;
-    std::string smallestCircleResultsFilename; // TODO: Make this a human readable text file instead
-                                               //  of binary
+    std::string smallestCircleResultsFilename;
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
@@ -366,12 +365,27 @@ public:
                 getline(resultSS, radiusString, ' ');
                 const int radius = std::stoi(radiusString);
                 // TODO: Don't really need this as a variable
-                double *smallestCirclesValue = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
+                // The + 1 is to hold whether or not it's a >= result
+                // TODO: Hold the boolean some better way, probably by making this whole thing a
+                //  class
+                double *smallestCirclesValue = new double[SMALLEST_CIRCLES_VALUE_LENGTH + 1];
                 // TODO: See if std::vector would make more sense here
                 for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
                     std::string doubleString;
                     getline(resultSS, doubleString, ' ');
                     smallestCirclesValue[j] = std::stod(doubleString);
+                }
+                std::string possibleGreaterThanOrEqualString;
+                if (getline(resultSS, possibleGreaterThanOrEqualString)) {
+                    if (possibleGreaterThanOrEqualString != ">=") {
+                        // TODO: Print the actual name of the file
+                        std::cout << "Incorrectly formatted smallestCircleResultsFile" << std::endl;
+                        std::cerr << "Incorrectly formatted smallestCircleResultsFile" << std::endl;
+                        throw 1776; // TODO: Make an actually descriptive exception here
+                    }
+                    smallestCirclesValue[SMALLEST_CIRCLES_VALUE_LENGTH] = true;
+                } else {
+                    smallestCirclesValue[SMALLEST_CIRCLES_VALUE_LENGTH] = false;
                 }
                 smallestCircleResults[radius] = smallestCirclesValue;
             }
@@ -516,6 +530,7 @@ public:
     // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure
     //  known to be at least as small as what the largestSum will end up being.
     // Radius given in kilometers.
+    // TODO: Update or remove this.
     double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
                                           const double rightLon=180, const double upLat=90, 
                                           const double downLat=-90, 
@@ -692,7 +707,7 @@ public:
                         returnValues[1] = lat(topCenYs[i]);
                         returnValues[2] = largestSum;
                         returnValues[3] = true;
-                        std::cout << "Sum within " << radius << " kilometers of ("
+                        std::cout << "(SS)Sum within " << radius << " kilometers of ("
                             << returnValues[1] << ", " << returnValues[0] << "): "
                             << ((long)largestSum) << std::endl;
                         std::cout << ">= " << ((long)desiredSum) << ". Short circuiting."
@@ -738,7 +753,7 @@ public:
             }
         }
 
-        // TODO: Throw an exception here.
+        // TODO: Throw an exception here. Maybe nullptr return.
         std::cerr << "Never get here!!! No return value for Opt1" << std::endl;
         std::cout << "Never get here!!! No return value for Opt1" << std::endl;
         double *placeholder;
@@ -924,10 +939,16 @@ public:
         // Tighten bounds as much as possible using previous results
         for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
              it != smallestCircleResults.end(); it++) {
-            if ((it->second)[2] < sum) {
+            const bool isAGreaterThanOrEqualToResult = it->second[3];
+            if ((it->second)[2] < sum && it->first >= lowerBound
+                && !isAGreaterThanOrEqualToResult) {
                 lowerBound = it->first;
                 initialLargestSum = (it->second)[2];
-            } else if ((it->second)[2] >= sum) {
+            } else if ((it->second)[2] >= sum && it->first <= upperBound) {
+                if (it->first == upperBound && isAGreaterThanOrEqualToResult) {
+                    // Don't replace hard upper bound with a soft one
+                    continue;
+                }
                 upperBound = it->first;
                 returnValues = new double[4];
                 returnValues[0] = (it->second)[0];
@@ -935,6 +956,7 @@ public:
                 returnValues[2] = (it->second)[2];
                 returnValues[3] = it->first;
                 returnValuesAssigned = true;
+                softUpperBound = isAGreaterThanOrEqualToResult;
                 break;
             }
         }
@@ -994,37 +1016,44 @@ public:
                 initialLargestSum = largestSumCircle[2];
             }
 
-            if (!largestSumCircle[3]) {
-                // Add result to smallestCircleResults and its file
-                // TODO: Combine this line and the next one
-                std::map<int, double*>::iterator it = smallestCircleResults.find(radius);
-                if (it != smallestCircleResults.end()) {
-                    // TODO: Figure out a better way to do these sort of things (probably throw an
-                    //  exception)
-                    // TODO: See if there's a way to send a string to both streams
-                    std::cout << "smallestCircleWithGivenSum had an error involving "
-                        "smallestCircleResults" << std::endl;
-                    std::cerr << "smallestCircleWithGivenSum had an error involving "
-                        "smallestCircleResults" << std::endl; // Above line might get drowned out
-                } else {
-                    std::fstream smallestCircleResultsFile;
-                    smallestCircleResultsFile.open(smallestCircleResultsFilename);
-                    smallestCircleResultsFile.seekg(0, std::ios::end);
-                    smallestCircleResultsFile << radius
-                                              << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
-                    // TODO: See if I can just write the entire array at once
-                    for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                        smallestCircleResultsFile << " " << largestSumCircle[j];
-                    }
-                    smallestCircleResultsFile << std::setprecision(6) << "\n";
-                    smallestCircleResultsFile.close();
-                    // TODO: Instead of this workaround, just don't delete[] largestSumCircle in
-                    //  this case
-                    smallestCircleResults[radius] = new double[SMALLEST_CIRCLES_VALUE_LENGTH];
-                    smallestCircleResults[radius][0] = largestSumCircle[0];
-                    smallestCircleResults[radius][1] = largestSumCircle[1];
-                    smallestCircleResults[radius][2] = largestSumCircle[2];
+            const bool isNewGreaterThanOrEqualResult = largestSumCircle[3];
+// was here ----------------------------------------------------------------------------------------
+            // Add result to smallestCircleResults and its file
+            // TODO: Combine this line and the next one
+            std::map<int, double*>::iterator it = smallestCircleResults.find(radius);
+            // TODO: See if all these parentheses are actually necessary.
+            if (it != smallestCircleResults.end() && !((it->second)[3])) {
+                // TODO: Figure out a better way to do these sort of things (probably throw an
+                //  exception)
+                // TODO: See if there's a way to send a string to both streams
+                std::cout << "smallestCircleWithGivenSum had an error involving "
+                    "smallestCircleResults" << std::endl;
+                std::cerr << "smallestCircleWithGivenSum had an error involving "
+                    "smallestCircleResults" << std::endl; // Above line might get drowned out
+            } else {
+                std::fstream smallestCircleResultsFile;
+                smallestCircleResultsFile.open(smallestCircleResultsFilename);
+                smallestCircleResultsFile.seekg(0, std::ios::end);
+                smallestCircleResultsFile << radius
+                                          << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
+                // TODO: See if I can just write the entire array at once
+                // Note the lack of a + 1 here
+                for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
+                    smallestCircleResultsFile << " " << largestSumCircle[j];
                 }
+                if (isNewGreaterThanOrEqualResult) {
+                    smallestCircleResultsFile << " >=";
+                }
+                smallestCircleResultsFile << std::setprecision(6) << "\n";
+                smallestCircleResultsFile.close();
+                // TODO: Instead of this workaround, just don't delete[] largestSumCircle in
+                //  this case
+                // TODO: Get rid of the magic + 1, here to hold >= boolean
+                smallestCircleResults[radius] = new double[SMALLEST_CIRCLES_VALUE_LENGTH + 1];
+                smallestCircleResults[radius][0] = largestSumCircle[0];
+                smallestCircleResults[radius][1] = largestSumCircle[1];
+                smallestCircleResults[radius][2] = largestSumCircle[2];
+                smallestCircleResults[radius][3] = isNewGreaterThanOrEqualResult;
             }
 
             delete[] largestSumCircle;
