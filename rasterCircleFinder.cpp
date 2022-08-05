@@ -1057,7 +1057,13 @@ public:
             }
 
             delete[] largestSumCircle;
-            radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
+            if (smallestCircleResults[upperBound] - smallestCircleResults[radius] < 0.12 * (smallestCircleResults[radius] - smallestCircleResults[lowerBound]) && upperBound - lowerBound > 10) {
+                radius = upperBound - (upperBound - lowerBound) / 8;
+            } else if (smallestCircleResults[radius] - smallestCircleResults[lowerBound] < 0.12 * (smallestCircleResults[upperBound] - smallestCircleResults[radius]) && upperBound - lowerBound > 10) {
+                radius = lowerBound + (upperBound - lowerBound) / 8;
+            } else {
+                radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
+            }
         }
         if (!returnValuesAssigned) {
             // TODO: Figure out a better way to do these sort of things (probably throw an
