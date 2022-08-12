@@ -1,6 +1,8 @@
 // Needs GDAL library
 // This is an early version of the program. It's still kinda spaghetti code and has code I copied
-//  from random places on the internet unattributed (GeoTiff and most of distance())
+//  from random places on the internet unattributed (GeoTiff and most of distance()). If you're a
+//  prospective employer, please look at BlackjackSim on my github instead for C++ stuff I've
+//  written with better code style.
 
 #include <iostream>
 #include <gdal.h>
@@ -13,6 +15,7 @@
 #include <map>
 #include <iomanip>
 #include <vector>
+#include <array>
 
 const double WORLD_POP_2015 = 7346242908.863955;
 // See https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
@@ -247,6 +250,12 @@ private:
     // Does the same thing as popWithinKernel, except faster for circles that cover more than half
     //  of the earth. It does this by summing up the area outside of the circle and then subtracting
     //  that from the total world population instead of summing up the area inside the circle.
+    // TODO: Wait why did I think this would be any faster? It still has to go through the whole
+    //  kernel, the only difference is that it might have less splitting along the antimeridian on
+    //  average (although even that I'm not sure about). So I'm pretty sure this was sort of
+    //  useless. I need to test to find out.
+    // TODO: Instead of caring about if the circle has more than half the world's area, I should be
+    //  doing something different if the circle has more than half the world's population.
     double popWithinKernelLargeCircle(const int cenX, const int cenY, int* kernel,
                                       const int kernelLength) {
         double popOutsideCircle = 0;
@@ -920,6 +929,14 @@ public:
         return returnValues;
     }
 
+    bool closeToUpperBound() {
+        return true;
+    }
+
+    bool closeToLowerBound() {
+        return true;
+    }
+
     // TODO: Make a spec comment for this
     // Kind of dangerous to pass in the last 4 args to this function, since the
     //  smallestCircleResultsFile might get spurious data added to it then
@@ -1057,13 +1074,40 @@ public:
             }
 
             delete[] largestSumCircle;
-            if (smallestCircleResults[upperBound] - smallestCircleResults[radius] < 0.12 * (smallestCircleResults[radius] - smallestCircleResults[lowerBound]) && upperBound - lowerBound > 10) {
-                radius = upperBound - (upperBound - lowerBound) / 8;
-            } else if (smallestCircleResults[radius] - smallestCircleResults[lowerBound] < 0.12 * (smallestCircleResults[upperBound] - smallestCircleResults[radius]) && upperBound - lowerBound > 10) {
-                radius = lowerBound + (upperBound - lowerBound) / 8;
+// TODO: This was done incorrectly. ------------------------------------------------------------------------------------------------------------
+            const double popAbove = smallestCircleResults[upperBound][2] - smallestCircleResults[radius][2];
+            const double popBelow = smallestCircleResults[radius][2] - smallestCircleResults[lowerBound][2];
+            const double sumMinusPop = sum - smallestCircleResults[radius][2];
+            const double popMinusSum = smallestCircleResults[radius][2] - sum;
+            const int range = upperBound - lowerBound;
+            const std::array<int, 20> nonBinarySearches = {3, 4, 5, 8, 12, 16, 20, 24, 28, 32, 38, 44, 54, 64, 73, 100, 128, 256, 512, 1024};
+            const std::array<int, 20> nonBinaryCutoffs = {1/3, 1/4, 1/5, 1/8, 1/12, 1/16, 1/20, 1/24, 1/28, 1/32, 1/38, 1/44, 1/54, 1/64, 1/73, 1/100, 1/128, 1/256, 1/512, 1/1024};
+            //--------------------------------------------------------------------------------------
+            // 0
+            /*/ TODO
+            if (sumMinusPop < nonBinaryCutoffs[0] * popMinusSum && range > nonBinarySearches[0]) {
+                radius = upperBound - range / nonBinarySearches[0];
+            } else if (popMinusSum < nonBinaryCutoffs[0] * sumMinusPop && range > nonBinarySearches[0]) {
+                radius = lowerBound + range / nonBinarySearches[0];
+            //--------------------------------------------------------------------------------------
+            // 1
+            } else if (sumMinusPop < nonBinaryCutoffs[1] * popMinusSum && range > nonBinarySearches[1]) {
+                radius = upperBound - range / nonBinarySearches[1];
+            } else if (popMinusSum < nonBinaryCutoffs[1] * sumMinusPop && range > nonBinarySearches[1]) {
+                radius = lowerBound + range / nonBinarySearches[1];
+            //--------------------------------------------------------------------------------------
+            // 2
+            } else if (sumMinusPop < nonBinaryCutoffs[2] * popMinusSum && range > nonBinarySearches[2]) {
+                radius = upperBound - range / nonBinarySearches[2];
+            } else if (popMinusSum < nonBinaryCutoffs[2] * sumMinusPop && range > nonBinarySearches[2]) {
+                radius = lowerBound + range / nonBinarySearches[2];
+            //--------------------------------------------------------------------------------------
+            // 3
+            // TODO
             } else {
                 radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
-            }
+            }*/
+            radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
         }
         if (!returnValuesAssigned) {
             // TODO: Figure out a better way to do these sort of things (probably throw an
