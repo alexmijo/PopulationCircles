@@ -1020,12 +1020,9 @@ public:
             }
 
             const bool isNewGreaterThanOrEqualResult = largestSumCircle[3];
-// was here ----------------------------------------------------------------------------------------
             // Add result to smallestCircleResults and its file
-            // TODO: Combine this line and the next one
             std::map<int, double*>::iterator it = smallestCircleResults.find(radius);
-            // TODO: See if all these parentheses are actually necessary.
-            if (it != smallestCircleResults.end() && !((it->second)[3])) {
+            if (it != smallestCircleResults.end() && !it->second[3]) {
                 // TODO: Figure out a better way to do these sort of things (probably throw an
                 //  exception)
                 // TODO: See if there's a way to send a string to both streams
