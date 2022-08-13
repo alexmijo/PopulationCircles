@@ -3,6 +3,8 @@
 //  from random places on the internet unattributed (GeoTiff and most of distance()). If you're a
 //  prospective employer, please look at BlackjackSim on my github instead for C++ stuff I've
 //  written with better code style.
+// Also, this code used to do GDP too (and it will again in the future), so it's kinda inconsistent
+//  right now wether it uses generic terms of population specifically in the names and comments.
 
 #include <iostream>
 #include <gdal.h>
@@ -23,18 +25,33 @@ const int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
 const int EQUATOR_LEN = 40075;
 
+// TODO: Make a SmallestCircleResult struct. Instead of shortCircuited, it should have the radius.
+
+// Represents a previously found population circle (except its radius).
+struct SmallestCircleResultNoRadius {
+    // The lattitude and longitude of the center of the circle.
+    // TODO: Now that the order is reversed, reverse it in the results file too.
+    double lat, lon;
+    // The population within the circle.
+    double sum;
+    // True iff this circle was found by the algorithm running to completion, false if the
+    //  algorithm "short circuited" and was a >= result (i.e., there may be other circles with a
+    //  bigger population but the same radius).
+    bool shortCircuited;
+};
+
 class EquirectRasterData {
 
 private:
 
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
-    const static int SMALLEST_CIRCLES_VALUE_LENGTH = 3; // lon, lat, sum
-    // key is radius, value is array holding lon, lat, sum, isGreaterThanOrEqualToResult
-    std::map<int, double*> smallestCircleResults;
+    // key is radius
+    std::map<int, SmallestCircleResultNoRadius> smallestCircleResults;
     std::string smallestCircleResultsFilename;
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
+    // TODO: See if I can or should make this an array of arrays (library arrays).
     double **sumTable;
 
     // Used for boundingBoxEdge
@@ -370,27 +387,23 @@ public:
                 // TODO: Don't really need this as a variable
                 // The + 1 is to hold whether or not it's a >= result
                 // TODO: Hold the boolean some better way, probably by making this whole thing a
-                //  class
-                double *smallestCirclesValue = new double[SMALLEST_CIRCLES_VALUE_LENGTH + 1];
-                // TODO: See if std::vector would make more sense here
-                for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    std::string doubleString;
-                    getline(resultSS, doubleString, ' ');
-                    smallestCirclesValue[j] = std::stod(doubleString);
-                }
-                std::string possibleGreaterThanOrEqualString;
-                if (getline(resultSS, possibleGreaterThanOrEqualString)) {
-                    if (possibleGreaterThanOrEqualString != ">=") {
-                        // TODO: Print the actual name of the file
-                        std::cout << "Incorrectly formatted smallestCircleResultsFile" << std::endl;
-                        std::cerr << "Incorrectly formatted smallestCircleResultsFile" << std::endl;
+                //  class;
+                SmallestCircleResultNoRadius result;
+                std::string dummyString;
+                getline(resultSS, dummyString, ' ');
+                result.lon = std::stod(dummyString);
+                getline(resultSS, dummyString, ' ');
+                result.lat = std::stod(dummyString);
+                getline(resultSS, dummyString, ' ');
+                result.sum = std::stod(dummyString);
+                result.shortCircuited = false;
+                if (getline(resultSS, dummyString)) {
+                    if (dummyString != ">=") {
                         throw 1776; // TODO: Make an actually descriptive exception here
                     }
-                    smallestCirclesValue[SMALLEST_CIRCLES_VALUE_LENGTH] = true;
-                } else {
-                    smallestCirclesValue[SMALLEST_CIRCLES_VALUE_LENGTH] = false;
+                    result.shortCircuited = true;
                 }
-                smallestCircleResults[radius] = smallestCirclesValue;
+                smallestCircleResults[radius] = result;
             }
         }
         smallestCircleResultsFile.close();
@@ -401,10 +414,6 @@ public:
             delete[] sumTable[r];
         }
         delete[] sumTable;
-        for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
-             it != smallestCircleResults.end(); it++) {
-            delete[] (it->second);
-        }
     }
 
     // Returns distance in kilometers between two points on Earth's surface
@@ -623,17 +632,20 @@ public:
     // TODO: Make this less spagettiish
     // Doesn't really restrict strictly to range yet (TODO)
     // TODO: Doesnt check easternmost or southernmost part of the world
-    double* largestSumCircleOfGivenRadiusOpt1(const double radius, const double desiredSum,
-                                              const double leftLon=-180, const double rightLon=180,
-                                              const double upLat=90, const double downLat=-90) {
+    // TODO: Keep this public but have a more normal return value, and then make a private version
+    //  that short circuits. Also then make SmallestCircleResultNoRadius private.
+    SmallestCircleResultNoRadius largestSumCircleOfGivenRadiusOpt1(
+        const double radius, const double desiredSum, const double leftLon=-180,
+        const double rightLon=180, const double upLat=90, const double downLat=-90) {
         std::cout << "Radius:" << radius << std::endl;
-        // TODO: Don't look at centers outside these ranges
+        // TODO: Don't look at centers outside these ranges.
         // Turn lat and lon into indices in the pop data.
         const int leftX = lonToX(leftLon);
         const int rightX = lonToX(rightLon);
         const int upY = latToY(upLat);
         const int downY = latToY(downLat);
 
+        // TODO: Make this nicer
         int initialStep;
         double cutoff256;
         double cutoff64;
@@ -695,7 +707,7 @@ public:
                                                           cutoff, -100, -100);
         std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
         cutUnderperformingCircles(topCenXs, topCenYs, topSums, largestSum, cutoff);
-
+        SmallestCircleResultNoRadius result;
         while (step > 1) {
             step /= 4;
             std::cout << "step: " << step << std::endl;
@@ -705,17 +717,16 @@ public:
             if (largestSum > desiredSum) {
                 for (int i = 0; i < topCenXs.size(); i++) {
                     if (topSums[i] == largestSum) {
-                        double *returnValues = new double[4]; // TODO: No magic 4
-                        returnValues[0] = lon(topCenXs[i]);
-                        returnValues[1] = lat(topCenYs[i]);
-                        returnValues[2] = largestSum;
-                        returnValues[3] = true;
+                        result.lat = lat(topCenYs[i]);
+                        result.lon = lon(topCenXs[i]);
+                        result.sum = largestSum;
+                        result.shortCircuited = true;
                         std::cout << "(SS)Sum within " << radius << " kilometers of ("
-                            << returnValues[1] << ", " << returnValues[0] << "): "
-                            << ((long)largestSum) << std::endl;
+                            << result.lat << ", " << result.lon << "): "
+                            << ((long)result.sum) << std::endl;
                         std::cout << ">= " << ((long)desiredSum) << ". Short circuiting."
                             << std::endl;
-                        return returnValues;
+                        return result;
                     }
                 }
             }
@@ -745,22 +756,18 @@ public:
 
         for (int i = 0; i < topCenXs.size(); i++) {
             if (topSums[i] == largestSum) {
-                double *returnValues = new double[4]; // TODO: No magic 4
-                returnValues[0] = lon(topCenXs[i]);
-                returnValues[1] = lat(topCenYs[i]);
-                returnValues[2] = largestSum;
-                returnValues[3] = false;
-                std::cout << "Sum within " << radius << " kilometers of (" << returnValues[1]
-                    << ", " << returnValues[0] << "): " << ((long)largestSum) << std::endl;
-                return returnValues;
+                result.lat = lat(topCenYs[i]);
+                result.lon = lon(topCenXs[i]);
+                result.sum = largestSum;
+                result.shortCircuited = false;
+                std::cout << "Sum within " << radius << " kilometers of (" << result.lat
+                    << ", " << result.lon << "): " << ((long)result.sum) << std::endl;
+                return result;
             }
         }
 
-        // TODO: Throw an exception here. Maybe nullptr return.
-        std::cerr << "Never get here!!! No return value for Opt1" << std::endl;
-        std::cout << "Never get here!!! No return value for Opt1" << std::endl;
-        double *placeholder;
-        return placeholder;
+        // TODO: Throw an actually meaningful exception here.
+        throw 1775;
     }
 
     // TODO: Make this private, probably
@@ -940,26 +947,25 @@ public:
         bool softUpperBound = false;
 
         // Tighten bounds as much as possible using previous results
-        for (std::map<int, double*>::iterator it = smallestCircleResults.begin();
-             it != smallestCircleResults.end(); it++) {
-            const bool isAGreaterThanOrEqualToResult = it->second[3];
-            if ((it->second)[2] < sum && it->first >= lowerBound
-                && !isAGreaterThanOrEqualToResult) {
+        for (auto it = smallestCircleResults.begin(); it != smallestCircleResults.end(); it++) {
+            if (it->second.sum < sum && it->first >= lowerBound && !it->second.shortCircuited) {
                 lowerBound = it->first;
-                initialLargestSum = (it->second)[2];
-            } else if ((it->second)[2] >= sum && it->first <= upperBound) {
-                if (it->first == upperBound && isAGreaterThanOrEqualToResult) {
-                    // Don't replace hard upper bound with a soft one
+                initialLargestSum = it->second.sum;
+            } else if (it->second.sum >= sum && it->first <= upperBound) {
+                if (it->first == upperBound && it->second.shortCircuited) {
+                    // Don't replace hard upper bound with an equal (due to smallestCircleResults
+                    //  being sorted by radius) soft one
                     continue;
                 }
                 upperBound = it->first;
                 returnValues = new double[4];
-                returnValues[0] = (it->second)[0];
-                returnValues[1] = (it->second)[1];
-                returnValues[2] = (it->second)[2];
+                returnValues[0] = it->second.lon;
+                returnValues[1] = it->second.lat;
+                returnValues[2] = it->second.sum;
                 returnValues[3] = it->first;
                 returnValuesAssigned = true;
-                softUpperBound = isAGreaterThanOrEqualToResult;
+                softUpperBound = it->second.shortCircuited;
+                // Can break here since smallestCircleResults is sorted by radius
                 break;
             }
         }
@@ -982,8 +988,7 @@ public:
             } else if (radius < 16000) {
                 narrowDownLat = -50;
             }
-
-            double *largestSumCircle;
+            SmallestCircleResultNoRadius largestSumCircle;
             if (upperBound - lowerBound <= 3) {
                 if (upperBound - lowerBound == 1) {
                     // Need to make upperBound not soft
@@ -998,98 +1003,40 @@ public:
                                                                      narrowRightLon, narrowUpLat,
                                                                      narrowDownLat);
             }
-            if (largestSumCircle[2] >= sum) {
-                if (largestSumCircle[3]) {
-                    softUpperBound = true;
-                } else {
-                    softUpperBound = false;
-                }
+            if (largestSumCircle.sum >= sum) {
+                softUpperBound = largestSumCircle.shortCircuited;
                 upperBound = radius;
                 if (returnValuesAssigned) {
                     delete[] returnValues;
                 }
                 returnValues = new double[4];
-                returnValues[0] = largestSumCircle[0];
-                returnValues[1] = largestSumCircle[1];
-                returnValues[2] = largestSumCircle[2];
+                returnValues[0] = largestSumCircle.lon;
+                returnValues[1] = largestSumCircle.lat;
+                returnValues[2] = largestSumCircle.sum;
                 returnValues[3] = radius;
                 returnValuesAssigned = true;
             } else {
                 lowerBound = radius;
-                initialLargestSum = largestSumCircle[2];
+                initialLargestSum = largestSumCircle.sum;
             }
-
-            const bool isNewGreaterThanOrEqualResult = largestSumCircle[3];
             // Add result to smallestCircleResults and its file
-            std::map<int, double*>::iterator it = smallestCircleResults.find(radius);
-            if (it != smallestCircleResults.end() && !it->second[3]) {
-                // TODO: Figure out a better way to do these sort of things (probably throw an
-                //  exception)
-                // TODO: See if there's a way to send a string to both streams
-                std::cout << "smallestCircleWithGivenSum had an error involving "
-                    "smallestCircleResults" << std::endl;
-                std::cerr << "smallestCircleWithGivenSum had an error involving "
-                    "smallestCircleResults" << std::endl; // Above line might get drowned out
+            // TODO: Put this in one or more functions
+            auto it = smallestCircleResults.find(radius);
+            if (it != smallestCircleResults.end() && !it->second.shortCircuited) {
+                // TODO: Throw an actually meaningful exception
+                throw 1774;
             } else {
                 std::fstream smallestCircleResultsFile;
                 smallestCircleResultsFile.open(smallestCircleResultsFilename);
                 smallestCircleResultsFile.seekg(0, std::ios::end);
                 smallestCircleResultsFile << radius
                                           << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
-                // TODO: See if I can just write the entire array at once
-                // Note the lack of a + 1 here
-                for (int j = 0; j < SMALLEST_CIRCLES_VALUE_LENGTH; j++) {
-                    smallestCircleResultsFile << " " << largestSumCircle[j];
-                }
-                if (isNewGreaterThanOrEqualResult) {
-                    smallestCircleResultsFile << " >=";
-                }
-                smallestCircleResultsFile << std::setprecision(6) << "\n";
+                smallestCircleResultsFile << " " << largestSumCircle.lon << " "
+                                          << largestSumCircle.lat << " " << largestSumCircle.sum
+                                          << (largestSumCircle.shortCircuited ? " >=" : "");
                 smallestCircleResultsFile.close();
-                // TODO: Instead of this workaround, just don't delete[] largestSumCircle in
-                //  this case
-                // TODO: Get rid of the magic + 1, here to hold >= boolean
-                smallestCircleResults[radius] = new double[SMALLEST_CIRCLES_VALUE_LENGTH + 1];
-                smallestCircleResults[radius][0] = largestSumCircle[0];
-                smallestCircleResults[radius][1] = largestSumCircle[1];
-                smallestCircleResults[radius][2] = largestSumCircle[2];
-                smallestCircleResults[radius][3] = isNewGreaterThanOrEqualResult;
+                smallestCircleResults[radius] = largestSumCircle;
             }
-
-            delete[] largestSumCircle;
-// TODO: This was done incorrectly. ------------------------------------------------------------------------------------------------------------
-            const double popAbove = smallestCircleResults[upperBound][2] - smallestCircleResults[radius][2];
-            const double popBelow = smallestCircleResults[radius][2] - smallestCircleResults[lowerBound][2];
-            const double sumMinusPop = sum - smallestCircleResults[radius][2];
-            const double popMinusSum = smallestCircleResults[radius][2] - sum;
-            const int range = upperBound - lowerBound;
-            const std::array<int, 20> nonBinarySearches = {3, 4, 5, 8, 12, 16, 20, 24, 28, 32, 38, 44, 54, 64, 73, 100, 128, 256, 512, 1024};
-            const std::array<int, 20> nonBinaryCutoffs = {1/3, 1/4, 1/5, 1/8, 1/12, 1/16, 1/20, 1/24, 1/28, 1/32, 1/38, 1/44, 1/54, 1/64, 1/73, 1/100, 1/128, 1/256, 1/512, 1/1024};
-            //--------------------------------------------------------------------------------------
-            // 0
-            /*/ TODO
-            if (sumMinusPop < nonBinaryCutoffs[0] * popMinusSum && range > nonBinarySearches[0]) {
-                radius = upperBound - range / nonBinarySearches[0];
-            } else if (popMinusSum < nonBinaryCutoffs[0] * sumMinusPop && range > nonBinarySearches[0]) {
-                radius = lowerBound + range / nonBinarySearches[0];
-            //--------------------------------------------------------------------------------------
-            // 1
-            } else if (sumMinusPop < nonBinaryCutoffs[1] * popMinusSum && range > nonBinarySearches[1]) {
-                radius = upperBound - range / nonBinarySearches[1];
-            } else if (popMinusSum < nonBinaryCutoffs[1] * sumMinusPop && range > nonBinarySearches[1]) {
-                radius = lowerBound + range / nonBinarySearches[1];
-            //--------------------------------------------------------------------------------------
-            // 2
-            } else if (sumMinusPop < nonBinaryCutoffs[2] * popMinusSum && range > nonBinarySearches[2]) {
-                radius = upperBound - range / nonBinarySearches[2];
-            } else if (popMinusSum < nonBinaryCutoffs[2] * sumMinusPop && range > nonBinarySearches[2]) {
-                radius = lowerBound + range / nonBinarySearches[2];
-            //--------------------------------------------------------------------------------------
-            // 3
-            // TODO
-            } else {
-                radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
-            }*/
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
         }
         if (!returnValuesAssigned) {
@@ -1114,10 +1061,10 @@ void testCircleSkipping() {
     std::cout << "Loaded population summation table." << std::endl;
 
     // Huge desiredSum so that it doesn't short circuit
-    double *smallestCircle = data.largestSumCircleOfGivenRadiusOpt1(radius, 10000000000000);
-    std::cout << "Population within " << radius << " km of (" << smallestCircle[1] 
-        << ", " << smallestCircle[0] << "): " << ((long long)(smallestCircle[2])) << std::endl;
-    delete[] smallestCircle;
+    SmallestCircleResultNoRadius smallestCircle =
+        data.largestSumCircleOfGivenRadiusOpt1(radius, 10000000000000);
+    std::cout << "Population within " << radius << " km of (" << smallestCircle.lat << ", "
+              << smallestCircle.lon << "): " << (long long)smallestCircle.sum << std::endl;
 }
 
 // What was in the main function before.
@@ -1135,7 +1082,7 @@ void normalMain() {
     EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
 
     std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." 
-        << std::endl;
+              << std::endl;
 
     // Used by imageManipulation.java so that it knows what text to add, as well as by
     //  percentageCirclesMapMakerTextInJSONOut.cpp so it knows where and how large to draw the
