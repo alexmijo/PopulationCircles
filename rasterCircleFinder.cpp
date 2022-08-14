@@ -537,9 +537,6 @@ public:
         return numCols;
     }
 
-    // TODO: Check if the following two functions actually give the correct answers
-    //  (by brute forcing some circles with the original pop data)
-
     // Finds the circle of the given radius that maximizes the sum of the data inside it. Returns
     //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
     //  circle and the sum of the data inside the circle [2].
@@ -548,99 +545,13 @@ public:
     // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure
     //  known to be at least as small as what the largestSum will end up being.
     // Radius given in kilometers.
-    // TODO: Update or remove this.
-    double* largestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
-                                          const double rightLon=180, const double upLat=90, 
-                                          const double downLat=-90, 
-                                          const double initialLargestSum=0) {
-        const int smallStep = 1; //1
-        const int mediumStep = std::max((int)(radius / 128), 1); //4
-        const int largeStep = std::max((int)(radius / 32), 1); //16
-        const int xLStep = std::max((int)(radius / 8), 1); //64
-        const int xXLStep = std::max((int)(radius / 2), 1); //256
-
-        const double smallCutoff = 0.82; // 0.82
-        const double mediumCutoff = 0.65; // 0.65
-        const double largeCutoff = 0.47; // 0.47
-        const double xLCutoff = 0.32; // 0.32
-        
-        const int printMod = 163; // Print lattitude when the Y index mod this is 0
-        int step = smallStep;
-        // Turn lat and lon into indices in the pop data.
-        const int leftX = lonToX(leftLon);
-        const int rightX = lonToX(rightLon);
-        const int upY = latToY(upLat);
-        const int downY = latToY(downLat);
-
-        double largestSumCenLon;
-        double largestSumCenLat;
-        double largestSum = initialLargestSum;
-
-        for (int cenY = upY; cenY <= downY; cenY += step) {
-            if (cenY % printMod == 0) {
-                std::cout << "Current lattitude: " << lat(cenY) << std::endl;
-            }
-
-            int kernelLength;
-            int* kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
-
-            for (int cenX = leftX; cenX <= rightX; cenX += step) {
-                double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
-                if (popWithinNKilometers >= largestSum) {
-                    std::cout << "Sum within " << radius << " kilometers of ("
-                        << lat(cenY) << ", " << lon(cenX) << "): "
-                        << ((long long)popWithinNKilometers) << std::endl;
-                    largestSumCenLon = lon(cenX);
-                    largestSumCenLat = lat(cenY);
-                    largestSum = popWithinNKilometers;
-                }
-
-                if (popWithinNKilometers > largestSum * smallCutoff) {
-                    if (step > smallStep) {
-                        cenX -= step;
-                    }
-                    step = smallStep;
-                }
-                else if (popWithinNKilometers > largestSum * mediumCutoff) {
-                    if (step > mediumStep) {
-                        cenX -= step;
-                    }
-                    step = mediumStep;
-                }
-                else if (popWithinNKilometers > largestSum * largeCutoff) {
-                    if (step > largeStep) {
-                        cenX -= step;
-                    }
-                    step = largeStep;
-                }
-                else if (popWithinNKilometers > largestSum * xLCutoff) {
-                    if (step > xLStep) {
-                        cenX -= step;
-                    }
-                    step = xLStep;
-                }
-                else {
-                    step = xXLStep;
-                }
-            }
-            delete[] kernel;
-            step = smallStep;
-        }
-
-        double *returnValues = new double[3];
-        returnValues[0] = largestSumCenLon;
-        returnValues[1] = largestSumCenLat;
-        returnValues[2] = largestSum;
-        return returnValues;
-    }
-
-    // First new approach to optimizing the function
     // TODO: Make this less spagettiish
     // Doesn't really restrict strictly to range yet (TODO)
     // TODO: Doesnt check easternmost or southernmost part of the world
     // TODO: Keep this public but have a more normal return value, and then make a private version
-    //  that short circuits. Also then make SmallestCircleResultMaybeShortCircuit private.
-    SmallestCircleResultMaybeShortCircuit largestSumCircleOfGivenRadiusOpt1(
+    //  that short circuits. Also then make SmallestCircleResultMaybeShortCircuit private. This will
+    //  also take care of the spec and desiredSum not making sense here.
+    SmallestCircleResultMaybeShortCircuit largestSumCircleOfGivenRadius(
         const double radius, const double desiredSum, const double leftLon=-180,
         const double rightLon=180, const double upLat=90, const double downLat=-90) {
         std::cout << "Radius:" << radius << std::endl;
@@ -708,7 +619,7 @@ public:
         double largestSum = 0;
 
         std::cout << "step: " << step << std::endl;
-        largestSumCirclesOfGivenRadiusOpt1PixelBoundaries(radius, leftX, rightX, upY, downY, step,
+        largestSumCirclesOfGivenRadiusPixelBoundaries(radius, leftX, rightX, upY, downY, step,
                                                           topCenXs, topCenYs, topSums, largestSum,
                                                           cutoff, -100, -100);
         std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
@@ -750,7 +661,7 @@ public:
                 int sectionRightX = topCenXs[i] + step * 2 - 1;
                 int sectionUpY = topCenYs[i] - step * 2;
                 int sectionDownY = topCenYs[i] + step * 2 - 1;
-                largestSumCirclesOfGivenRadiusOpt1PixelBoundaries(radius, sectionLeftX,
+                largestSumCirclesOfGivenRadiusPixelBoundaries(radius, sectionLeftX,
                                                                   sectionRightX, sectionUpY,
                                                                   sectionDownY, step, topCenXs,
                                                                   topCenYs, topSums, largestSum,
@@ -780,15 +691,11 @@ public:
     // Passed in ranges are inclusive.
     // Adds all centers that are at least 90% the sum of the largest center to topCenXs and topCenYs
     // Reassigns largestSum if necessary
-    void largestSumCirclesOfGivenRadiusOpt1PixelBoundaries(const double radius, const int leftX,
-                                                           const int rightX, const int upY,
-                                                           const int downY, const int step,
-                                                           std::vector<int>& topCenXs,
-                                                           std::vector<int>& topCenYs,
-                                                           std::vector<double>& topSums,
-                                                           double& largestSum,
-                                                           const double cutoff, const int skipX,
-                                                           const int skipY) {
+    void largestSumCirclesOfGivenRadiusPixelBoundaries(
+        const double radius, const int leftX, const int rightX, const int upY, const int downY, 
+        const int step, std::vector<int>& topCenXs, std::vector<int>& topCenYs,
+        std::vector<double>& topSums, double& largestSum, const double cutoff, const int skipX,
+        const int skipY) {
         for (int cenY = upY; cenY <= downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
@@ -1002,11 +909,11 @@ public:
                     radius = upperBound;
                 }
                 // Huge desired sum since we don't want it to short circuit
-                largestSumCircle = largestSumCircleOfGivenRadiusOpt1(radius, 10000000000000,
+                largestSumCircle = largestSumCircleOfGivenRadius(radius, 10000000000000,
                                                                      narrowLeftLon, narrowRightLon,
                                                                      narrowUpLat, narrowDownLat);
             } else {
-                largestSumCircle = largestSumCircleOfGivenRadiusOpt1(radius, sum, narrowLeftLon,
+                largestSumCircle = largestSumCircleOfGivenRadius(radius, sum, narrowLeftLon,
                                                                      narrowRightLon, narrowUpLat,
                                                                      narrowDownLat);
             }
@@ -1065,7 +972,7 @@ void testCircleSkipping() {
 
     // Huge desiredSum so that it doesn't short circuit
     SmallestCircleResultMaybeShortCircuit smallestCircle =
-        data.largestSumCircleOfGivenRadiusOpt1(radius, 10000000000000);
+        data.largestSumCircleOfGivenRadius(radius, 10000000000000);
     std::cout << "Population within " << radius << " km of (" << smallestCircle.lat << ", "
               << smallestCircle.lon << "): " << (long long)smallestCircle.sum << std::endl;
 }
