@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <vector>
 #include <array>
+#include <stdexcept>
 
 const double WORLD_POP_2015 = 7346242908.863955;
 // See https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
@@ -83,9 +84,7 @@ private:
         } else if (northOrSouth == south) {
             incOrDec = 1;
         } else {
-            // TODO: Throw an actually meaningful exception here.
-            // BoundingBoxEdge called with bad argument.
-            throw 1700;
+            throw std::invalid_argument("BoundingBoxEdge called with bad direction.");
         }
 
         while (edge >= 0 && edge <= edgeOfMap) {
@@ -405,7 +404,9 @@ public:
                 result.shortCircuited = false;
                 if (getline(resultSS, dummyString)) {
                     if (dummyString != ">=") {
-                        throw 1776; // TODO: Make an actually descriptive exception here
+                        throw std::runtime_error(
+                            "Incorrectly formatted smallest circle results file: "
+                            + smallestCircleResultsFilename);
                     }
                     result.shortCircuited = true;
                 }
@@ -683,8 +684,7 @@ public:
             }
         }
 
-        // TODO: Throw an actually meaningful exception here.
-        throw 1775;
+        throw std::logic_error("Should never get here");
     }
 
     // TODO: Make this private, probably
@@ -933,8 +933,7 @@ public:
             // TODO: Put this in one or more functions
             auto it = smallestCircleResults.find(radius);
             if (it != smallestCircleResults.end() && !it->second.shortCircuited) {
-                // TODO: Throw an actually meaningful exception
-                throw 1774;
+                throw std::logic_error("Redid a previous result, which should never happen");
             } else {
                 std::fstream smallestCircleResultsFile;
                 smallestCircleResultsFile.open(smallestCircleResultsFilename);
@@ -950,11 +949,11 @@ public:
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
         }
         if (!foundSuitableCircle) {
-            // TODO: Figure out a better way to do these sort of things (probably throw an
-            //  exception)
-            std::cout << "smallestCircleWithGivenSum wasn't able to find a circle with a large "
-                "enough sum. Either the sum (" << sum << ") was too large, or a bug occurred." 
-                << std::endl;
+            if (sum > WORLD_POP_2015) {
+                throw std::invalid_argument("Desired sum is larger than the world population, and a"
+                    " suitable circle wasn't found");
+            }
+            throw std::logic_error("Should never get here");
         }
         return returnValues;
     }
