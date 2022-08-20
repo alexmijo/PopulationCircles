@@ -1,10 +1,8 @@
-// Needs GDAL library
+// Uses GDAL library
 // This is an early version of the program. It's still kinda spaghetti code and has code I copied
 //  from random places on the internet unattributed (GeoTiff and most of distance()). If you're a
 //  prospective employer, please look at BlackjackSim on my github instead for C++ stuff I've
 //  written with better code style.
-// Also, this code used to do GDP too (and it will again in the future), so it's kinda inconsistent
-//  right now wether it uses generic terms of population specifically in the names and comments.
 
 #include <iostream>
 #include <gdal.h>
@@ -32,7 +30,7 @@ struct SmallestCircleResult {
     // The radius of the circle in kilometers.
     double radius;
     // The population within the circle.
-    double sum;
+    double pop;
 };
 
 // Represents a previously found population circle, except instead of the radius it has whether or
@@ -42,7 +40,7 @@ struct SmallestCircleResultMaybeShortCircuit {
     // TODO: Now that the order is reversed, reverse it in the results file too.
     double lat, lon;
     // The population within the circle.
-    double sum;
+    double pop;
     // True iff this circle was found by the algorithm running to completion, false if the
     //  algorithm "short circuited" and was a >= result (i.e., there may be other circles with a
     //  bigger population but the same radius).
@@ -58,7 +56,9 @@ private:
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
-    // TODO: See if I can or should make this an array of arrays (library arrays).
+    // TODO: See if I can or should make this an array of arrays (library arrays). Can't be a 2D C
+    //  array cause it's too large.
+    // TODO: See if I should actually make this a 1D array (both for loading speed and using speed)
     double **sumTable;
 
     // Used for boundingBoxEdge
@@ -67,8 +67,8 @@ private:
         south
     };
 
-    // Returns the northmost or southmost row containing any pixel within <radius> km of the given
-    //  pixel (specified by <x> and <y>).
+    // Returns the northernmost or southernmost row containing any pixel within <radius> km of the
+    //  given pixel (specified by <x> and <y>).
     int boundingBoxEdge(const int x, const int y, const double radius, direction northOrSouth) {
         // Turn x and y (indices in the pop data) into geographic coordinates.
         const double cenLon = lon(x);
@@ -90,8 +90,8 @@ private:
         while (edge >= 0 && edge <= edgeOfMap) {
             double currLat, currLon;
             currLat = lat(edge);
-            currLon = cenLon; // Since this function only works for up (0) and down (1), lon never
-                              //  changes
+            // Since this function only works for north and south, longitude never changes
+            currLon = cenLon;
             const double distanceFromCen = distance(currLat, currLon, cenLat, cenLon);
             if (distanceFromCen > radius) {
                 edge -= incOrDec; // Went too far, walk it back
@@ -117,7 +117,8 @@ private:
 
     // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference
     //  parameter kernelLength.
-    // TODO: Make the kernel an actual 2d array
+    // TODO: Make the kernel a vector instead of a dynamically allocated c array
+    // TODO: Make the kernel an actual 2d array (maybe)
     // TODO: See if this double counts part of 1 column when wrapping around all longitudes
     int* makeKernel(const int cenX, const int cenY, const double radius, int& kernelLength) {
         const double cenLon = lon(cenX);
@@ -139,8 +140,7 @@ private:
             double currLat = lat(y);
             if (distance(currLat, currLon, cenLat, cenLon) > radius) {
                 if (horizontalOffset == 0) {
-                    // TODO: Probably some better way of logging/displaying this error
-                    std::cout << "Something went wrong!1" << std::endl;
+                    throw std::logic_error("Kernel making failed. Should never get here.");
                 }
                 horizontalOffset--;
             }
@@ -148,7 +148,8 @@ private:
                 // See how much farther out we can go at this y level and still be in the circle
                 while (distance(currLat, currLon, cenLat, cenLon) <= radius) {
                     horizontalOffset++;
-                    if (horizontalOffset > numCols / 2) { // This rectangle wraps around the world
+                    if (horizontalOffset > numCols / 2) {
+                        // This rectangle wraps around the world
                         break;
                     }
                     currLon = lon(cenX + horizontalOffset);
@@ -160,12 +161,13 @@ private:
                 tempKernel[kernelIndex(kernelRow, 0)] = -horizontalOffset - 1;
                 tempKernel[kernelIndex(kernelRow, 1)] = horizontalOffset;
                 tempKernel[kernelIndex(kernelRow, 2)] = y - cenY - 1;
-                if (y == southEdge) { // If we just started a new rectangle at southEdge, it must
-                                      //  end there too
+                if (y == southEdge) {
+                    // If we just started a new rectangle at southEdge, it must end there too
                     tempKernel[kernelIndex(kernelRow, 3)] = y - cenY;
                     break;
                 }
-                else { // Find where this new rectangle ends
+                else {
+                    // Find where this new rectangle ends
                     while (true) {
                         y++;
                         if (y > southEdge) {
@@ -175,8 +177,8 @@ private:
                         }
 
                         // Check if the circle has widened
-                        if (horizontalOffset < numCols / 2) { // Rectangles that wrap around the
-                                                              //  whole world can't widen any more
+                        if (horizontalOffset < numCols / 2) {
+                            // Rectangles that wrap around the whole world can't widen any more
                             currLon = lon(cenX + horizontalOffset + 1);
                             currLat = lat(y);
                             if (distance(currLat, currLon, cenLat, cenLon) <= radius) {
@@ -222,111 +224,58 @@ private:
     double popWithinRectangle(const int west, const int east, const int north, const int south) {
         if (west == -1) {
             if (north == -1) {
-                return sumTable[south][east]; // West side of rectangle on the antimeridian and
-                                              //  north side of rectangle on the north pole
+                // West side of rectangle on the antimeridian and north side of rectangle on the
+                //  north pole
+                return sumTable[south][east];
             }
-            return sumTable[south][east] - sumTable[north][east]; // West side of rectangle on the
-                                                                  //  antimeridian
-        } else if (north == -1) { // North side of rectangle on the north pole
+            // West side of rectangle on the antimeridian
+            return sumTable[south][east] - sumTable[north][east];
+        } else if (north == -1) {
+            // North side of rectangle on the north pole
             return sumTable[south][east] - sumTable[south][west];
         }
-        return sumTable[south][east] - sumTable[north][east] - sumTable[south][west] 
-               + sumTable[north][west];
+        return sumTable[south][east] - sumTable[north][east] - sumTable[south][west] +
+               sumTable[north][west];
     }
 
-    // Returns the population of a circle with a radius of <radius> kilometers centered at the given
-    //  latittude <cenLat> and longitude <cenLon>. TODO: Make this comment make more sense
+    // Returns the population contained within a circle who's boundary is specified by <kernel> and
+    //  which is centered at the (<cenX>, <cenY>) pixel.
     double popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength) {
         double totalPop = 0;
-
         for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
             // Sides of the rectangle
             const int west = kernel[kernelIndex(kernelRow, 0)] + cenX;
             const int east = kernel[kernelIndex(kernelRow, 1)] + cenX;
             const int north = kernel[kernelIndex(kernelRow, 2)] + cenY;
             const int south = kernel[kernelIndex(kernelRow, 3)] + cenY;
-
-            if (kernel[kernelIndex(kernelRow, 1)] == numCols / 2) { // This rectangle encircles the
-                                                                    //  entire latitude
+            if (kernel[kernelIndex(kernelRow, 1)] == numCols / 2) {
+                // This rectangle encircles the entire latitude
                 totalPop += popWithinRectangle(-1, numCols - 1, north, south);
-            } else if (west < -1) { // Need to wrap around the antimeridian, creating two rectangles
+            } else if (west < -1) {
+                // Need to wrap around the antimeridian, creating two rectangles
                 totalPop += popWithinRectangle(-1, east, north, south);
                 totalPop += popWithinRectangle(numCols + west, numCols - 1, north, south);
-            } else if (east >= numCols) { // Need to wrap around the antimeridian, creating two
-                                          //  rectangles
+            } else if (east >= numCols) {
+                // Need to wrap around the antimeridian, creating two rectangles
                 totalPop += popWithinRectangle(west, numCols - 1, north, south);
                 totalPop += popWithinRectangle(-1, east - numCols, north, south);
             } else {
                 totalPop += popWithinRectangle(west, east, north, south);
             }
         }
-
         return totalPop;
-    }
-
-    // Does the same thing as popWithinKernel, except faster for circles that cover more than half
-    //  of the earth. It does this by summing up the area outside of the circle and then subtracting
-    //  that from the total world population instead of summing up the area inside the circle.
-    // TODO: Wait why did I think this would be any faster? It still has to go through the whole
-    //  kernel, the only difference is that it might have less splitting along the antimeridian on
-    //  average (although even that I'm not sure about). So I'm pretty sure this was sort of
-    //  useless. I need to test to find out.
-    // TODO: Instead of caring about if the circle has more than half the world's area, I should be
-    //  doing something different if the circle has more than half the world's population.
-    double popWithinKernelLargeCircle(const int cenX, const int cenY, int* kernel,
-                                      const int kernelLength) {
-        double popOutsideCircle = 0;
-        // TODO: Fewer magic numbers please
-        const int firstNorth = kernel[kernelIndex(0, 2)] + cenY;
-        if (firstNorth > -1) {
-            // Add all population north of the circle
-            popOutsideCircle += popWithinRectangle(-1, numCols - 1, -1, firstNorth);
-        }
-
-        for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
-            // Sides of the original rectangle
-            const int west = kernel[kernelIndex(kernelRow, 0)] + cenX;
-            const int east = kernel[kernelIndex(kernelRow, 1)] + cenX;
-            const int north = kernel[kernelIndex(kernelRow, 2)] + cenY;
-            const int south = kernel[kernelIndex(kernelRow, 3)] + cenY;
-
-            if (kernel[kernelIndex(kernelRow, 1)] == numCols / 2) {
-                // Original rectangle encircles the entire latitude
-                continue;
-            } else if (west < -1) {
-                // Originally needed to wrap around the antimeridian, creating two rectangles.
-                //  Therefore we don't do that.
-                popOutsideCircle += popWithinRectangle(east, numCols + west, north, south);
-            } else if (east >= numCols) {
-                // Originally needed to wrap around the antimeridian, creating two rectangles.
-                //  Therefore we don't do that.
-                popOutsideCircle += popWithinRectangle(east - numCols, west, north, south);
-            } else {
-                // Originally didn't need to wrap around the antimeridian, so now we do need to.
-                popOutsideCircle += popWithinRectangle(-1, west, north, south);
-                popOutsideCircle += popWithinRectangle(east, numCols - 1, north, south);
-            }
-        }
-
-        const int lastSouth = kernel[kernelIndex(kernelLength - 1, 3)] + cenY;
-        if (lastSouth < numRows - 1) {
-            // Add all population south of the circle
-            popOutsideCircle += popWithinRectangle(-1, numCols - 1, lastSouth, numRows - 1);
-        }
-
-        return WORLD_POP_2015 - popOutsideCircle;
     }
 
     // Get longitude of the center of the <x>th (0 indexed) column
     double lon(int x) {
-        return (((double)x + 0.5) / (double)numCols) * 360.0 - 180.0;
+        return ((x + 0.5) / numCols) * 360.0 - 180.0;
     }
 
     // Get lattitude of the center of the <y>th (0 indexed) row
     double lat(int y) {
-        return -((((double)y + 0.5) / (double)numRows) * 180.0 - 90.0);
+        return -(((y + 0.5) / numRows) * 180.0 - 90.0);
     }
-    
+
     // The inverse of the lon function
     int lonToX(double lon) {
         return ((lon + 180.0) / 360.0) * numCols - 0.5;
@@ -342,13 +291,7 @@ public:
     //  numCols, and then numRows * numCols doubles representing all of the data in the summation
     //  table.
     // Projection must be equirectangular.
-    // File specified by <smallestCircleResultsFilename> must consist of an int for
-    //  numSmallestCircleResults, and then numSmallestCircleResults "rows" each consisting of 1 int
-    //  followed by SMALLEST_CIRCLES_VALUE_LENGTH doubles.
-    // TODO: Include some information in smallestCircleResultsFile to make sure it corresponds to
-    //  this sumTableFile.
-    // TODO: see if smallestCircleResultsFilename shouldn't be pass by reference
-    // TODO: Make it just use the text file instead of sometimes creating it from the binary one
+    // TODO: Complete spec
     EquirectRasterData(const std::string& sumTableFilename,
                        const std::string& smallestCircleResultsFilename) : 
                        smallestCircleResultsFilename(smallestCircleResultsFilename) {
@@ -359,59 +302,53 @@ public:
         sumTable = new double*[numRows];
         for(int r = 0; r < numRows; r++) {
             sumTable[r] = new double[numCols];
-            for (int c = 0; c < numCols; c++) {
-                // TODO: See if it's faster to read in entire rows at a time
-                sumTableFile.read(reinterpret_cast<char *>(&sumTable[r][c]), sizeof(double));
-            }
+            // Reads in an entire row at once
+            sumTableFile.read(reinterpret_cast<char *>(sumTable[r]), sizeof(double) * numCols);
         }
         sumTableFile.close();
-
         std::fstream smallestCircleResultsFile;
         smallestCircleResultsFile.open(smallestCircleResultsFilename);
         // See if file is empty. If so, make it
-        std::streampos begin, end;
-        begin = smallestCircleResultsFile.tellg();
+        // TODO: Have this be a function
+        std::streampos begin = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::end);
-        end = smallestCircleResultsFile.tellg();
+        std::streampos end = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::beg);
         if (begin - end == 0) {
-            // TODO: See if any of this is even necessary
             std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it "
                 "non-empty and existing." << std::endl;
             smallestCircleResultsFile.close();
             // Make the file
             // TODO: See if this is still needed now that it's text not binary
             smallestCircleResultsFile.open(smallestCircleResultsFilename, std::ios::out);
-        } else {
-            std::string resultString;
-            while (getline(smallestCircleResultsFile, resultString)) {
-                std::stringstream resultSS(resultString);
-                std::string radiusString;
-                getline(resultSS, radiusString, ' ');
-                const int radius = std::stoi(radiusString);
-                // TODO: Don't really need this as a variable
-                // The + 1 is to hold whether or not it's a >= result
-                // TODO: Hold the boolean some better way, probably by making this whole thing a
-                //  class;
-                SmallestCircleResultMaybeShortCircuit result;
-                std::string dummyString;
-                getline(resultSS, dummyString, ' ');
-                result.lon = std::stod(dummyString);
-                getline(resultSS, dummyString, ' ');
-                result.lat = std::stod(dummyString);
-                getline(resultSS, dummyString, ' ');
-                result.sum = std::stod(dummyString);
-                result.shortCircuited = false;
-                if (getline(resultSS, dummyString)) {
-                    if (dummyString != ">=") {
-                        throw std::runtime_error(
-                            "Incorrectly formatted smallest circle results file: "
-                            + smallestCircleResultsFilename);
-                    }
-                    result.shortCircuited = true;
+        }
+        std::string resultString;
+        while (getline(smallestCircleResultsFile, resultString)) {
+            std::stringstream resultSS(resultString);
+            std::string radiusString;
+            getline(resultSS, radiusString, ' ');
+            const int radius = std::stoi(radiusString);
+            // TODO: Don't really need this as a variable
+            // The + 1 is to hold whether or not it's a >= result
+            // TODO: Hold the boolean some better way, probably by making this whole thing a
+            //  class;
+            SmallestCircleResultMaybeShortCircuit result;
+            std::string dummyString;
+            getline(resultSS, dummyString, ' ');
+            result.lon = std::stod(dummyString);
+            getline(resultSS, dummyString, ' ');
+            result.lat = std::stod(dummyString);
+            getline(resultSS, dummyString, ' ');
+            result.pop = std::stod(dummyString);
+            result.shortCircuited = false;
+            if (getline(resultSS, dummyString)) {
+                if (dummyString != ">=") {
+                    throw std::runtime_error("Incorrectly formatted smallest circle results file: "
+                                             + smallestCircleResultsFilename);
                 }
-                smallestCircleResults[radius] = result;
+                result.shortCircuited = true;
             }
+            smallestCircleResults[radius] = result;
         }
         smallestCircleResultsFile.close();
     }
@@ -424,6 +361,7 @@ public:
     }
 
     // Returns distance in kilometers between two points on Earth's surface
+    // TODO: Find source and give credit
     static double distance(const double& lat1, const double& lon1, const double& lat2, 
                            const double& lon2) {
         double req = 6378137.0;
@@ -437,8 +375,6 @@ public:
             double equatorLength = 2.0 * 3.14159265358979323 * req;
             return fractionOfEquator * equatorLength;
         }
-        // The rest of this function (except for the conversion to kilometers) was copy pasted from
-        //  somewhere (I forgot where) online.
 
         const double latitude_01 = lat1 * M_PI / 180.0;
         const double longitude_01 = lon1 * M_PI / 180.0;
@@ -471,7 +407,6 @@ public:
 
         while (true) {
 
-            // 
             double sin_lambda = std::sin(lambda);
             double cos_lambda = std::cos(lambda);
 
@@ -506,7 +441,9 @@ public:
             lambda = L + (1 - C) * f * sin_alpha * (sigma + C * sin_sigma * (cos_2sigma_m + C 
                      * cos_sigma * (-1 + 2 * cos_2sigma_m * cos_2sigma_m)));
             diff = lambda - diff;
-            if (std::fabs(diff) < 0.00001) { break; }
+            if (std::fabs(diff) < 0.00001) {
+                break; 
+            }
         }
 
         // U2
@@ -526,7 +463,7 @@ public:
         // Distance
         double s = b * A * (sigma - delta_sigma);
 
-        // Convert from meters to kilometers before returnings
+        // Convert from meters to kilometers before returning
         return s / 1000.;
     }
 
@@ -538,24 +475,25 @@ public:
         return numCols;
     }
 
-    // Finds the circle of the given radius that maximizes the sum of the data inside it. Returns
+    // TODO: Fix the spec below, which is outdated 
+    // Finds the circle of the given radius containing maximal population. Returns
     //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
-    //  circle and the sum of the data inside the circle [2].
+    //  circle and the population inside the circle [2].
     // Can optionally constrain the center of the circle to be within given ranges of latitudes and
     //  longitudes with leftLon, rightLon, upLat and downLat.
     // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure
-    //  known to be at least as small as what the largestSum will end up being.
+    //  known to be at least as small as what the largestPop will end up being.
     // Radius given in kilometers.
     // TODO: Make this less spagettiish
     // Doesn't really restrict strictly to range yet (TODO)
     // TODO: Doesnt check easternmost or southernmost part of the world
     // TODO: Keep this public but have a more normal return value, and then make a private version
     //  that short circuits. Also then make SmallestCircleResultMaybeShortCircuit private. This will
-    //  also take care of the spec and desiredSum not making sense here.
-    SmallestCircleResultMaybeShortCircuit largestSumCircleOfGivenRadius(
-        const double radius, const double desiredSum, const double leftLon=-180,
+    //  also take care of the spec and desiredPop not making sense here.
+    SmallestCircleResultMaybeShortCircuit mostPopulousCircleOfGivenRadius(
+        const double radius, const double desiredPop, const double leftLon=-180,
         const double rightLon=180, const double upLat=90, const double downLat=-90) {
-        std::cout << "Radius:" << radius << std::endl;
+        std::cout << "Radius: " << radius << std::endl;
         // TODO: Don't look at centers outside these ranges.
         // Turn lat and lon into indices in the pop data.
         const int leftX = lonToX(leftLon);
@@ -616,33 +554,34 @@ public:
         // TODO: Make this one vector instead of three
         std::vector<int> topCenXs;
         std::vector<int> topCenYs;
-        std::vector<double> topSums;
-        double largestSum = 0;
+        std::vector<double> topPops;
+        double largestPop = 0;
 
         std::cout << "step: " << step << std::endl;
-        largestSumCirclesOfGivenRadiusPixelBoundaries(radius, leftX, rightX, upY, downY, step,
-                                                          topCenXs, topCenYs, topSums, largestSum,
-                                                          cutoff, -100, -100);
+        // -100 for skipY and skipX since we don't want to skip any pixels
+        mostPopulousCirclesOfGivenRadiusPixelBoundaries(
+            radius, leftX, rightX, upY, downY, step, topCenXs, topCenYs, topPops, largestPop,
+            cutoff, -100, -100);
         std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
-        cutUnderperformingCircles(topCenXs, topCenYs, topSums, largestSum, cutoff);
+        cutUnderperformingCircles(topCenXs, topCenYs, topPops, largestPop, cutoff);
         SmallestCircleResultMaybeShortCircuit result;
         while (step > 1) {
             step /= 4;
             std::cout << "step: " << step << std::endl;
             std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
-            std::cout << "largestSum: " << ((long)largestSum) << std::endl;
+            std::cout << "largestPop: " << ((long)largestPop) << std::endl;
             
-            if (largestSum > desiredSum) {
+            if (largestPop > desiredPop) {
                 for (int i = 0; i < topCenXs.size(); i++) {
-                    if (topSums[i] == largestSum) {
+                    if (topPops[i] == largestPop) {
                         result.lat = lat(topCenYs[i]);
                         result.lon = lon(topCenXs[i]);
-                        result.sum = largestSum;
+                        result.pop = largestPop;
                         result.shortCircuited = true;
-                        std::cout << "(SS)Sum within " << radius << " kilometers of ("
+                        std::cout << "(SS)Population within " << radius << " kilometers of ("
                             << result.lat << ", " << result.lon << "): "
-                            << ((long)result.sum) << std::endl;
-                        std::cout << ">= " << ((long)desiredSum) << ". Short circuiting."
+                            << ((long)result.pop) << std::endl;
+                        std::cout << ">= " << ((long)desiredPop) << ". Short circuiting."
                             << std::endl;
                         return result;
                     }
@@ -662,39 +601,37 @@ public:
                 int sectionRightX = topCenXs[i] + step * 2 - 1;
                 int sectionUpY = topCenYs[i] - step * 2;
                 int sectionDownY = topCenYs[i] + step * 2 - 1;
-                largestSumCirclesOfGivenRadiusPixelBoundaries(radius, sectionLeftX,
-                                                                  sectionRightX, sectionUpY,
-                                                                  sectionDownY, step, topCenXs,
-                                                                  topCenYs, topSums, largestSum,
-                                                                  cutoff, topCenXs[i], topCenYs[i]);
+                mostPopulousCirclesOfGivenRadiusPixelBoundaries(
+                    radius, sectionLeftX, sectionRightX, sectionUpY, sectionDownY, step, topCenXs,
+                    topCenYs, topPops, largestPop, cutoff, topCenXs[i], topCenYs[i]);
             }
-            cutUnderperformingCircles(topCenXs, topCenYs, topSums, largestSum, cutoff);
+            cutUnderperformingCircles(topCenXs, topCenYs, topPops, largestPop, cutoff);
         }
         std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
-
+        // Now find and return the most populous circle in the list (all three vectors).
         for (int i = 0; i < topCenXs.size(); i++) {
-            if (topSums[i] == largestSum) {
+            if (topPops[i] == largestPop) {
                 result.lat = lat(topCenYs[i]);
                 result.lon = lon(topCenXs[i]);
-                result.sum = largestSum;
+                result.pop = largestPop;
                 result.shortCircuited = false;
-                std::cout << "Sum within " << radius << " kilometers of (" << result.lat
-                    << ", " << result.lon << "): " << ((long)result.sum) << std::endl;
+                std::cout << "Population within " << radius << " kilometers of (" << result.lat
+                    << ", " << result.lon << "): " << ((long)result.pop) << std::endl;
                 return result;
             }
         }
-
+        // largestPop should be in topPops
         throw std::logic_error("Should never get here");
     }
 
     // TODO: Make this private, probably
     // Passed in ranges are inclusive.
-    // Adds all centers that are at least 90% the sum of the largest center to topCenXs and topCenYs
-    // Reassigns largestSum if necessary
-    void largestSumCirclesOfGivenRadiusPixelBoundaries(
+    // Adds all centers that are at least 90% the pop of the largest center to topCenXs and topCenYs
+    // Reassigns largestPop if necessary
+    void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
         const double radius, const int leftX, const int rightX, const int upY, const int downY, 
         const int step, std::vector<int>& topCenXs, std::vector<int>& topCenYs,
-        std::vector<double>& topSums, double& largestSum, const double cutoff, const int skipX,
+        std::vector<double>& topPops, double& largestPop, const double cutoff, const int skipX,
         const int skipY) {
         for (int cenY = upY; cenY <= downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
@@ -707,177 +644,79 @@ public:
                 if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
                     continue;
                 }
-                double popWithinNKilometers;
-                if (radius <= EQUATOR_LEN / 4) {
-                    popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
-                } else {
-                    popWithinNKilometers =
-                        popWithinKernelLargeCircle(cenX, cenY, kernel, kernelLength);
-                }
+                double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
                 // TODO: Make this logic simpler lol
-                if (step != 1 && popWithinNKilometers > largestSum * cutoff) {
-                    // std::cout << "Sum within " << radius << " kilometers of ("
-                    //     << lat(cenY) << ", " << lon(cenX) << "): "
-                    //     << ((long long)popWithinNKilometers) << std::endl;
+                if (step != 1 && popWithinNKilometers > largestPop * cutoff) {
                     topCenXs.push_back(cenX);
                     topCenYs.push_back(cenY);
-                    topSums.push_back(popWithinNKilometers);
-                    if (popWithinNKilometers > largestSum) {
-                        largestSum = popWithinNKilometers;
+                    topPops.push_back(popWithinNKilometers);
+                    if (popWithinNKilometers > largestPop) {
+                        largestPop = popWithinNKilometers;
                     }
-                } else if (step == 1 && popWithinNKilometers >= largestSum) {
+                } else if (step == 1 && popWithinNKilometers >= largestPop) {
                     topCenXs.push_back(cenX);
                     topCenYs.push_back(cenY);
-                    topSums.push_back(popWithinNKilometers);
-                    largestSum = popWithinNKilometers;
+                    topPops.push_back(popWithinNKilometers);
+                    largestPop = popWithinNKilometers;
                 }
             }
             delete[] kernel;
         }
     }
 
-    // Removes from topCenXs, topCenYs, and topSums any circles whose sum is less than largestSum *
+    // Removes from topCenXs, topCenYs, and topPops any circles whose pop is less than largestPop *
     //  cutoff.
-    // TODO: remove duplicates (actually, probably pass center into above function to prevent that)
     void cutUnderperformingCircles(std::vector<int>& topCenXs, std::vector<int>& topCenYs,
-                                   std::vector<double>& topSums, const double largestSum,
+                                   std::vector<double>& topPops, const double largestPop,
                                    const double cutoff) {
         std::vector<int> indicesToErase;
-        for (int i = topSums.size() - 1; i >= 0; i--) {
-            if (topSums[i] < largestSum * cutoff) {
+        for (int i = topPops.size() - 1; i >= 0; i--) {
+            if (topPops[i] < largestPop * cutoff) {
                 indicesToErase.push_back(i);
             }
         }
         for (int indexToErase : indicesToErase) {
             topCenXs.erase(topCenXs.begin() + indexToErase);
             topCenYs.erase(topCenYs.begin() + indexToErase);
-            topSums.erase(topSums.begin() + indexToErase);
+            topPops.erase(topPops.begin() + indexToErase);
         }
-    }
-
-    // Finds the circle of the given radius that minimizes the sum of the data inside it. Returns
-    //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
-    //  circle and the sum of the data inside the circle [2].
-    // Can optionally constrain the center of the circle to be within given ranges of latitudes and
-    //  longitudes with leftLon, rightLon, upLat and downLat.
-    // The parameter initialSmallestSum can speed up computation if it is passed in. Must be for sure known to
-    //  be at least as large as what the smallestSum will end up being.
-    // Radius given in kilometers.
-    // TODO: Either remove this function or make it like largestCumCircleOfGivenRadius.
-    double* smallestSumCircleOfGivenRadius(const double radius, const double leftLon=-180, 
-                                           const double rightLon=180, const double upLat=90, 
-                                           const double downLat=-90, 
-                                           const double initialSmallestSum=1000000000000000) {
-        const int smallStep = 1; //1
-        const int mediumStep = std::max((int)(radius / 128), 1); //4
-        const int largeStep = std::max((int)(radius / 32), 1); //16
-        const int xLStep = std::max((int)(radius / 8), 1); //64
-        const int xXLStep = std::max((int)(radius / 2), 1); //256
-        const int printMod = 163; // Print lattitude when the Y index mod this is 0
-
-        int step = smallStep;
-        // Turn lat and lon into indices in the pop data.
-        const int leftX = lonToX(leftLon);
-        const int rightX = lonToX(rightLon);
-        const int upY = latToY(upLat);
-        const int downY = latToY(downLat);
-
-        double smallestSumCenLon;
-        double smallestSumCenLat;
-        double smallestSum = initialSmallestSum;
-
-        for (int cenY = upY; cenY <= downY; cenY += step) {
-            if (cenY % printMod == 0) {
-                std::cout << "Current lattitude: " << lat(cenY) << std::endl;
-            }
-
-            int kernelLength;
-            int* kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
-
-            for (int cenX = leftX; cenX <= rightX; cenX += step) {
-                double sumWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
-                if (sumWithinNKilometers <= smallestSum) {
-                    std::cout << "Sum within " << radius << " kilometers of ("
-                        << lat(cenY) << ", " << lon(cenX) << "): "
-                        << ((long long)sumWithinNKilometers) << std::endl;
-                    smallestSumCenLon = lon(cenX);
-                    smallestSumCenLat = lat(cenY);
-                    smallestSum = sumWithinNKilometers;
-                }
-
-                if (sumWithinNKilometers < smallestSum * 1.2) {
-                    if (step > smallStep) {
-                        cenX -= step;
-                    }
-                    step = smallStep;
-                }
-                else if (sumWithinNKilometers < smallestSum * 1.4) {
-                    if (step > mediumStep) {
-                        cenX -= step;
-                    }
-                    step = mediumStep;
-                }
-                else if (sumWithinNKilometers < smallestSum * 1.6) {
-                    if (step > largeStep) {
-                        cenX -= step;
-                    }
-                    step = largeStep;
-                }
-                else if (sumWithinNKilometers < smallestSum * 1.8) {
-                    if (step > xLStep) {
-                        cenX -= step;
-                    }
-                    step = xLStep;
-                }
-                else {
-                    step = xXLStep;
-                }
-            }
-            delete[] kernel;
-            step = smallStep;
-        }
-
-        double *returnValues = new double[3];
-        returnValues[0] = smallestSumCenLon;
-        returnValues[1] = smallestSumCenLat;
-        returnValues[2] = smallestSum;
-        return returnValues;
     }
 
     // TODO: Make a spec comment for this
     // Kind of dangerous to pass in the last 4 args to this function, since the
     //  smallestCircleResultsFile might get spurious data added to it then
-    // TODO: Figure out why largestSum seems to stay the same after searching at a step that's 1/4
+    // TODO: Figure out why largestPop seems to stay the same after searching at a step that's 1/4
     //  the size something like 1/4 of the time rather than 1/16 of the time like expected.
-    SmallestCircleResult smallestCircleWithGivenSum(const double sum, const double leftLon=-180, 
-                                       const double rightLon=180, const double upLat=90, 
-                                       const double downLat=-90) {
+    SmallestCircleResult smallestCircleWithGivenPopulation(
+        const double pop, const double leftLon=-180, const double rightLon=180,
+        const double upLat=90, const double downLat=-90) {
         // Radii will be ints cause only interested in getting to the nearest kilometer
         int upperBound = EQUATOR_LEN / 2;
         int lowerBound = 0;
-        SmallestCircleResult returnValues;
-        bool foundSuitableCircle = false; // Haven't yet found a circle with sufficiently large sum
-        double initialLargestSum = 0; // To be passed into largestSumCircleOfGivenRadius()
+        SmallestCircleResult result;
+        bool foundSuitableCircle = false; // Haven't yet found a circle with sufficiently large pop
+        // TODO: Is this still even used?
+        double initialLargestPop = 0; // To be passed into mostPopulousCircleOfGivenRadius()
+        // A "soft" upper bound is one which comes from a short circuited previous result
         bool softUpperBound = false;
-
         // Tighten bounds as much as possible using previous results
         for (auto it = smallestCircleResults.begin(); it != smallestCircleResults.end(); it++) {
-            if (it->second.sum < sum && it->first >= lowerBound && !it->second.shortCircuited) {
+            if (it->second.pop < pop && it->first >= lowerBound && !it->second.shortCircuited) {
                 lowerBound = it->first;
-                initialLargestSum = it->second.sum;
-            } else if (it->second.sum >= sum && it->first <= upperBound) {
+                initialLargestPop = it->second.pop;
+            } else if (it->second.pop >= pop && it->first <= upperBound) {
                 if (it->first == upperBound && it->second.shortCircuited) {
                     // Don't replace hard upper bound with an equal (due to smallestCircleResults
                     //  being sorted by radius) soft one
                     continue;
                 }
                 upperBound = it->first;
-                returnValues.lon = it->second.lon;
-                returnValues.lat = it->second.lat;
-                returnValues.radius = it->first;
-                returnValues.sum = it->second.sum;
+                result.lon = it->second.lon;
+                result.lat = it->second.lat;
+                result.radius = it->first;
+                result.pop = it->second.pop;
                 softUpperBound = it->second.shortCircuited;
-                // Should only return this if it's not a >= result
+                // Should only return this if it's not a short circuited result
                 foundSuitableCircle = !softUpperBound;
                 // Can break here since smallestCircleResults is sorted by radius
                 break;
@@ -886,6 +725,8 @@ public:
 
         int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
         while (upperBound - lowerBound > 1 || softUpperBound) {
+            // TODO: Could make a boundaries class and a function taking radius and returning
+            //  boundaries
             double narrowLeftLon = leftLon;
             double narrowRightLon = rightLon;
             double narrowUpLat = upLat;
@@ -908,26 +749,26 @@ public:
                     // Need to make upperBound not soft
                     radius = upperBound;
                 }
-                // Huge desired sum since we don't want it to short circuit
-                largestSumCircle = largestSumCircleOfGivenRadius(radius, 10000000000000,
-                                                                     narrowLeftLon, narrowRightLon,
-                                                                     narrowUpLat, narrowDownLat);
+                // Huge desired pop since we don't want it to short circuit
+                largestSumCircle = mostPopulousCircleOfGivenRadius(radius, 10000000000000,
+                                                                   narrowLeftLon, narrowRightLon,
+                                                                   narrowUpLat, narrowDownLat);
             } else {
-                largestSumCircle = largestSumCircleOfGivenRadius(radius, sum, narrowLeftLon,
-                                                                     narrowRightLon, narrowUpLat,
-                                                                     narrowDownLat);
+                largestSumCircle = mostPopulousCircleOfGivenRadius(radius, pop, narrowLeftLon,
+                                                                   narrowRightLon, narrowUpLat,
+                                                                   narrowDownLat);
             }
-            if (largestSumCircle.sum >= sum) {
+            if (largestSumCircle.pop >= pop) {
                 softUpperBound = largestSumCircle.shortCircuited;
                 upperBound = radius;
-                returnValues.lon = largestSumCircle.lon;
-                returnValues.lat = largestSumCircle.lat;
-                returnValues.radius = radius;
-                returnValues.sum = largestSumCircle.sum;
+                result.lon = largestSumCircle.lon;
+                result.lat = largestSumCircle.lat;
+                result.radius = radius;
+                result.pop = largestSumCircle.pop;
                 foundSuitableCircle = true;
             } else {
                 lowerBound = radius;
-                initialLargestSum = largestSumCircle.sum;
+                initialLargestPop = largestSumCircle.pop;
             }
             // Add result to smallestCircleResults and its file
             // TODO: Put this in one or more functions
@@ -935,27 +776,29 @@ public:
             if (it != smallestCircleResults.end() && !it->second.shortCircuited) {
                 throw std::logic_error("Redid a previous result, which should never happen");
             } else {
+                // TODO: Put this in a function
                 std::fstream smallestCircleResultsFile;
                 smallestCircleResultsFile.open(smallestCircleResultsFilename);
                 smallestCircleResultsFile.seekg(0, std::ios::end);
                 smallestCircleResultsFile << radius
                                           << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
                 smallestCircleResultsFile << " " << largestSumCircle.lon << " "
-                                          << largestSumCircle.lat << " " << largestSumCircle.sum
-                                          << (largestSumCircle.shortCircuited ? " >=" : "");
+                                          << largestSumCircle.lat << " " << largestSumCircle.pop
+                                          << (largestSumCircle.shortCircuited ? " >=\n" : "\n");
                 smallestCircleResultsFile.close();
                 smallestCircleResults[radius] = largestSumCircle;
             }
             radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
         }
         if (!foundSuitableCircle) {
-            if (sum > WORLD_POP_2015) {
-                throw std::invalid_argument("Desired sum is larger than the world population, and a"
+            // TODO: Fail fast
+            if (pop > WORLD_POP_2015) {
+                throw std::invalid_argument("Desired pop is larger than the world population, and a"
                     " suitable circle wasn't found");
             }
             throw std::logic_error("Should never get here");
         }
-        return returnValues;
+        return result;
     }
 };
 
@@ -966,68 +809,57 @@ void testCircleSkipping() {
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
-    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
+    EquirectRasterData popData(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
-    // Huge desiredSum so that it doesn't short circuit
+    // Huge desiredPop so that it doesn't short circuit
     SmallestCircleResultMaybeShortCircuit smallestCircle =
-        data.largestSumCircleOfGivenRadius(radius, 10000000000000);
+        popData.mostPopulousCircleOfGivenRadius(radius, 10000000000000);
     std::cout << "Population within " << radius << " km of (" << smallestCircle.lat << ", "
-              << smallestCircle.lon << "): " << (long long)smallestCircle.sum << std::endl;
+              << smallestCircle.lon << "): " << (long long)smallestCircle.pop << std::endl;
 }
 
-// What was in the main function before.
-void normalMain() {
-    //-------------------------------Parameters---------------------------------------------
-    // TODO: Make it so that the program works even if populationMode is false
-    const bool populationMode = true; // TODO: make this an enum. false means GDP PPP mode
-    // TODO: Actually use smallestPopMode
-    // const bool smallestPopMode = false;
-    //-------------------------------Parameters-end-----------------------------------------
-
+// Used for finding the smallest circles containing 1-100% of the world's population.
+void findPercentCircles() {
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
-    EquirectRasterData data(sumTableFilename, smallestCircleResultsFilename);
-
-    std::cout << "Loaded " << (populationMode ? "population" : "GDP PPP") << " summation table." 
-              << std::endl;
+    EquirectRasterData popData(sumTableFilename, smallestCircleResultsFilename);
+    std::cout << "Loaded population summation table." << std::endl;
 
     // Used by imageManipulation.java so that it knows what text to add, as well as by
     //  percentageCirclesMapMakerTextInJSONOut.cpp so it knows where and how large to draw the
     //  circles
     std::string percentCirclesFilename = "foundPercentageCircles.txt";
     std::ofstream percentCirclesFile;
-    // TODO: See if this should be opened and reclosed in each iteration to make sure recent results
-    //  are written before any keyboard interrupt.
     percentCirclesFile.open(percentCirclesFilename);
     for (int percent = 1; percent <= 100; percent++) {
         const double desiredPopulation = (WORLD_POP_2015 / 100.0) * percent;
         std::cout << std::endl << "Now finding smallest possible circle with " << percent
                   << "\% of the world's population (" << ((long)desiredPopulation) << " people)"
                   << std::endl;
-        SmallestCircleResult smallestCircle = data.smallestCircleWithGivenSum(desiredPopulation);
-
+        SmallestCircleResult smallestCircle = 
+            popData.smallestCircleWithGivenPopulation(desiredPopulation);
         std::cout << "Smallest possible circle with " << percent << "\% of the world's population ("
                   << ((long)desiredPopulation) << " people):" << std::endl;
         std::cout << "Population within " << smallestCircle.radius << " km of ("
                   << smallestCircle.lat << ", " << smallestCircle.lon << "): "
-                  << ((long)smallestCircle.sum) << std::endl;
+                  << ((long)smallestCircle.pop) << std::endl;
         // Used to be for entering into the python map making code, now just to match the format in
         //  the google doc
         std::cout << percent << ": (" << smallestCircle.radius << ", (" << std::setprecision(8)
                   << smallestCircle.lat << ", " << smallestCircle.lon << "))"
                   << std::setprecision(6) << std::endl;
-
         // TODO: Remove the magic number 6
+        // TODO: Probably only wanna write if it's not already in there
         percentCirclesFile << ((int)percent) << " " << smallestCircle.radius << " "
                            << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION) << smallestCircle.lon
-                           << " " << smallestCircle.lat << " " << smallestCircle.sum
+                           << " " << smallestCircle.lat << " " << smallestCircle.pop
                            << std::setprecision(6) << std::endl;
     }
     percentCirclesFile.close();
 }
 
 int main() {
-    normalMain();
+    findPercentCircles();
 }
