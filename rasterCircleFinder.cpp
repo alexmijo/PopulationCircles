@@ -33,37 +33,11 @@ struct SmallestCircleResult {
     double pop;
 };
 
-// Represents a previously found population circle, except instead of the radius it has whether or
-//  the result was a >= result cause the algorithm short circuited.
-struct SmallestCircleResultMaybeShortCircuit {
-    // The lattitude and longitude of the center of the circle.
-    // TODO: Now that the order is reversed, reverse it in the results file too.
-    double lat, lon;
-    // The population within the circle.
-    double pop;
-    // True iff this circle was found by the algorithm running to completion, false if the
-    //  algorithm "short circuited" and was a >= result (i.e., there may be other circles with a
-    //  bigger population but the same radius).
-    bool shortCircuited;
-
-    SmallestCircleResultMaybeShortCircuit(SmallestCircleResult result) {
-        lat = result.lat;
-        lon = result.lon;
-        pop = result.pop;
-        shortCircuited = false;
-    }
-
-    SmallestCircleResultMaybeShortCircuit() { }
-};
-
 // TODO: Have this actually just be the data, and then a separate class has the actual circle
 //  finding code. Could also then have another class with band finding code.
 class EquirectRasterData {
 private:
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
-    // key is radius
-    std::map<int, SmallestCircleResultMaybeShortCircuit> smallestCircleResults;
-    std::string smallestCircleResultsFilename;
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
@@ -71,6 +45,45 @@ private:
     //  array cause it's too large.
     // TODO: See if I should actually make this a 1D array (both for loading speed and using speed)
     double **sumTable;
+
+    // Represents a previously found population circle, except instead of the radius it has whether 
+    //  not the result was a >= result cause the algorithm short circuited.
+    struct SmallestCircleResultMaybeShortCircuit {
+        // The lattitude and longitude of the center of the circle.
+        // TODO: Now that the order is reversed, reverse it in the results file too.
+        double lat, lon;
+        // The population within the circle.
+        double pop;
+        // True iff this circle was found by the algorithm running to completion, false if the
+        //  algorithm "short circuited" and was a >= result (i.e., there may be other circles with a
+        //  bigger population but the same radius).
+        bool shortCircuited;
+
+        SmallestCircleResultMaybeShortCircuit(SmallestCircleResult result) {
+            lat = result.lat;
+            lon = result.lon;
+            pop = result.pop;
+            shortCircuited = false;
+        }
+
+        SmallestCircleResultMaybeShortCircuit() { }
+    };
+
+    // key is radius
+    std::map<int, SmallestCircleResultMaybeShortCircuit> smallestCircleResults;
+    std::string smallestCircleResultsFilename;
+
+    // Defines a rectangular region of the raster data, by the rows and columns of the data that the
+    //  rectangle covers
+    struct PixelBoundaries {
+        int leftX, rightX, upY, downY;
+    };
+
+    // Defines a rectangular region of the raster data, by the range of latitudes and range of
+    //  longitudes that the rectangle covers
+    struct LatLonBoundaries {
+        double leftLon, rightLon, upLat, downLat;
+    };
 
     // Used for boundingBoxEdge
     enum direction {
@@ -232,6 +245,7 @@ private:
     // TODO: Make this not use conditional logic by just padding the north and west sides of
     //  popSumTable with 0s
     // TODO: If this makes the program slow, see if making it inline helps
+    // TODO: See if it's actually even any slower to use PixelBoundaries here
     double popWithinRectangle(const int west, const int east, const int north, const int south) {
         if (west == -1) {
             if (north == -1) {
@@ -301,18 +315,17 @@ private:
     // Adds all centers that are at least 90% the pop of the largest center to topCenXs and topCenYs
     // Reassigns largestPop if necessary
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-        const double radius, const int leftX, const int rightX, const int upY, const int downY, 
-        const int step, std::vector<int>& topCenXs, std::vector<int>& topCenYs,
-        std::vector<double>& topPops, double& largestPop, const double cutoff, const int skipX,
-        const int skipY) {
-        for (int cenY = upY; cenY <= downY; cenY += step) {
+        const double radius, PixelBoundaries boundaries, const int step, std::vector<int>& topCenXs,
+        std::vector<int>& topCenYs, std::vector<double>& topPops, double& largestPop, 
+        const double cutoff, const int skipX, const int skipY) {
+        for (int cenY = boundaries.upY; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
             }
             int kernelLength;
             int* kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
 
-            for (int cenX = leftX; cenX <= rightX; cenX += step) {
+            for (int cenX = boundaries.leftX; cenX <= boundaries.rightX; cenX += step) {
                 if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
                     continue;
                 }
@@ -375,10 +388,8 @@ private:
         std::cout << "Radius: " << radius << std::endl;
         // TODO: Don't look at centers outside these ranges.
         // Turn lat and lon into indices in the pop data.
-        const int leftX = lonToX(leftLon);
-        const int rightX = lonToX(rightLon);
-        const int upY = latToY(upLat);
-        const int downY = latToY(downLat);
+        PixelBoundaries pixelBoundaries{
+            lonToX(leftLon), lonToX(rightLon), latToY(upLat), latToY(downLat)};
 
         // TODO: Make this nicer
         int initialStep;
@@ -439,8 +450,8 @@ private:
         std::cout << "step: " << step << std::endl;
         // -100 for skipY and skipX since we don't want to skip any pixels
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-            radius, leftX, rightX, upY, downY, step, topCenXs, topCenYs, topPops, largestPop,
-            cutoff, -100, -100);
+            radius, pixelBoundaries, step, topCenXs, topCenYs, topPops, largestPop, cutoff, -100, 
+            -100);
         std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
         cutUnderperformingCircles(topCenXs, topCenYs, topPops, largestPop, cutoff);
         SmallestCircleResultMaybeShortCircuit result;
@@ -474,15 +485,13 @@ private:
             } else if (step <= 64) {
                 cutoff = cutoff64;
             }
-            const int numCirclesToSum = topCenXs.size();
-            for (int i = 0; i < numCirclesToSum; i++) {
-                int sectionLeftX = topCenXs[i] - step * 2;
-                int sectionRightX = topCenXs[i] + step * 2 - 1;
-                int sectionUpY = topCenYs[i] - step * 2;
-                int sectionDownY = topCenYs[i] + step * 2 - 1;
+            for (int i = 0; i < topCenXs.size(); i++) {
+                PixelBoundaries sectionBoundaries{
+                    topCenXs[i] - step * 2, topCenXs[i] + step * 2 - 1, topCenYs[i] - step * 2, 
+                    topCenYs[i] + step * 2 - 1};
                 mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-                    radius, sectionLeftX, sectionRightX, sectionUpY, sectionDownY, step, topCenXs,
-                    topCenYs, topPops, largestPop, cutoff, topCenXs[i], topCenYs[i]);
+                    radius, sectionBoundaries, step, topCenXs, topCenYs, topPops, largestPop, 
+                    cutoff, topCenXs[i], topCenYs[i]);
             }
             cutUnderperformingCircles(topCenXs, topCenYs, topPops, largestPop, cutoff);
         }
@@ -761,6 +770,7 @@ public:
         }
 
         int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
+        radius = 8878; //-----------------------------------------------------------------------------------------
         while (upperBound - lowerBound > 1 || softUpperBound) {
             // TODO: Could make a boundaries class and a function taking radius and returning
             //  boundaries
