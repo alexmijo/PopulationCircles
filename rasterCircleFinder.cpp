@@ -483,7 +483,8 @@ private:
             } else if (step <= 64) {
                 cutoff = cutoff64;
             }
-            for (int i = 0; i < topCenXs.size(); i++) {
+            const int numCirclesAtStartOfLoop = topCenXs.size();
+            for (int i = 0; i < numCirclesAtStartOfLoop; i++) {
                 PixelBoundaries sectionBoundaries{
                     topCenXs[i] - step * 2, topCenXs[i] + step * 2 - 1, topCenYs[i] - step * 2, 
                     topCenYs[i] + step * 2 - 1};
