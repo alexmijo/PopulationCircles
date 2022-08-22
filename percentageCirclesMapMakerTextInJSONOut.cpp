@@ -1,6 +1,6 @@
 // Needs GDAL library
-// This is an early version of the program. It's still kinda spaghetti code and has code I copied
-//  from random places on the internet unattributed (GeoTiff and most of distance())
+// This file is very spaghettiish right now, currently making it more like rasterCircleFinder.cpp,
+//  and also making it so that their shared code isn't duplicated.
 
 #include <iostream>
 #include <gdal.h>
