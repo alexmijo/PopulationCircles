@@ -24,7 +24,7 @@ const int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
 const int EQUATOR_LEN = 40075;
 
-struct SmallestCircleResult {
+struct CircleResult {
     // The lattitude and longitude of the center of the circle.
     double lat, lon;
     // The radius of the circle in kilometers.
@@ -48,7 +48,7 @@ private:
 
     // Represents a previously found population circle, except instead of the radius it has whether 
     //  not the result was a >= result cause the algorithm short circuited.
-    struct SmallestCircleResultMaybeShortCircuit {
+    struct CircleResultMaybeShortCircuit {
         // The lattitude and longitude of the center of the circle.
         // TODO: Now that the order is reversed, reverse it in the results file too.
         double lat, lon;
@@ -59,18 +59,18 @@ private:
         //  bigger population but the same radius).
         bool shortCircuited;
 
-        SmallestCircleResultMaybeShortCircuit(SmallestCircleResult result) {
+        CircleResultMaybeShortCircuit(CircleResult result) {
             lat = result.lat;
             lon = result.lon;
             pop = result.pop;
             shortCircuited = false;
         }
 
-        SmallestCircleResultMaybeShortCircuit() { }
+        CircleResultMaybeShortCircuit() { }
     };
 
     // key is radius
-    std::map<int, SmallestCircleResultMaybeShortCircuit> smallestCircleResults;
+    std::map<int, CircleResultMaybeShortCircuit> smallestCircleResults;
     std::string smallestCircleResultsFilename;
 
     // Defines a rectangular region of the raster data, by the rows and columns of the data that the
@@ -380,9 +380,9 @@ private:
     // Doesn't really restrict strictly to range yet (TODO)
     // TODO: Doesnt check easternmost or southernmost part of the world
     // TODO: Keep this public but have a more normal return value, and then make a private version
-    //  that short circuits. Also then make SmallestCircleResultMaybeShortCircuit private. This will
+    //  that short circuits. Also then make CircleResultMaybeShortCircuit private. This will
     //  also take care of the spec and desiredPop not making sense here.
-    SmallestCircleResultMaybeShortCircuit shortCircuitingMostPopulousCircleOfGivenRadius(
+    CircleResultMaybeShortCircuit shortCircuitingMostPopulousCircleOfGivenRadius(
         const double radius, const double desiredPop, const double leftLon=-180,
         const double rightLon=180, const double upLat=90, const double downLat=-90) {
         std::cout << "Radius: " << radius << std::endl;
@@ -454,7 +454,7 @@ private:
             -100);
         std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
         cutUnderperformingCircles(topCenXs, topCenYs, topPops, largestPop, cutoff);
-        SmallestCircleResultMaybeShortCircuit result;
+        CircleResultMaybeShortCircuit result;
         while (step > 1) {
             step /= 4;
             std::cout << "step: " << step << std::endl;
@@ -558,7 +558,7 @@ public:
             // The + 1 is to hold whether or not it's a >= result
             // TODO: Hold the boolean some better way, probably by making this whole thing a
             //  class;
-            SmallestCircleResultMaybeShortCircuit result;
+            CircleResultMaybeShortCircuit result;
             std::string dummyString;
             getline(resultSS, dummyString, ' ');
             result.lon = std::stod(dummyString);
@@ -714,18 +714,18 @@ public:
     // Doesn't really restrict strictly to range yet (TODO)
     // TODO: Doesnt check easternmost or southernmost part of the world
     // TODO: Keep this public but have a more normal return value, and then make a private version
-    //  that short circuits. Also then make SmallestCircleResultMaybeShortCircuit private. This will
+    //  that short circuits. Also then make CircleResultMaybeShortCircuit private. This will
     //  also take care of the spec and desiredPop not making sense here.
-    SmallestCircleResult mostPopulousCircleOfGivenRadius(
+    CircleResult mostPopulousCircleOfGivenRadius(
         const double radius, const double leftLon=-180, const double rightLon=180, 
         const double upLat=90, const double downLat=-90) {
         // Maximally large desiredPop parameter is passed so that it won't short circuit
-        SmallestCircleResultMaybeShortCircuit shouldntHaveShortCircuited = 
+        CircleResultMaybeShortCircuit shouldntHaveShortCircuited = 
             shortCircuitingMostPopulousCircleOfGivenRadius(radius, 
                                                            std::numeric_limits<double>::max(), 
                                                            leftLon, rightLon, upLat, downLat);
-        return SmallestCircleResult{shouldntHaveShortCircuited.lat, shouldntHaveShortCircuited.lon, 
-                                    radius, shouldntHaveShortCircuited.pop};
+        return CircleResult{shouldntHaveShortCircuited.lat, shouldntHaveShortCircuited.lon, radius, 
+                            shouldntHaveShortCircuited.pop};
     }
 
     // TODO: Make a spec comment for this
@@ -733,13 +733,13 @@ public:
     //  smallestCircleResultsFile might get spurious data added to it then
     // TODO: Figure out why largestPop seems to stay the same after searching at a step that's 1/4
     //  the size something like 1/4 of the time rather than 1/16 of the time like expected.
-    SmallestCircleResult smallestCircleWithGivenPopulation(
+    CircleResult smallestCircleWithGivenPopulation(
         const double pop, const double leftLon=-180, const double rightLon=180,
         const double upLat=90, const double downLat=-90) {
         // Radii will be ints cause only interested in getting to the nearest kilometer
         int upperBound = EQUATOR_LEN / 2;
         int lowerBound = 0;
-        SmallestCircleResult result;
+        CircleResult result;
         bool foundSuitableCircle = false; // Haven't yet found a circle with sufficiently large pop
         // TODO: Is this still even used?
         double initialLargestPop = 0; // To be passed into mostPopulousCircleOfGivenRadius()
@@ -778,7 +778,7 @@ public:
             double narrowRightLon = rightLon;
             double narrowUpLat = upLat;
             double narrowDownLat = downLat;
-            SmallestCircleResultMaybeShortCircuit largestSumCircle;
+            CircleResultMaybeShortCircuit largestSumCircle;
             if (upperBound - lowerBound <= 3) {
                 if (upperBound - lowerBound == 1) {
                     // Need to make upperBound not soft
@@ -845,7 +845,7 @@ void testCircleSkipping() {
     EquirectRasterData popData(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
-    SmallestCircleResult smallestCircle = popData.mostPopulousCircleOfGivenRadius(radius);
+    CircleResult smallestCircle = popData.mostPopulousCircleOfGivenRadius(radius);
     std::cout << "Population within " << radius << " km of (" << smallestCircle.lat << ", "
               << smallestCircle.lon << "): " << (long long)smallestCircle.pop << std::endl;
 }
@@ -869,7 +869,7 @@ void findPercentCircles() {
         std::cout << std::endl << "Now finding smallest possible circle with " << percent
                   << "\% of the world's population (" << ((long)desiredPopulation) << " people)"
                   << std::endl;
-        SmallestCircleResult smallestCircle = 
+        CircleResult smallestCircle = 
             popData.smallestCircleWithGivenPopulation(desiredPopulation);
         std::cout << "Smallest possible circle with " << percent << "\% of the world's population ("
                   << ((long)desiredPopulation) << " people):" << std::endl;
