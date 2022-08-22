@@ -33,6 +33,12 @@ struct CircleResult {
     double pop;
 };
 
+// Defines a rectangular (on an equirectangular projection) region of the world, by the range of 
+//  latitudes and range of longitudes that the rectangle covers. Ranges are inclusive.
+struct LatLonBoundaries {
+    double leftLon, rightLon, upLat, downLat;
+};
+
 // TODO: Have this actually just be the data, and then a separate class has the actual circle
 //  finding code. Could also then have another class with band finding code.
 class EquirectRasterData {
@@ -44,7 +50,7 @@ private:
     // TODO: See if I can or should make this an array of arrays (library arrays). Can't be a 2D C
     //  array cause it's too large.
     // TODO: See if I should actually make this a 1D array (both for loading speed and using speed)
-    double **sumTable;
+    double** sumTable;
 
     // Represents a previously found population circle, except instead of the radius it has whether 
     //  not the result was a >= result cause the algorithm short circuited.
@@ -74,15 +80,9 @@ private:
     std::string smallestCircleResultsFilename;
 
     // Defines a rectangular region of the raster data, by the rows and columns of the data that the
-    //  rectangle covers
+    //  rectangle covers. Ranges are inclusive.
     struct PixelBoundaries {
         int leftX, rightX, upY, downY;
-    };
-
-    // Defines a rectangular region of the raster data, by the range of latitudes and range of
-    //  longitudes that the rectangle covers
-    struct LatLonBoundaries {
-        double leftLon, rightLon, upLat, downLat;
     };
 
     // Used for boundingBoxEdge
@@ -90,6 +90,11 @@ private:
         north,
         south
     };
+
+    PixelBoundaries pixelBoundariesFromLatLonBoundaries(const LatLonBoundaries& boundaries) {
+        return PixelBoundaries{lonToX(boundaries.leftLon), lonToX(boundaries.rightLon), 
+                               latToY(boundaries.upLat), latToY(boundaries.downLat)};
+    }
 
     // Returns the northernmost or southernmost row containing any pixel within <radius> km of the
     //  given pixel (specified by <x> and <y>).
@@ -315,9 +320,9 @@ private:
     // Adds all centers that are at least 90% the pop of the largest center to topCenXs and topCenYs
     // Reassigns largestPop if necessary
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-        const double radius, PixelBoundaries boundaries, const int step, std::vector<int>& topCenXs,
-        std::vector<int>& topCenYs, std::vector<double>& topPops, double& largestPop, 
-        const double cutoff, const int skipX, const int skipY) {
+        const double radius, const PixelBoundaries& boundaries, const int step, 
+        std::vector<int>& topCenXs, std::vector<int>& topCenYs, std::vector<double>& topPops, 
+        double& largestPop, const double cutoff, const int skipX, const int skipY) {
         for (int cenY = boundaries.upY; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
@@ -367,29 +372,22 @@ private:
         }
     }
 
-    // TODO: Fix the spec below, which is outdated 
-    // Finds the circle of the given radius containing maximal population. Returns
-    //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
-    //  circle and the population inside the circle [2].
-    // Can optionally constrain the center of the circle to be within given ranges of latitudes and
-    //  longitudes with leftLon, rightLon, upLat and downLat.
-    // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure
-    //  known to be at least as small as what the largestPop will end up being.
+    // Finds the circle of the given radius containing maximal population, unless that would be a 
+    //  larger population that the passed in desiredPop, in which case this "short circuits" and the
+    //  result will be the first circle (of the given radius) it found with a population greater 
+    //  than or equal to desiredPop.
+    // Can optionally constrain the center of the circle to be within the given boundaries.
     // Radius given in kilometers.
+    // The return value's shortCircuited field will be true iff this short circuited.
     // TODO: Make this less spagettiish
-    // Doesn't really restrict strictly to range yet (TODO)
-    // TODO: Doesnt check easternmost or southernmost part of the world
-    // TODO: Keep this public but have a more normal return value, and then make a private version
-    //  that short circuits. Also then make CircleResultMaybeShortCircuit private. This will
-    //  also take care of the spec and desiredPop not making sense here.
+    // TODO: Doesnt check easternmost and southernmost column/row of the world
     CircleResultMaybeShortCircuit shortCircuitingMostPopulousCircleOfGivenRadius(
-        const double radius, const double desiredPop, const double leftLon=-180,
-        const double rightLon=180, const double upLat=90, const double downLat=-90) {
+        const double radius, const double desiredPop, 
+        const LatLonBoundaries& boundaries=LatLonBoundaries{-180, 180, 90, -90}) {
         std::cout << "Radius: " << radius << std::endl;
         // TODO: Don't look at centers outside these ranges.
         // Turn lat and lon into indices in the pop data.
-        PixelBoundaries pixelBoundaries{
-            lonToX(leftLon), lonToX(rightLon), latToY(upLat), latToY(downLat)};
+        PixelBoundaries pixelBoundaries = pixelBoundariesFromLatLonBoundaries(boundaries);
 
         // TODO: Make this nicer
         int initialStep;
@@ -701,29 +699,17 @@ public:
         return numCols;
     }
 
-    // TODO: Fix the spec below, which is outdated -----------------------------------------------------------do before commit, and for ss version too
-    // Finds the circle of the given radius containing maximal population. Returns
-    //  a pointer to an array containing the longitude [0] and lattitude [1] of the center of the
-    //  circle and the population inside the circle [2].
-    // Can optionally constrain the center of the circle to be within given ranges of latitudes and
-    //  longitudes with leftLon, rightLon, upLat and downLat.
-    // The parameter initialLargestSum can speed up computation if it is passed in. Must be for sure
-    //  known to be at least as small as what the largestPop will end up being.
+    // Finds the circle of the given radius containing maximal population.
+    // Can optionally constrain the center of the circle to be within the given boundaries.
     // Radius given in kilometers.
-    // TODO: Make this less spagettiish
-    // Doesn't really restrict strictly to range yet (TODO)
-    // TODO: Doesnt check easternmost or southernmost part of the world
-    // TODO: Keep this public but have a more normal return value, and then make a private version
-    //  that short circuits. Also then make CircleResultMaybeShortCircuit private. This will
-    //  also take care of the spec and desiredPop not making sense here.
     CircleResult mostPopulousCircleOfGivenRadius(
-        const double radius, const double leftLon=-180, const double rightLon=180, 
-        const double upLat=90, const double downLat=-90) {
+        const double radius, 
+        const LatLonBoundaries& boundaries=LatLonBoundaries{-180, 180, 90, -90}) {
         // Maximally large desiredPop parameter is passed so that it won't short circuit
         CircleResultMaybeShortCircuit shouldntHaveShortCircuited = 
             shortCircuitingMostPopulousCircleOfGivenRadius(radius, 
                                                            std::numeric_limits<double>::max(), 
-                                                           leftLon, rightLon, upLat, downLat);
+                                                           boundaries);
         return CircleResult{shouldntHaveShortCircuited.lat, shouldntHaveShortCircuited.lon, radius, 
                             shouldntHaveShortCircuited.pop};
     }
@@ -734,22 +720,18 @@ public:
     // TODO: Figure out why largestPop seems to stay the same after searching at a step that's 1/4
     //  the size something like 1/4 of the time rather than 1/16 of the time like expected.
     CircleResult smallestCircleWithGivenPopulation(
-        const double pop, const double leftLon=-180, const double rightLon=180,
-        const double upLat=90, const double downLat=-90) {
+        const double pop, const LatLonBoundaries boundaries=LatLonBoundaries{-180, 180, 90, -90}) {
         // Radii will be ints cause only interested in getting to the nearest kilometer
         int upperBound = EQUATOR_LEN / 2;
         int lowerBound = 0;
         CircleResult result;
         bool foundSuitableCircle = false; // Haven't yet found a circle with sufficiently large pop
-        // TODO: Is this still even used?
-        double initialLargestPop = 0; // To be passed into mostPopulousCircleOfGivenRadius()
         // A "soft" upper bound is one which comes from a short circuited previous result
         bool softUpperBound = false;
         // Tighten bounds as much as possible using previous results
         for (auto it = smallestCircleResults.begin(); it != smallestCircleResults.end(); it++) {
             if (it->second.pop < pop && it->first >= lowerBound && !it->second.shortCircuited) {
                 lowerBound = it->first;
-                initialLargestPop = it->second.pop;
             } else if (it->second.pop >= pop && it->first <= upperBound) {
                 if (it->first == upperBound && it->second.shortCircuited) {
                     // Don't replace hard upper bound with an equal (due to smallestCircleResults
@@ -770,14 +752,7 @@ public:
         }
 
         int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
-        radius = 8878; //-----------------------------------------------------------------------------------------
         while (upperBound - lowerBound > 1 || softUpperBound) {
-            // TODO: Could make a boundaries class and a function taking radius and returning
-            //  boundaries
-            double narrowLeftLon = leftLon;
-            double narrowRightLon = rightLon;
-            double narrowUpLat = upLat;
-            double narrowDownLat = downLat;
             CircleResultMaybeShortCircuit largestSumCircle;
             if (upperBound - lowerBound <= 3) {
                 if (upperBound - lowerBound == 1) {
@@ -785,11 +760,10 @@ public:
                     radius = upperBound;
                 }
                 // Huge desired pop since we don't want it to short circuit
-                largestSumCircle = mostPopulousCircleOfGivenRadius(
-                    radius, narrowLeftLon, narrowRightLon, narrowUpLat, narrowDownLat);
+                largestSumCircle = mostPopulousCircleOfGivenRadius(radius, boundaries);
             } else {
-                largestSumCircle = shortCircuitingMostPopulousCircleOfGivenRadius(
-                    radius, pop, narrowLeftLon, narrowRightLon, narrowUpLat, narrowDownLat);
+                largestSumCircle = shortCircuitingMostPopulousCircleOfGivenRadius(radius, pop, 
+                                                                                  boundaries);
             }
             if (largestSumCircle.pop >= pop) {
                 softUpperBound = largestSumCircle.shortCircuited;
@@ -801,7 +775,6 @@ public:
                 foundSuitableCircle = true;
             } else {
                 lowerBound = radius;
-                initialLargestPop = largestSumCircle.pop;
             }
             // Add result to smallestCircleResults and its file
             // TODO: Put this in one or more functions
