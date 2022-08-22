@@ -41,7 +41,7 @@ struct LatLonBoundaries {
 
 // TODO: Have this actually just be the data, and then a separate class has the actual circle
 //  finding code. Could also then have another class with band finding code.
-class EquirectRasterData {
+class RasterDataCircleFinder {
 private:
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
     int numRows, numCols;
@@ -516,9 +516,9 @@ public:
     //  table.
     // Projection must be equirectangular.
     // TODO: Complete spec
-    EquirectRasterData(const std::string& sumTableFilename,
-                       const std::string& smallestCircleResultsFilename) : 
-                       smallestCircleResultsFilename(smallestCircleResultsFilename) {
+    RasterDataCircleFinder(const std::string& sumTableFilename,
+                           const std::string& smallestCircleResultsFilename) : 
+                           smallestCircleResultsFilename(smallestCircleResultsFilename) {
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
@@ -577,7 +577,7 @@ public:
         smallestCircleResultsFile.close();
     }
 
-    ~EquirectRasterData() {
+    ~RasterDataCircleFinder() {
         for (int r = 0; r < numRows; r++) {
             delete[] sumTable[r];
         }
@@ -815,7 +815,7 @@ void testCircleSkipping() {
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
-    EquirectRasterData popData(sumTableFilename, smallestCircleResultsFilename);
+    RasterDataCircleFinder popData(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
     CircleResult smallestCircle = popData.mostPopulousCircleOfGivenRadius(radius);
@@ -828,7 +828,7 @@ void findPercentCircles() {
     std::cout << "Loading population summation table." << std::endl;
     std::string sumTableFilename = "popSumTable.bin";
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
-    EquirectRasterData popData(sumTableFilename, smallestCircleResultsFilename);
+    RasterDataCircleFinder popData(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
     // Used by imageManipulation.java so that it knows what text to add, as well as by
