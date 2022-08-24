@@ -524,6 +524,9 @@ public:
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
         sumTableFile.read(reinterpret_cast<char *>(&numCols), sizeof(int));
+        // TODO: Either use a unique_pointer to array of unique_pointers to arrays of ints, a vector
+        //  of vectors, or the 1D versions of either of those (with an indexing function) for speed.
+        //  No need for new and delete.
         sumTable = new double*[numRows];
         for(int r = 0; r < numRows; r++) {
             sumTable[r] = new double[numCols];
