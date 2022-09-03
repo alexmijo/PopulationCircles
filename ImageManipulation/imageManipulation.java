@@ -119,7 +119,7 @@ class ImageManipulation {
     }
 
     public static void main(String[] args) {
-        for (percent = 85; percent <= 85; percent++) {
+        for (percent = 90; percent <= 90; percent++) {
             String inputImageFileName = "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/"
                                         + percent + "PercentCircle.png";
             String outputImageFileName =
