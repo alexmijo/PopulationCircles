@@ -1,7 +1,6 @@
 # PopulationCircles
 Note to any potential employers: This code kinda got spaghettified and I haven't yet brought it up to my normal standards for code quality (although it does still work well). If you'd like to see a better example of clean C++ code I've written, look at https://github.com/alexmijo/BlackjackSim
 
-Finding the population of circles on earth
 This program, among other things, can beat the previous best known results for finding the smallest possible circles on earth containing a given percentage of the
 world’s population. Also wrote code in C++, Python and Java to render the maps.
 This software is what I used to make these maps:
