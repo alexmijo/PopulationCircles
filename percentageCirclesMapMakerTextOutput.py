@@ -15,7 +15,7 @@ if printDimensions:
     print('Land Map Height, Width in pixels: ' + str(landH) + ', ' + str(landW))
 
 # 0: Black (border)
-# 1: Grey (land) 
+# 1: Grey (land)
 # 2: White (ocean)
 # NA 3: Dark red (<= 35km of center)
 # NA 4: Red (land in circle)

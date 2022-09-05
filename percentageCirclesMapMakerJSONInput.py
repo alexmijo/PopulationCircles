@@ -18,7 +18,7 @@ num_rows, num_cols = output1.shape
 if printDimensions:
     print('Land Map Height, Width in pixels: ' + str(num_rows) + ', ' + str(num_cols))
 
-#cm = {
+# cm = {
 #    'white': (255, 255, 255),
 #    0: (255, 0, 0),
 #    1: (255, 180, 180),
@@ -41,13 +41,13 @@ if printDimensions:
 #    'black': (0, 0, 0)}
 
 cm = {
-    2: (255, 255, 255), # White
-    4: (255, 0, 0),     # Red
-    5: (255, 180, 180), # Light red
-    0: (0, 0, 0),       # Black
-    3: (97, 0, 0),      # Dark red
-    1: (128, 128, 128)  # Grey
-    }
+    2: (255, 255, 255),  # White
+    4: (255, 0, 0),      # Red
+    5: (255, 180, 180),  # Light red
+    0: (0, 0, 0),        # Black
+    3: (97, 0, 0),       # Dark red
+    1: (128, 128, 128)   # Grey
+}
 
 colorsJSONFilename = "ColorsJSONFiles/colorsJSON" + str(circleToDraw) + ".txt"
 colorsJSON = open(colorsJSONFilename, 'r')
@@ -61,11 +61,11 @@ for latPix in range(0, num_rows):
         output1[latPix][lonPix] = cm[colors[latPix][lonPix]][0]
         output2[latPix][lonPix] = cm[colors[latPix][lonPix]][1]
         output3[latPix][lonPix] = cm[colors[latPix][lonPix]][2]
-        
+
 map = rasterio.open('/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/'
-                       + str(circleToDraw) + "PercentCircle.tif", 'w', driver=landTif.driver,
-                       height=landTif.height, width=landTif.width, count=3, dtype='uint8',
-                       crs=landTif.crs, transform=landTif.transform)
+                    + str(circleToDraw) + "PercentCircle.tif", 'w', driver=landTif.driver,
+                    height=landTif.height, width=landTif.width, count=3, dtype='uint8',
+                    crs=landTif.crs, transform=landTif.transform)
 map.write(output1, indexes=1)
 map.write(output2, indexes=2)
 map.write(output3, indexes=3)

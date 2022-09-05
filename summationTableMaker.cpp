@@ -1,53 +1,50 @@
-#include <iostream>
-#include <gdal.h>
-#include <string>
-#include <gdal_priv.h>
 #include <cpl_conv.h>
-#include <stdlib.h>
 #include <fstream>
+#include <gdal.h>
+#include <gdal_priv.h>
+#include <iostream>
+#include <stdlib.h>
+#include <string>
 
 // TODO: Eliminate this class entirely, if it makes sense to do so
 class Geotiff {
 
-private: // NOTE: "private" keyword is redundant here.  
-         // we place it here for emphasis. Because these
-         // variables are declared outside of "public", 
-         // they are private. 
-
-    const char* filename;        // name of Geotiff
-    GDALDataset* geotiffDataset; // Geotiff GDAL datset object. 
+  private:                       // NOTE: "private" keyword is redundant here.
+                                 // we place it here for emphasis. Because these
+                                 // variables are declared outside of "public",
+                                 // they are private.
+    const char *filename;        // name of Geotiff
+    GDALDataset *geotiffDataset; // Geotiff GDAL datset object.
     double geotransform[6];      // 6-element geotranform array.
-    int dimensions[3];           // X,Y, and Z dimensions. 
-    int NROWS, NCOLS, NLEVELS;     // dimensions of data in Geotiff. 
+    int dimensions[3];           // X,Y, and Z dimensions.
+    int NROWS, NCOLS, NLEVELS;   // dimensions of data in Geotiff.
 
-public:
-
+  public:
     // define constructor function to instantiate object
-    // of this Geotiff class. 
-    Geotiff(const char* tiffname) {
+    // of this Geotiff class.
+    Geotiff(const char *tiffname) {
         filename = tiffname;
         GDALAllRegister();
 
-        // set pointer to Geotiff dataset as class member.  
-        geotiffDataset = (GDALDataset*)GDALOpen(filename, GA_ReadOnly);
+        // set pointer to Geotiff dataset as class member.
+        geotiffDataset = (GDALDataset *)GDALOpen(filename, GA_ReadOnly);
 
-        // set the dimensions of the Geotiff 
+        // set the dimensions of the Geotiff
         NROWS = GDALGetRasterYSize(geotiffDataset);
         NCOLS = GDALGetRasterXSize(geotiffDataset);
         NLEVELS = GDALGetRasterCount(geotiffDataset);
-
     }
 
-    // define destructor function to close dataset, 
+    // define destructor function to close dataset,
     // for when object goes out of scope or is removed
-    // from memory. 
+    // from memory.
     ~Geotiff() {
         // close the Geotiff dataset, free memory for array.
         GDALClose(geotiffDataset);
         GDALDestroyDriverManager();
     }
 
-    const char* GetFileName() {
+    const char *GetFileName() {
         /*
          * function GetFileName()
          * This function returns the filename of the Geotiff.
@@ -55,7 +52,7 @@ public:
         return filename;
     }
 
-    const char* GetProjection() {
+    const char *GetProjection() {
         /* function const char* GetProjection():
          *  This function returns a character array (std::string)
          *  for the projection of the geotiff file. Note that
@@ -67,7 +64,7 @@ public:
         return geotiffDataset->GetProjectionRef();
     }
 
-    double* GetGeoTransform() {
+    double *GetGeoTransform() {
         /*
          * function double *GetGeoTransform()
          *  This function returns a pointer to a double that
@@ -79,7 +76,7 @@ public:
     }
 
     double coords(int x, int y, int idx) {
-        double* geoTransform = GetGeoTransform();
+        double *geoTransform = GetGeoTransform();
         double lon = geoTransform[0] + x * geoTransform[1] + y * geoTransform[2];
         double lat = geoTransform[3] + x * geoTransform[4] + y * geoTransform[5];
         double coordinates[2];
@@ -97,7 +94,7 @@ public:
         return (double)geotiffDataset->GetRasterBand(1)->GetNoDataValue();
     }
 
-    int* GetDimensions() {
+    int *GetDimensions() {
         /*
          * int *GetDimensions():
          *
@@ -114,7 +111,7 @@ public:
         return dimensions;
     }
 
-    double** GetRasterBand(int z) {
+    double **GetRasterBand(int z) {
 
         /*
          * function float** GetRasterBand(int z):
@@ -131,7 +128,7 @@ public:
          * double** pointer.
          */
 
-        double** bandLayer = new double* [NROWS];
+        double **bandLayer = new double *[NROWS];
         switch (GDALGetRasterDataType(geotiffDataset->GetRasterBand(z))) {
         case 0:
             return NULL; // GDT_Unknown, or unknown data type.
@@ -162,8 +159,7 @@ public:
         return NULL;
     }
 
-    template<typename T>
-    double** GetArray2D(int layerIndex, double** bandLayer) {
+    template <typename T> double **GetArray2D(int layerIndex, double **bandLayer) {
 
         /*
          * function float** GetArray2D(int layerIndex):
@@ -181,23 +177,22 @@ public:
          * the data to a float data type automatically.
          */
 
-         // get the raster data type (ENUM integer 1-12, 
-         // see GDAL C/C++ documentation for more details)        
-        GDALDataType bandType = GDALGetRasterDataType(
-            geotiffDataset->GetRasterBand(layerIndex));
+        // get the raster data type (ENUM integer 1-12,
+        // see GDAL C/C++ documentation for more details)
+        GDALDataType bandType = GDALGetRasterDataType(geotiffDataset->GetRasterBand(layerIndex));
 
         // get number of bytes per pixel in Geotiff
         int nbytes = GDALGetDataTypeSizeBytes(bandType);
 
-        // allocate pointer to memory block for one row (scanline) 
-        // in 2D Geotiff array.  
-        T* rowBuff = (T*)CPLMalloc(nbytes * NCOLS);
+        // allocate pointer to memory block for one row (scanline)
+        // in 2D Geotiff array.
+        T *rowBuff = (T *)CPLMalloc(nbytes * NCOLS);
 
-        for (int row = 0; row < NROWS; row++) {     // iterate through rows
+        for (int row = 0; row < NROWS; row++) { // iterate through rows
 
-          // read the scanline into the dynamically allocated row-buffer       
-            CPLErr e = geotiffDataset->GetRasterBand(layerIndex)->RasterIO(
-                GF_Read, 0, row, NCOLS, 1, rowBuff, NCOLS, 1, bandType, 0, 0);
+            // read the scanline into the dynamically allocated row-buffer
+            CPLErr e = geotiffDataset->GetRasterBand(layerIndex)
+                           ->RasterIO(GF_Read, 0, row, NCOLS, 1, rowBuff, NCOLS, 1, bandType, 0, 0);
             if (!(e == 0)) {
                 std::cout << "Warning: Unable to read scanline in Geotiff!" << std::endl;
                 exit(1);
@@ -211,11 +206,10 @@ public:
         CPLFree(rowBuff);
         return bandLayer;
     }
-
 };
 
 // Turn the passed in data table into a summation table (mutates it)
-void turnIntoSummationTable(double** data, const int numRows, int const numCols) {
+void turnIntoSummationTable(double **data, const int numRows, int const numCols) {
     for (int x = 0; x < numCols; x++) {
         for (int y = 0; y < numRows; y++) {
             if (data[y][x] < 0) {
@@ -223,14 +217,11 @@ void turnIntoSummationTable(double** data, const int numRows, int const numCols)
             }
             if (x == 0 && y == 0) {
                 continue;
-            }
-            else if (x == 0) {
+            } else if (x == 0) {
                 data[y][x] += data[y - 1][x];
-            }
-            else if (y == 0) {
+            } else if (y == 0) {
                 data[y][x] += data[y][x - 1];
-            }
-            else {
+            } else {
                 data[y][x] += data[y][x - 1] + data[y - 1][x] - data[y - 1][x - 1];
             }
         }
@@ -245,10 +236,10 @@ int main() {
 
     // Load tiff data
     const std::string popTiffFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
-    // const std::string gdpTiffFilename = "gdpPPPdata.tif"; // This is too large to fit in github by the way (11GB)
+    // const std::string gdpTiffFilename = "gdpPPPdata.tif"; // This is too large to fit in github
+    // by the way (11GB)
     Geotiff popTiff(popTiffFilename.c_str());
     // Geotiff gdpTiff(gdpTiffFilename.c_str());
-    
 
     int numRows = popTiff.GetDimensions()[0];
     int numCols = popTiff.GetDimensions()[1];

@@ -4,23 +4,24 @@
 //  prospective employer, please look at BlackjackSim on my github instead for C++ stuff I've
 //  written with better code style.
 
-#include <iostream>
-#include <gdal.h>
-#include <string>
-#include <gdal_priv.h>
-#include <cpl_conv.h>
-#include <stdlib.h>
-#include <cmath>
-#include <fstream>
-#include <map>
-#include <iomanip>
-#include <vector>
-#include <array>
-#include <stdexcept>
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cpl_conv.h>
+#include <fstream>
+#include <gdal.h>
+#include <gdal_priv.h>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <stdexcept>
+#include <stdlib.h>
+#include <string>
+#include <vector>
 
 const double WORLD_POP_2015 = 7346242908.863955;
-// See https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
+// See
+//  https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
 const int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
 const int EQUATOR_LEN = 40075;
@@ -34,7 +35,7 @@ struct CircleResult {
     double pop;
 };
 
-// Defines a rectangular (on an equirectangular projection) region of the world, by the range of 
+// Defines a rectangular (on an equirectangular projection) region of the world, by the range of
 //  latitudes and range of longitudes that the rectangle covers. Ranges are inclusive.
 struct LatLonBoundaries {
     double leftLon, rightLon, upLat, downLat;
@@ -43,7 +44,7 @@ struct LatLonBoundaries {
 // TODO: Have this actually just be the data, and then a separate class has the actual circle
 //  finding code. Could also then have another class with band finding code.
 class RasterDataCircleFinder {
-private:
+  private:
     const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
@@ -51,9 +52,9 @@ private:
     // TODO: See if I can or should make this an array of arrays (library arrays). Can't be a 2D C
     //  array cause it's too large.
     // TODO: See if I should actually make this a 1D array (both for loading speed and using speed)
-    double** sumTable;
+    double **sumTable;
 
-    // Represents a previously found population circle, except instead of the radius it has whether 
+    // Represents a previously found population circle, except instead of the radius it has whether
     //  not the result was a >= result cause the algorithm short circuited.
     struct CircleResultMaybeShortCircuit {
         // The lattitude and longitude of the center of the circle.
@@ -73,7 +74,7 @@ private:
             shortCircuited = false;
         }
 
-        CircleResultMaybeShortCircuit() { }
+        CircleResultMaybeShortCircuit() {}
     };
 
     // key is radius
@@ -87,13 +88,10 @@ private:
     };
 
     // Used for boundingBoxEdge
-    enum direction {
-        north,
-        south
-    };
+    enum direction { north, south };
 
-    PixelBoundaries pixelBoundariesFromLatLonBoundaries(const LatLonBoundaries& boundaries) {
-        return PixelBoundaries{lonToX(boundaries.leftLon), lonToX(boundaries.rightLon), 
+    PixelBoundaries pixelBoundariesFromLatLonBoundaries(const LatLonBoundaries &boundaries) {
+        return PixelBoundaries{lonToX(boundaries.leftLon), lonToX(boundaries.rightLon),
                                latToY(boundaries.upLat), latToY(boundaries.downLat)};
     }
 
@@ -126,31 +124,27 @@ private:
             if (distanceFromCen > radius) {
                 edge -= incOrDec; // Went too far, walk it back
                 break;
-            }
-            else {
+            } else {
                 edge += incOrDec;
             }
         }
         if (edge < 0) {
             edge = 0;
-        }
-        else if (edge > edgeOfMap) {
+        } else if (edge > edgeOfMap) {
             edge = edgeOfMap;
         }
         return edge;
     }
 
     // For indexing into a kernel array
-    inline int kernelIndex(const int row, const int col) {
-        return KERNEL_WIDTH * row + col;
-    }
+    inline int kernelIndex(const int row, const int col) { return KERNEL_WIDTH * row + col; }
 
     // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference
     //  parameter kernelLength.
     // TODO: Make the kernel a vector instead of a dynamically allocated c array
     // TODO: Make the kernel an actual 2d array (maybe)
     // TODO: See if this double counts part of 1 column when wrapping around all longitudes
-    int* makeKernel(const int cenX, const int cenY, const double radius, int& kernelLength) {
+    int *makeKernel(const int cenX, const int cenY, const double radius, int &kernelLength) {
         const double cenLon = lon(cenX);
         const double cenLat = lat(cenY);
         const int northEdge = boundingBoxEdge(cenX, cenY, radius, north);
@@ -160,7 +154,7 @@ private:
         // Each row consists of: {westX, eastX, northY, southY} describing a summation table
         //  rectangle (so KERNEL_WIDTH must be 4) relative to cenX and cenY
         // Temp just cause we don't know length of real kernel yet
-        int* tempKernel = new int[maxPossibleLength * KERNEL_WIDTH];
+        int *tempKernel = new int[maxPossibleLength * KERNEL_WIDTH];
 
         int kernelRow = 0; // First index into kernel
         int y = northEdge;
@@ -173,8 +167,7 @@ private:
                     throw std::logic_error("Kernel making failed. Should never get here.");
                 }
                 horizontalOffset--;
-            }
-            else {
+            } else {
                 // See how much farther out we can go at this y level and still be in the circle
                 while (distance(currLat, currLon, cenLat, cenLon) <= radius) {
                     horizontalOffset++;
@@ -195,8 +188,7 @@ private:
                     // If we just started a new rectangle at southEdge, it must end there too
                     tempKernel[kernelIndex(kernelRow, 3)] = y - cenY;
                     break;
-                }
-                else {
+                } else {
                     // Find where this new rectangle ends
                     while (true) {
                         y++;
@@ -235,11 +227,11 @@ private:
         kernelLength = kernelRow + 1; // Visible to the caller
         // Now that we know the length of kernel, we can construct it using the data in tempKernel
         //  and then return it
-        int* kernel = new int[kernelLength * KERNEL_WIDTH];
+        int *kernel = new int[kernelLength * KERNEL_WIDTH];
         for (kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
             for (int kernelCol = 0; kernelCol < KERNEL_WIDTH; kernelCol++) {
-                kernel[kernelIndex(kernelRow, kernelCol)] 
-                    = tempKernel[kernelIndex(kernelRow, kernelCol)];
+                kernel[kernelIndex(kernelRow, kernelCol)] =
+                    tempKernel[kernelIndex(kernelRow, kernelCol)];
             }
         }
         delete[] tempKernel;
@@ -271,7 +263,7 @@ private:
 
     // Returns the population contained within a circle who's boundary is specified by <kernel> and
     //  which is centered at the (<cenX>, <cenY>) pixel.
-    double popWithinKernel(const int cenX, const int cenY, int* kernel, const int kernelLength) {
+    double popWithinKernel(const int cenX, const int cenY, int *kernel, const int kernelLength) {
         double totalPop = 0;
         for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
             // Sides of the rectangle
@@ -298,24 +290,16 @@ private:
     }
 
     // Get longitude of the center of the <x>th (0 indexed) column
-    double lon(int x) {
-        return ((x + 0.5) / numCols) * 360.0 - 180.0;
-    }
+    double lon(int x) { return ((x + 0.5) / numCols) * 360.0 - 180.0; }
 
     // Get lattitude of the center of the <y>th (0 indexed) row
-    double lat(int y) {
-        return -(((y + 0.5) / numRows) * 180.0 - 90.0);
-    }
+    double lat(int y) { return -(((y + 0.5) / numRows) * 180.0 - 90.0); }
 
     // The inverse of the lon function
-    int lonToX(double lon) {
-        return ((lon + 180.0) / 360.0) * numCols - 0.5;
-    }
+    int lonToX(double lon) { return ((lon + 180.0) / 360.0) * numCols - 0.5; }
 
     // The inverse of the lat function
-    int latToY(double lat) {
-        return ((-lat + 90.0) / 180.0) * numRows - 0.5;
-    }
+    int latToY(double lat) { return ((-lat + 90.0) / 180.0) * numRows - 0.5; }
 
     struct PixelCenterAndPop {
         // The center pixel of the circle
@@ -326,28 +310,26 @@ private:
         PixelCenterAndPop(int x, int y, double pop) : x(x), y(y), pop(pop) {}
 
         // Makes it easy to sort PixelCenterAndPops by latitude.
-        bool operator<(const PixelCenterAndPop& other) const {
-            return y < other.y;
-        }
+        bool operator<(const PixelCenterAndPop &other) const { return y < other.y; }
     };
 
     // Passed in ranges are inclusive.
     // Adds all circles who's pop is at least cutoff * pop of the most populous circle to topCircles
     // Reassigns largestPop if necessary
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-        const double radius, const PixelBoundaries& boundaries, const int step, 
-        std::vector<PixelCenterAndPop>& topCircles, double& largestPop, const double cutoff, 
-        const int skipX, const int skipY, std::map<int, std::pair<int*, int>>& kernels) {
+        const double radius, const PixelBoundaries &boundaries, const int step,
+        std::vector<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
+        const int skipX, const int skipY, std::map<int, std::pair<int *, int>> &kernels) {
         for (int cenY = boundaries.upY; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
             }
             int kernelLength;
             auto it = kernels.find(cenY);
-            int* kernel;
+            int *kernel;
             if (it == kernels.end()) {
                 kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
-                kernels[cenY] = std::pair<int*, int>(kernel, kernelLength);
+                kernels[cenY] = std::pair<int *, int>(kernel, kernelLength);
             } else {
                 kernel = it->second.first;
                 kernelLength = it->second.second;
@@ -370,7 +352,7 @@ private:
 
     // Removes from topCircles any circles whose pop is less than largestPop * cutoff.
     // TODO: If this is slowing things down, use a linked list.
-    void cutUnderperformingCircles(std::vector<PixelCenterAndPop>& topCircles, 
+    void cutUnderperformingCircles(std::vector<PixelCenterAndPop> &topCircles,
                                    const double largestPop, const double cutoff) {
         std::vector<int> indicesToErase;
         for (int i = topCircles.size() - 1; i >= 0; i--) {
@@ -384,16 +366,16 @@ private:
     }
 
     // Deletes all the kernels in kernels. Also clears kernels.
-    void deleteKernels(std::map<int, std::pair<int*, int>>& kernels) {
-        for (const auto& kernelAndLength : kernels) {
+    void deleteKernels(std::map<int, std::pair<int *, int>> &kernels) {
+        for (const auto &kernelAndLength : kernels) {
             delete[] kernelAndLength.second.first;
         }
         kernels.clear();
     }
 
-    // Finds the circle of the given radius containing maximal population, unless that would be a 
+    // Finds the circle of the given radius containing maximal population, unless that would be a
     //  larger population that the passed in desiredPop, in which case this "short circuits" and the
-    //  result will be the first circle (of the given radius) it found with a population greater 
+    //  result will be the first circle (of the given radius) it found with a population greater
     //  than or equal to desiredPop.
     // Can optionally constrain the center of the circle to be within the given boundaries.
     // Radius given in kilometers.
@@ -401,8 +383,8 @@ private:
     // TODO: Make this less spagettiish
     // TODO: Doesnt check easternmost and southernmost column/row of the world
     CircleResultMaybeShortCircuit shortCircuitingMostPopulousCircleOfGivenRadius(
-        const double radius, const double desiredPop, 
-        const LatLonBoundaries& boundaries=LatLonBoundaries{-180, 180, 90, -90}) {
+        const double radius, const double desiredPop,
+        const LatLonBoundaries &boundaries = LatLonBoundaries{-180, 180, 90, -90}) {
         std::cout << "Radius: " << radius << std::endl;
         // TODO: Don't look at centers outside these ranges.
         // Turn lat and lon into indices in the pop data.
@@ -461,13 +443,12 @@ private:
         // TODO: Make this one vector instead of three
         std::vector<PixelCenterAndPop> topCircles;
         double largestPop = 0;
-        std::map<int, std::pair<int*, int>> kernels;
+        std::map<int, std::pair<int *, int>> kernels;
 
         std::cout << "step: " << step << std::endl;
         // -100 for skipY and skipX since we don't want to skip any pixels
-        mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-            radius, pixelBoundaries, step, topCircles, largestPop, cutoff, -100, 
-            -100, kernels);
+        mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, pixelBoundaries, step, topCircles,
+                                                        largestPop, cutoff, -100, -100, kernels);
         deleteKernels(kernels);
         std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
         cutUnderperformingCircles(topCircles, largestPop, cutoff);
@@ -477,19 +458,19 @@ private:
             std::cout << "step: " << step << std::endl;
             std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
             std::cout << "largestPop: " << ((long)largestPop) << std::endl;
-            
+
             if (largestPop > desiredPop) {
-                for (const auto& circle : topCircles) {
+                for (const auto &circle : topCircles) {
                     if (circle.pop == largestPop) {
                         result.lat = lat(circle.y);
                         result.lon = lon(circle.x);
                         result.pop = largestPop;
                         result.shortCircuited = true;
                         std::cout << "(SS)Population within " << radius << " kilometers of ("
-                            << result.lat << ", " << result.lon << "): "
-                            << ((long)result.pop) << std::endl;
+                                  << result.lat << ", " << result.lon << "): " << ((long)result.pop)
+                                  << std::endl;
                         std::cout << ">= " << ((long)desiredPop) << ". Short circuiting."
-                            << std::endl;
+                                  << std::endl;
                         return result;
                     }
                 }
@@ -504,7 +485,7 @@ private:
             } else if (step <= 64) {
                 cutoff = cutoff64;
             }
-            // Sorting by lattitude allows kernels to be reused between calls to 
+            // Sorting by lattitude allows kernels to be reused between calls to
             //  mostPopulousCirclesOfGivenRadiusPixelBoundaries().
             std::sort(topCircles.begin(), topCircles.end());
             const int numCirclesAtStartOfLoop = topCircles.size();
@@ -515,11 +496,11 @@ private:
                     currY = topCircles[i].y;
                 }
                 PixelBoundaries sectionBoundaries{
-                    topCircles[i].x - step * 2, topCircles[i].x + step * 2 - 1, 
+                    topCircles[i].x - step * 2, topCircles[i].x + step * 2 - 1,
                     topCircles[i].y - step * 2, topCircles[i].y + step * 2 - 1};
                 mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-                    radius, sectionBoundaries, step, topCircles, largestPop, 
-                    cutoff, topCircles[i].x, topCircles[i].y, kernels);
+                    radius, sectionBoundaries, step, topCircles, largestPop, cutoff,
+                    topCircles[i].x, topCircles[i].y, kernels);
             }
             deleteKernels(kernels);
             cutUnderperformingCircles(topCircles, largestPop, cutoff);
@@ -533,20 +514,20 @@ private:
         }
         result.pop = largestPop;
         result.shortCircuited = false;
-        std::cout << "Population within " << radius << " kilometers of (" << result.lat << ", " 
-            << result.lon << "): " << ((long)result.pop) << std::endl;
+        std::cout << "Population within " << radius << " kilometers of (" << result.lat << ", "
+                  << result.lon << "): " << ((long)result.pop) << std::endl;
         return result;
     }
 
-public:
+  public:
     // File specified by <sumTableFilename> must consist of an int for numRows, and int for
     //  numCols, and then numRows * numCols doubles representing all of the data in the summation
     //  table.
     // Projection must be equirectangular.
     // TODO: Complete spec
-    RasterDataCircleFinder(const std::string& sumTableFilename,
-                           const std::string& smallestCircleResultsFilename) : 
-                           smallestCircleResultsFilename(smallestCircleResultsFilename) {
+    RasterDataCircleFinder(const std::string &sumTableFilename,
+                           const std::string &smallestCircleResultsFilename)
+        : smallestCircleResultsFilename(smallestCircleResultsFilename) {
         std::fstream sumTableFile;
         sumTableFile.open(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&numRows), sizeof(int));
@@ -554,8 +535,8 @@ public:
         // TODO: Either use a unique_pointer to array of unique_pointers to arrays of ints, a vector
         //  of vectors, or the 1D versions of either of those (with an indexing function) for speed.
         //  No need for new and delete.
-        sumTable = new double*[numRows];
-        for(int r = 0; r < numRows; r++) {
+        sumTable = new double *[numRows];
+        for (int r = 0; r < numRows; r++) {
             sumTable[r] = new double[numCols];
             // Reads in an entire row at once
             sumTableFile.read(reinterpret_cast<char *>(sumTable[r]), sizeof(double) * numCols);
@@ -570,8 +551,9 @@ public:
         std::streampos end = smallestCircleResultsFile.tellg();
         smallestCircleResultsFile.seekg(0, std::ios::beg);
         if (begin - end == 0) {
-            std::cout << smallestCircleResultsFilename << " is empty or doesn't exist. Making it "
-                "non-empty and existing." << std::endl;
+            std::cout << smallestCircleResultsFilename
+                      << " is empty or doesn't exist. Making it non-empty and existing."
+                      << std::endl;
             smallestCircleResultsFile.close();
             // Make the file
             // TODO: See if this is still needed now that it's text not binary
@@ -598,8 +580,9 @@ public:
             result.shortCircuited = false;
             if (getline(resultSS, dummyString)) {
                 if (dummyString != ">=") {
-                    throw std::runtime_error("Incorrectly formatted smallest circle results file: "
-                                             + smallestCircleResultsFilename);
+                    throw std::runtime_error(
+                        "Incorrectly formatted smallest circle results file: " +
+                        smallestCircleResultsFilename);
                 }
                 result.shortCircuited = true;
             }
@@ -617,8 +600,8 @@ public:
 
     // Returns distance in kilometers between two points on Earth's surface
     // TODO: Find source and give credit
-    static double distance(const double& lat1, const double& lon1, const double& lat2, 
-                           const double& lon2) {
+    static double distance(const double &lat1, const double &lon1, const double &lat2,
+                           const double &lon2) {
         double req = 6378137.0;
 
         // alexmijo added code for dealing with equatorial points or identical points
@@ -669,7 +652,6 @@ public:
             double c2 = (cos_U1 * sin_U2);
             double c3 = (sin_U1 * cos_U2 * cos_lambda);
 
-
             //  sin sigma
             sin_sigma = std::sqrt(c1 + (c2 - c3) * (c2 - c3));
 
@@ -693,11 +675,13 @@ public:
 
             // Update Lambda
             diff = lambda;
-            lambda = L + (1 - C) * f * sin_alpha * (sigma + C * sin_sigma * (cos_2sigma_m + C 
-                     * cos_sigma * (-1 + 2 * cos_2sigma_m * cos_2sigma_m)));
+            lambda = L + (1 - C) * f * sin_alpha *
+                             (sigma + C * sin_sigma *
+                                          (cos_2sigma_m +
+                                           C * cos_sigma * (-1 + 2 * cos_2sigma_m * cos_2sigma_m)));
             diff = lambda - diff;
             if (std::fabs(diff) < 0.00001) {
-                break; 
+                break;
             }
         }
 
@@ -711,9 +695,11 @@ public:
 
         // Sigma
         double cos_2sigma_m_sq = cos_2sigma_m * cos_2sigma_m;
-        double delta_sigma = B * sin_sigma * (cos_2sigma_m + (B / 4.0) * (cos_sigma * (-1 * 2 
-                             * cos_2sigma_m_sq) - (B / 6.0) * cos_2sigma_m * (-3 + 4 * sin_sigma 
-                             * sin_sigma) * (-3 + 4 * cos_2sigma_m_sq)));
+        double delta_sigma = B * sin_sigma *
+                             (cos_2sigma_m + (B / 4.0) * (cos_sigma * (-1 * 2 * cos_2sigma_m_sq) -
+                                                          (B / 6.0) * cos_2sigma_m *
+                                                              (-3 + 4 * sin_sigma * sin_sigma) *
+                                                              (-3 + 4 * cos_2sigma_m_sq)));
 
         // Distance
         double s = b * A * (sigma - delta_sigma);
@@ -722,26 +708,21 @@ public:
         return s / 1000.;
     }
 
-    int getNumRows() {
-        return numRows;
-    }
+    int getNumRows() { return numRows; }
 
-    int getNumCols() {
-        return numCols;
-    }
+    int getNumCols() { return numCols; }
 
     // Finds the circle of the given radius containing maximal population.
     // Can optionally constrain the center of the circle to be within the given boundaries.
     // Radius given in kilometers.
     CircleResult mostPopulousCircleOfGivenRadius(
-        const double radius, 
-        const LatLonBoundaries& boundaries=LatLonBoundaries{-180, 180, 90, -90}) {
+        const double radius,
+        const LatLonBoundaries &boundaries = LatLonBoundaries{-180, 180, 90, -90}) {
         // Maximally large desiredPop parameter is passed so that it won't short circuit
-        CircleResultMaybeShortCircuit shouldntHaveShortCircuited = 
-            shortCircuitingMostPopulousCircleOfGivenRadius(radius, 
-                                                           std::numeric_limits<double>::max(), 
-                                                           boundaries);
-        return CircleResult{shouldntHaveShortCircuited.lat, shouldntHaveShortCircuited.lon, radius, 
+        CircleResultMaybeShortCircuit shouldntHaveShortCircuited =
+            shortCircuitingMostPopulousCircleOfGivenRadius(
+                radius, std::numeric_limits<double>::max(), boundaries);
+        return CircleResult{shouldntHaveShortCircuited.lat, shouldntHaveShortCircuited.lon, radius,
                             shouldntHaveShortCircuited.pop};
     }
 
@@ -751,7 +732,8 @@ public:
     // TODO: Figure out why largestPop seems to stay the same after searching at a step that's 1/4
     //  the size something like 1/4 of the time rather than 1/16 of the time like expected.
     CircleResult smallestCircleWithGivenPopulation(
-        const double pop, const LatLonBoundaries boundaries=LatLonBoundaries{-180, 180, 90, -90}) {
+        const double pop,
+        const LatLonBoundaries boundaries = LatLonBoundaries{-180, 180, 90, -90}) {
         // Radii will be ints cause only interested in getting to the nearest kilometer
         int upperBound = EQUATOR_LEN / 2;
         int lowerBound = 0;
@@ -793,8 +775,8 @@ public:
                 // Huge desired pop since we don't want it to short circuit
                 largestSumCircle = mostPopulousCircleOfGivenRadius(radius, boundaries);
             } else {
-                largestSumCircle = shortCircuitingMostPopulousCircleOfGivenRadius(radius, pop, 
-                                                                                  boundaries);
+                largestSumCircle =
+                    shortCircuitingMostPopulousCircleOfGivenRadius(radius, pop, boundaries);
             }
             if (largestSumCircle.pop >= pop) {
                 softUpperBound = largestSumCircle.shortCircuited;
@@ -831,7 +813,7 @@ public:
             // TODO: Fail fast
             if (pop > WORLD_POP_2015) {
                 throw std::invalid_argument("Desired pop is larger than the world population, and a"
-                    " suitable circle wasn't found");
+                                            " suitable circle wasn't found");
             }
             throw std::logic_error("Should never get here");
         }
@@ -870,16 +852,16 @@ void findPercentCircles() {
     percentCirclesFile.open(percentCirclesFilename);
     for (int percent = 1; percent <= 100; percent++) {
         const double desiredPopulation = (WORLD_POP_2015 / 100.0) * percent;
-        std::cout << std::endl << "Now finding smallest possible circle with " << percent
+        std::cout << std::endl
+                  << "Now finding smallest possible circle with " << percent
                   << "\% of the world's population (" << ((long)desiredPopulation) << " people)"
                   << std::endl;
-        CircleResult smallestCircle = 
-            popData.smallestCircleWithGivenPopulation(desiredPopulation);
+        CircleResult smallestCircle = popData.smallestCircleWithGivenPopulation(desiredPopulation);
         std::cout << "Smallest possible circle with " << percent << "\% of the world's population ("
                   << ((long)desiredPopulation) << " people):" << std::endl;
         std::cout << "Population within " << smallestCircle.radius << " km of ("
-                  << smallestCircle.lat << ", " << smallestCircle.lon << "): "
-                  << ((long)smallestCircle.pop) << std::endl;
+                  << smallestCircle.lat << ", " << smallestCircle.lon
+                  << "): " << ((long)smallestCircle.pop) << std::endl;
         // Used to be for entering into the python map making code, now just to match the format in
         //  the google doc
         std::cout << percent << ": (" << smallestCircle.radius << ", (" << std::setprecision(8)
@@ -895,6 +877,4 @@ void findPercentCircles() {
     percentCirclesFile.close();
 }
 
-int main() {
-    findPercentCircles();
-}
+int main() { findPercentCircles(); }

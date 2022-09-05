@@ -120,11 +120,12 @@ class ImageManipulation {
 
     public static void main(String[] args) {
         for (percent = 90; percent <= 90; percent++) {
-            String inputImageFileName = "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/"
-                                        + percent + "PercentCircle.png";
+            String inputImageFileName =
+                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent + 
+                "PercentCircle.png";
             String outputImageFileName =
-                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent
-                + "PercentCircleWithText.png";
+                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent +
+                "PercentCircleWithText.png";
             manipulateImage(inputImageFileName, outputImageFileName);
         }
     }
