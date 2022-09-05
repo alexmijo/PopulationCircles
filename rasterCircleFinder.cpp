@@ -17,6 +17,7 @@
 #include <vector>
 #include <array>
 #include <stdexcept>
+#include <algorithm>
 
 const double WORLD_POP_2015 = 7346242908.863955;
 // See https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
@@ -316,60 +317,78 @@ private:
         return ((-lat + 90.0) / 180.0) * numRows - 0.5;
     }
 
+    struct PixelCenterAndPop {
+        // The center pixel of the circle
+        int x, y;
+        // The population of the circle
+        double pop;
+
+        PixelCenterAndPop(int x, int y, double pop) : x(x), y(y), pop(pop) {}
+
+        // Makes it easy to sort PixelCenterAndPops by latitude.
+        bool operator<(const PixelCenterAndPop& other) const {
+            return y < other.y;
+        }
+    };
+
     // Passed in ranges are inclusive.
-    // Adds all centers that are at least 90% the pop of the largest center to topCenXs and topCenYs
+    // Adds all circles who's pop is at least cutoff * pop of the most populous circle to topCircles
     // Reassigns largestPop if necessary
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
         const double radius, const PixelBoundaries& boundaries, const int step, 
-        std::vector<int>& topCenXs, std::vector<int>& topCenYs, std::vector<double>& topPops, 
-        double& largestPop, const double cutoff, const int skipX, const int skipY) {
+        std::vector<PixelCenterAndPop>& topCircles, double& largestPop, const double cutoff, 
+        const int skipX, const int skipY, std::map<int, std::pair<int*, int>>& kernels) {
         for (int cenY = boundaries.upY; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
             }
             int kernelLength;
-            int* kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
+            auto it = kernels.find(cenY);
+            int* kernel;
+            if (it == kernels.end()) {
+                kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
+                kernels[cenY] = std::pair<int*, int>(kernel, kernelLength);
+            } else {
+                kernel = it->second.first;
+                kernelLength = it->second.second;
+            }
 
             for (int cenX = boundaries.leftX; cenX <= boundaries.rightX; cenX += step) {
                 if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
                     continue;
                 }
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
-                // TODO: Make this logic simpler lol
-                if (step != 1 && popWithinNKilometers > largestPop * cutoff) {
-                    topCenXs.push_back(cenX);
-                    topCenYs.push_back(cenY);
-                    topPops.push_back(popWithinNKilometers);
+                if (popWithinNKilometers > largestPop * cutoff) {
+                    topCircles.emplace_back(cenX, cenY, popWithinNKilometers);
                     if (popWithinNKilometers > largestPop) {
                         largestPop = popWithinNKilometers;
                     }
-                } else if (step == 1 && popWithinNKilometers >= largestPop) {
-                    topCenXs.push_back(cenX);
-                    topCenYs.push_back(cenY);
-                    topPops.push_back(popWithinNKilometers);
-                    largestPop = popWithinNKilometers;
                 }
             }
-            delete[] kernel;
         }
     }
 
-    // Removes from topCenXs, topCenYs, and topPops any circles whose pop is less than largestPop *
-    //  cutoff.
-    void cutUnderperformingCircles(std::vector<int>& topCenXs, std::vector<int>& topCenYs,
-                                   std::vector<double>& topPops, const double largestPop,
-                                   const double cutoff) {
+    // Removes from topCircles any circles whose pop is less than largestPop * cutoff.
+    // TODO: If this is slowing things down, use a linked list.
+    void cutUnderperformingCircles(std::vector<PixelCenterAndPop>& topCircles, 
+                                   const double largestPop, const double cutoff) {
         std::vector<int> indicesToErase;
-        for (int i = topPops.size() - 1; i >= 0; i--) {
-            if (topPops[i] < largestPop * cutoff) {
+        for (int i = topCircles.size() - 1; i >= 0; i--) {
+            if (topCircles[i].pop < largestPop * cutoff) {
                 indicesToErase.push_back(i);
             }
         }
         for (int indexToErase : indicesToErase) {
-            topCenXs.erase(topCenXs.begin() + indexToErase);
-            topCenYs.erase(topCenYs.begin() + indexToErase);
-            topPops.erase(topPops.begin() + indexToErase);
+            topCircles.erase(topCircles.begin() + indexToErase);
         }
+    }
+
+    // Deletes all the kernels in kernels. Also clears kernels.
+    void deleteKernels(std::map<int, std::pair<int*, int>>& kernels) {
+        for (const auto& kernelAndLength : kernels) {
+            delete[] kernelAndLength.second.first;
+        }
+        kernels.clear();
     }
 
     // Finds the circle of the given radius containing maximal population, unless that would be a 
@@ -440,30 +459,30 @@ private:
             cutoff = cutoff64;
         }
         // TODO: Make this one vector instead of three
-        std::vector<int> topCenXs;
-        std::vector<int> topCenYs;
-        std::vector<double> topPops;
+        std::vector<PixelCenterAndPop> topCircles;
         double largestPop = 0;
+        std::map<int, std::pair<int*, int>> kernels;
 
         std::cout << "step: " << step << std::endl;
         // -100 for skipY and skipX since we don't want to skip any pixels
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-            radius, pixelBoundaries, step, topCenXs, topCenYs, topPops, largestPop, cutoff, -100, 
-            -100);
-        std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
-        cutUnderperformingCircles(topCenXs, topCenYs, topPops, largestPop, cutoff);
+            radius, pixelBoundaries, step, topCircles, largestPop, cutoff, -100, 
+            -100, kernels);
+        deleteKernels(kernels);
+        std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
+        cutUnderperformingCircles(topCircles, largestPop, cutoff);
         CircleResultMaybeShortCircuit result;
         while (step > 1) {
             step /= 4;
             std::cout << "step: " << step << std::endl;
-            std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
+            std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
             std::cout << "largestPop: " << ((long)largestPop) << std::endl;
             
             if (largestPop > desiredPop) {
-                for (int i = 0; i < topCenXs.size(); i++) {
-                    if (topPops[i] == largestPop) {
-                        result.lat = lat(topCenYs[i]);
-                        result.lon = lon(topCenXs[i]);
+                for (const auto& circle : topCircles) {
+                    if (circle.pop == largestPop) {
+                        result.lat = lat(circle.y);
+                        result.lon = lon(circle.x);
                         result.pop = largestPop;
                         result.shortCircuited = true;
                         std::cout << "(SS)Population within " << radius << " kilometers of ("
@@ -475,40 +494,48 @@ private:
                     }
                 }
             }
-
-            if (step <= 4) {
+            if (step == 1) {
+                // Only want to keep most populous circle when step is 1
+                cutoff = 1;
+            } else if (step <= 4) {
                 cutoff = cutoff4;
             } else if (step <= 16) {
                 cutoff = cutoff16;
             } else if (step <= 64) {
                 cutoff = cutoff64;
             }
-            const int numCirclesAtStartOfLoop = topCenXs.size();
+            // Sorting by lattitude allows kernels to be reused between calls to 
+            //  mostPopulousCirclesOfGivenRadiusPixelBoundaries().
+            std::sort(topCircles.begin(), topCircles.end());
+            const int numCirclesAtStartOfLoop = topCircles.size();
+            int currY = -1;
             for (int i = 0; i < numCirclesAtStartOfLoop; i++) {
+                if (topCircles[i].y != currY) {
+                    deleteKernels(kernels);
+                    currY = topCircles[i].y;
+                }
                 PixelBoundaries sectionBoundaries{
-                    topCenXs[i] - step * 2, topCenXs[i] + step * 2 - 1, topCenYs[i] - step * 2, 
-                    topCenYs[i] + step * 2 - 1};
+                    topCircles[i].x - step * 2, topCircles[i].x + step * 2 - 1, 
+                    topCircles[i].y - step * 2, topCircles[i].y + step * 2 - 1};
                 mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-                    radius, sectionBoundaries, step, topCenXs, topCenYs, topPops, largestPop, 
-                    cutoff, topCenXs[i], topCenYs[i]);
+                    radius, sectionBoundaries, step, topCircles, largestPop, 
+                    cutoff, topCircles[i].x, topCircles[i].y, kernels);
             }
-            cutUnderperformingCircles(topCenXs, topCenYs, topPops, largestPop, cutoff);
+            deleteKernels(kernels);
+            cutUnderperformingCircles(topCircles, largestPop, cutoff);
         }
-        std::cout << "topCenXs.size(): " << topCenXs.size() << std::endl;
-        // Now find and return the most populous circle in the list (all three vectors).
-        for (int i = 0; i < topCenXs.size(); i++) {
-            if (topPops[i] == largestPop) {
-                result.lat = lat(topCenYs[i]);
-                result.lon = lon(topCenXs[i]);
-                result.pop = largestPop;
-                result.shortCircuited = false;
-                std::cout << "Population within " << radius << " kilometers of (" << result.lat
-                    << ", " << result.lon << "): " << ((long)result.pop) << std::endl;
-                return result;
-            }
+        // Only the most populous circle remains in the list, since the cutoff for step size 1 is 1.
+        result.lat = lat(topCircles[0].y);
+        result.lon = lon(topCircles[0].x);
+        if (topCircles[0].pop != largestPop) {
+            // largestPop should be in topCircles
+            throw std::logic_error("Should never get here");
         }
-        // largestPop should be in topPops
-        throw std::logic_error("Should never get here");
+        result.pop = largestPop;
+        result.shortCircuited = false;
+        std::cout << "Population within " << radius << " kilometers of (" << result.lat << ", " 
+            << result.lon << "): " << ((long)result.pop) << std::endl;
+        return result;
     }
 
 public:
