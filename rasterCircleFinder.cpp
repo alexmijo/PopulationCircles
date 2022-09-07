@@ -19,12 +19,12 @@
 #include <string>
 #include <vector>
 
-const double WORLD_POP_2015 = 7346242908.863955;
+constexpr double WORLD_POP_2015 = 7346242908.863955;
 // See
 //  https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
-const int DOUBLE_ROUND_TRIP_PRECISION =
+constexpr int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
-const int EQUATOR_LEN = 40075;
+constexpr int EQUATOR_LEN = 40075;
 
 struct CircleResult {
     // The lattitude and longitude of the center of the circle.
@@ -45,7 +45,7 @@ struct LatLonBoundaries {
 //  finding code. Could also then have another class with band finding code.
 class RasterDataCircleFinder {
   private:
-    const static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
+    constexpr static int KERNEL_WIDTH = 4; // Num cols in each kernel (4 corners of a box)
     int numRows, numCols;
     // First index is y (lat), second is x (lon). Matrix style indexing (top to bottom, left to
     //  right)
