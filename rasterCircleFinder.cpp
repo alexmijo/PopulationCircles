@@ -139,12 +139,11 @@ class RasterDataCircleFinder {
     // For indexing into a kernel array
     inline int kernelIndex(const int row, const int col) { return KERNEL_WIDTH * row + col; }
 
-    // Makes the kernel for a specific lattitude. Assigns the kernel's length to the reference
-    //  parameter kernelLength.
-    // TODO: Make the kernel a vector instead of a dynamically allocated c array
+    // Makes the kernel for a specific lattitude.
     // TODO: Make the kernel an actual 2d array (maybe)
-    // TODO: See if this double counts part of 1 column when wrapping around all longitudes
-    int *makeKernel(const int cenX, const int cenY, const double radius, int &kernelLength) {
+    // TODO: See if this double counts part of 1 column when wrapping around all
+    // TODO: Get rid of the cenX parameter.
+    std::vector<int> makeKernel(const int cenX, const int cenY, const double radius) {
         const double cenLon = lon(cenX);
         const double cenLat = lat(cenY);
         const int northEdge = boundingBoxEdge(cenX, cenY, radius, north);
@@ -154,9 +153,8 @@ class RasterDataCircleFinder {
         // Each row consists of: {westX, eastX, northY, southY} describing a summation table
         //  rectangle (so KERNEL_WIDTH must be 4) relative to cenX and cenY
         // Temp just cause we don't know length of real kernel yet
-        int *tempKernel = new int[maxPossibleLength * KERNEL_WIDTH];
+        std::vector<int> kernel;
 
-        int kernelRow = 0; // First index into kernel
         int y = northEdge;
         int horizontalOffset = 0; // From the verticle center line of the kernel
         while (y <= southEdge) {
@@ -181,12 +179,12 @@ class RasterDataCircleFinder {
                 horizontalOffset--; // horizontalOffset is now maximally far (after this decrement)
 
                 // Start a new rectangle at y
-                tempKernel[kernelIndex(kernelRow, 0)] = -horizontalOffset - 1;
-                tempKernel[kernelIndex(kernelRow, 1)] = horizontalOffset;
-                tempKernel[kernelIndex(kernelRow, 2)] = y - cenY - 1;
+                kernel.emplace_back(-horizontalOffset - 1);
+                kernel.emplace_back(horizontalOffset);
+                kernel.emplace_back(y - cenY - 1);
                 if (y == southEdge) {
                     // If we just started a new rectangle at southEdge, it must end there too
-                    tempKernel[kernelIndex(kernelRow, 3)] = y - cenY;
+                    kernel.emplace_back(y - cenY);
                     break;
                 } else {
                     // Find where this new rectangle ends
@@ -194,7 +192,7 @@ class RasterDataCircleFinder {
                         y++;
                         if (y > southEdge) {
                             // Rectangle can't extend below south edge
-                            tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1;
+                            kernel.emplace_back(y - cenY - 1);
                             break;
                         }
 
@@ -205,8 +203,7 @@ class RasterDataCircleFinder {
                             currLat = lat(y);
                             if (distance(currLat, currLon, cenLat, cenLon) <= radius) {
                                 // The circle has widened; the rectangle is done
-                                tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1;
-                                kernelRow++;
+                                kernel.emplace_back(y - cenY - 1);
                                 break;
                             }
                         }
@@ -215,26 +212,14 @@ class RasterDataCircleFinder {
                         currLat = lat(y);
                         if (distance(currLat, currLon, cenLat, cenLon) > radius) {
                             // The y value can no longer be in the rectangle
-                            tempKernel[kernelIndex(kernelRow, 3)] = y - cenY - 1;
-                            kernelRow++;
+                            kernel.emplace_back(y - cenY - 1);
                             break;
                         }
                     }
                 }
             }
         }
-
-        kernelLength = kernelRow + 1; // Visible to the caller
-        // Now that we know the length of kernel, we can construct it using the data in tempKernel
-        //  and then return it
-        int *kernel = new int[kernelLength * KERNEL_WIDTH];
-        for (kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
-            for (int kernelCol = 0; kernelCol < KERNEL_WIDTH; kernelCol++) {
-                kernel[kernelIndex(kernelRow, kernelCol)] =
-                    tempKernel[kernelIndex(kernelRow, kernelCol)];
-            }
-        }
-        delete[] tempKernel;
+        // This is ok because it will either be moved or copy-elisioned.
         return kernel;
     }
 
@@ -263,9 +248,9 @@ class RasterDataCircleFinder {
 
     // Returns the population contained within a circle who's boundary is specified by <kernel> and
     //  which is centered at the (<cenX>, <cenY>) pixel.
-    double popWithinKernel(const int cenX, const int cenY, int *kernel, const int kernelLength) {
+    double popWithinKernel(const int cenX, const int cenY, const std::vector<int> &kernel) {
         double totalPop = 0;
-        for (int kernelRow = 0; kernelRow < kernelLength; kernelRow++) {
+        for (int kernelRow = 0; kernelRow < kernel.size() / KERNEL_WIDTH; kernelRow++) {
             // Sides of the rectangle
             const int west = kernel[kernelIndex(kernelRow, 0)] + cenX;
             const int east = kernel[kernelIndex(kernelRow, 1)] + cenX;
@@ -319,27 +304,25 @@ class RasterDataCircleFinder {
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
         const double radius, const PixelBoundaries &boundaries, const int step,
         std::vector<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
-        const int skipX, const int skipY, std::map<int, std::pair<int *, int>> &kernels) {
+        const int skipX, const int skipY, std::map<int, std::vector<int>> &kernels) {
         for (int cenY = boundaries.upY; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
             }
-            int kernelLength;
             auto it = kernels.find(cenY);
-            int *kernel;
+            std::vector<int> kernel;
             if (it == kernels.end()) {
-                kernel = makeKernel(1000, cenY, radius, kernelLength); // Initializes kernelLength
-                kernels[cenY] = std::pair<int *, int>(kernel, kernelLength);
+                kernel = makeKernel(1000, cenY, radius); // Initializes kernelLength
+                kernels[cenY] = kernel;
             } else {
-                kernel = it->second.first;
-                kernelLength = it->second.second;
+                kernel = it->second;
             }
 
             for (int cenX = boundaries.leftX; cenX <= boundaries.rightX; cenX += step) {
                 if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
                     continue;
                 }
-                double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel, kernelLength);
+                double popWithinNKilometers = popWithinKernel(cenX, cenY, kernel);
                 if (popWithinNKilometers > largestPop * cutoff) {
                     topCircles.emplace_back(cenX, cenY, popWithinNKilometers);
                     if (popWithinNKilometers > largestPop) {
@@ -363,14 +346,6 @@ class RasterDataCircleFinder {
         for (int indexToErase : indicesToErase) {
             topCircles.erase(topCircles.begin() + indexToErase);
         }
-    }
-
-    // Deletes all the kernels in kernels. Also clears kernels.
-    void deleteKernels(std::map<int, std::pair<int *, int>> &kernels) {
-        for (const auto &kernelAndLength : kernels) {
-            delete[] kernelAndLength.second.first;
-        }
-        kernels.clear();
     }
 
     // Finds the circle of the given radius containing maximal population, unless that would be a
@@ -443,13 +418,12 @@ class RasterDataCircleFinder {
         // TODO: Make this one vector instead of three
         std::vector<PixelCenterAndPop> topCircles;
         double largestPop = 0;
-        std::map<int, std::pair<int *, int>> kernels;
+        std::map<int, std::vector<int>> kernels;
 
         std::cout << "step: " << step << std::endl;
         // -100 for skipY and skipX since we don't want to skip any pixels
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, pixelBoundaries, step, topCircles,
                                                         largestPop, cutoff, -100, -100, kernels);
-        deleteKernels(kernels);
         std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
         cutUnderperformingCircles(topCircles, largestPop, cutoff);
         CircleResultMaybeShortCircuit result;
@@ -459,6 +433,7 @@ class RasterDataCircleFinder {
             std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
             std::cout << "largestPop: " << ((long)largestPop) << std::endl;
 
+            // TODO: Make this short circuit inbetween pixel boundaries of the same step.
             if (largestPop > desiredPop) {
                 for (const auto &circle : topCircles) {
                     if (circle.pop == largestPop) {
@@ -492,7 +467,7 @@ class RasterDataCircleFinder {
             int currY = -1;
             for (int i = 0; i < numCirclesAtStartOfLoop; i++) {
                 if (topCircles[i].y != currY) {
-                    deleteKernels(kernels);
+                    kernels.clear();
                     currY = topCircles[i].y;
                 }
                 PixelBoundaries sectionBoundaries{
@@ -502,7 +477,6 @@ class RasterDataCircleFinder {
                     radius, sectionBoundaries, step, topCircles, largestPop, cutoff,
                     topCircles[i].x, topCircles[i].y, kernels);
             }
-            deleteKernels(kernels);
             cutUnderperformingCircles(topCircles, largestPop, cutoff);
         }
         // Only the most populous circle remains in the list, since the cutoff for step size 1 is 1.
