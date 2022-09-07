@@ -152,7 +152,6 @@ class RasterDataCircleFinder {
         // A faster way of doing a 2D array of dimensions maxPossibleSize x KERNEL_WIDTH
         // Each row consists of: {westX, eastX, northY, southY} describing a summation table
         //  rectangle (so KERNEL_WIDTH must be 4) relative to cenX and cenY
-        // Temp just cause we don't know length of real kernel yet
         std::vector<int> kernel;
 
         int y = northEdge;
