@@ -122,7 +122,7 @@ class ImageManipulation {
         entry(97, "Serbia"),
         entry(98, "the Atlantic Ocean"),
         entry(99, "Libya"),
-        entry(100, "")
+        entry(100, "Canada")
     );
 
     // TODO: Spec
@@ -243,7 +243,7 @@ class ImageManipulation {
     }
 
     public static void main(String[] args) {
-        for (percent = 1; percent <= 99; percent++) {
+        for (percent = 100; percent <= 100; percent++) {
             String inputImageFileName =
                 "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent + 
                 "PercentCircle.png";
