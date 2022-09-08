@@ -219,7 +219,7 @@ class ImageManipulation {
                               + latLonFormatter.format(lon) + "°E)";
         if (lon < 0) {
             centerCoords = "(" + latLonFormatter.format(lat) + "°N, " 
-                           + latLonFormatter.format(lon) + "°W)";
+                           + latLonFormatter.format(-lon) + "°W)";
         }
         String country = "in " + countries.get(percent);
         g2d.drawString(country, 5, countryY);
