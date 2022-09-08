@@ -370,7 +370,13 @@ class RasterDataCircleFinder {
         double cutoff64;
         double cutoff16;
         double cutoff4;
-        if (radius >= 11000) {
+        if (radius >= 14100) {
+            initialStep = 256;
+            cutoff256 = 0.913;
+            cutoff64 = 0.9953;
+            cutoff16 = 0.9999;
+            cutoff4 = 0.999995;
+        } else if (radius >= 11000) {
             initialStep = 256;
             cutoff256 = 0.55;
             cutoff64 = 0.85;
@@ -824,12 +830,16 @@ void findPercentCircles() {
     std::ofstream percentCirclesFile;
     percentCirclesFile.open(percentCirclesFilename);
     for (int percent = 1; percent <= 100; percent++) {
-        const double desiredPopulation = (WORLD_POP_2015 / 100.0) * percent;
+        double desiredPopulation = (WORLD_POP_2015 / 100.0) * percent;
+        if (percent == 100) {
+            desiredPopulation = (long long)WORLD_POP_2015;
+        }
         std::cout << std::endl
                   << "Now finding smallest possible circle with " << percent
                   << "\% of the world's population (" << ((long)desiredPopulation) << " people)"
                   << std::endl;
-        CircleResult smallestCircle = popData.smallestCircleWithGivenPopulation(desiredPopulation);
+        CircleResult smallestCircle;
+        smallestCircle = popData.smallestCircleWithGivenPopulation(desiredPopulation);
         std::cout << "Smallest possible circle with " << percent << "\% of the world's population ("
                   << ((long)desiredPopulation) << " people):" << std::endl;
         std::cout << "Population within " << smallestCircle.radius << " km of ("
