@@ -395,22 +395,21 @@ class RasterDataCircleFinder {
             cutoff256 = 0.51;
             cutoff64 = 0.84;
             cutoff16 = 0.98;
-            cutoff4 = 0.99;
+            cutoff4 = 0.9885;
         } else if (radius >= 300) {
             initialStep = 64;
-            cutoff64 = 0.93;
-            cutoff16 = 0.97;
-            cutoff4 = 0.98;
+            cutoff64 = 0.925;
+            cutoff16 = 0.965;
+            cutoff4 = 0.975;
         } else if (radius >= 100) {
             initialStep = 16;
-            cutoff16 = 0.95;
-            cutoff4 = 0.97;
+            cutoff16 = 0.945;
+            cutoff4 = 0.965;
         } else if (radius >= 20) {
             initialStep = 4;
             cutoff4 = 0.7;
         } else {
             initialStep = 1;
-            cutoff4 = 0.999;
         }
 
         int step = initialStep; // Must be a power of 4, I think
