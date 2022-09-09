@@ -1,7 +1,7 @@
-rasterCircleFinder: rasterCircleFinder.cpp popSumTable.bin
+rasterCircleFinder: rasterCircleFinder.cpp popSumTable2020.bin
 	g++ rasterCircleFinder.cpp -o rasterCircleFinder -I/usr/include/gdal -l gdal
 
-popSumTable.bin: summationTableMaker GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif
+popSumTable2020.bin: summationTableMaker NASA2020POPDATA.tif
 	./summationTableMaker
 
 summationTableMaker: summationTableMaker.cpp
@@ -9,5 +9,5 @@ summationTableMaker: summationTableMaker.cpp
 
 clean:
 	rm -f rasterCircleFinder
-	rm -f popSumTable.bin
+	rm -f popSumTable2020.bin
 	rm -f summationTableMaker

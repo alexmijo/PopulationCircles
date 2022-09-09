@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string>
 
-const double WORLD_POP_2015 = 7346242908.863955;
+const double WORLD_POP = 7346242908.863955;
 const int NUM_ROWS = 2500;
 const int NUM_COLS = 5000;
 

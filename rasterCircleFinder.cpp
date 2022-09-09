@@ -19,14 +19,14 @@
 #include <string>
 #include <vector>
 
-constexpr double WORLD_POP_2015 = 7346242908.863955;
+// Uses 2015 population data if false.
+constexpr bool USE_2020_DATA = true;
+constexpr double WORLD_POP = USE_2020_DATA ? 7757982599.3135586 : 7346242908.863955;
 // See
 //  https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
 constexpr int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
 constexpr int EQUATOR_LEN = 40075;
-// Uses 2015 population data if false.
-constexpr bool USE_2020_DATA = false;
 
 struct CircleResult {
     // The lattitude and longitude of the center of the circle.
@@ -796,7 +796,7 @@ class RasterDataCircleFinder {
         }
         if (!foundSuitableCircle) {
             // TODO: Fail fast
-            if (pop > WORLD_POP_2015) {
+            if (pop > WORLD_POP) {
                 throw std::invalid_argument("Desired pop is larger than the world population, and a"
                                             " suitable circle wasn't found");
             }
@@ -836,7 +836,7 @@ void findPercentCircles() {
     }
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
     if (USE_2020_DATA) {
-        std::string smallestCircleResultsFilename = "popSmallestCircleResults2020.txt";
+        smallestCircleResultsFilename = "popSmallestCircleResults2020.txt";
     }
     RasterDataCircleFinder popData(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
@@ -851,9 +851,9 @@ void findPercentCircles() {
     std::ofstream percentCirclesFile;
     percentCirclesFile.open(percentCirclesFilename);
     for (double percent = 0.1; percent <= 100; percent += 0.1) {
-        double desiredPopulation = (WORLD_POP_2015 / 100.0) * percent;
+        double desiredPopulation = (WORLD_POP / 100.0) * percent;
         if (percent == 100) {
-            desiredPopulation = (long long)WORLD_POP_2015;
+            desiredPopulation = (long long)WORLD_POP;
         }
         std::cout << std::endl
                   << "Now finding smallest possible circle with " << percent
