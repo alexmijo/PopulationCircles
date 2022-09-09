@@ -862,7 +862,7 @@ void findPercentCircles() {
     }
     std::ofstream percentCirclesFile;
     percentCirclesFile.open(percentCirclesFilename);
-    for (double percent = 0.1; percent <= 100.01; percent += 0.1) {
+    for (double percent = 100; percent > 0.09; percent -= 0.1) {
         double desiredPopulation = (WORLD_POP / 100.0) * percent;
         if (percent > 99.99) {
             desiredPopulation = (long long)WORLD_POP;
