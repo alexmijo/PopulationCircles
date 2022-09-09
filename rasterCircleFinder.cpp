@@ -25,6 +25,8 @@ constexpr double WORLD_POP_2015 = 7346242908.863955;
 constexpr int DOUBLE_ROUND_TRIP_PRECISION =
     (std::numeric_limits<double>::digits10 == 15) ? 17 : std::numeric_limits<double>::digits10 + 3;
 constexpr int EQUATOR_LEN = 40075;
+// Uses 2015 population data if false.
+constexpr bool USE_2020_DATA = false;
 
 struct CircleResult {
     // The lattitude and longitude of the center of the circle.
@@ -372,10 +374,10 @@ class RasterDataCircleFinder {
         double cutoff4;
         if (radius >= 14100) {
             initialStep = 256;
-            cutoff256 = 0.913;
-            cutoff64 = 0.9953;
-            cutoff16 = 0.9999;
-            cutoff4 = 0.999995;
+            cutoff256 = 0.9;   // 0.913
+            cutoff64 = 0.99;   // 0.9953
+            cutoff16 = 0.9993; // 0.9999
+            cutoff4 = 0.99993; // 0.999995
         } else if (radius >= 11000) {
             initialStep = 256;
             cutoff256 = 0.55;
@@ -413,14 +415,16 @@ class RasterDataCircleFinder {
 
         int step = initialStep; // Must be a power of 4, I think
         double cutoff = cutoff256;
-        if (step <= 4) {
+        if (step == 1) {
+            // Only want to keep most populous circle when step is 1
+            cutoff = 1;
+        } else if (step <= 4) {
             cutoff = cutoff4;
         } else if (step <= 16) {
             cutoff = cutoff16;
         } else if (step <= 64) {
             cutoff = cutoff64;
         }
-        // TODO: Make this one vector instead of three
         std::vector<PixelCenterAndPop> topCircles;
         double largestPop = 0;
         std::map<int, std::vector<int>> kernels;
@@ -488,8 +492,10 @@ class RasterDataCircleFinder {
         result.lat = lat(topCircles[0].y);
         result.lon = lon(topCircles[0].x);
         if (topCircles[0].pop != largestPop) {
-            // largestPop should be in topCircles
-            throw std::logic_error("Should never get here");
+            std::cout << "topCircles[0].pop: " << topCircles[0].pop << std::endl;
+            std::cout << "largestPop: " << largestPop << std::endl;
+            throw std::logic_error(
+                "Should never get here. largestPop should be first element of topCircles.");
         }
         result.pop = largestPop;
         result.shortCircuited = false;
@@ -816,10 +822,22 @@ void testCircleSkipping() {
 }
 
 // Used for finding the smallest circles containing 1-100% of the world's population.
+// TODO: Allow for keyboard interrupt for manual entering of radius.
 void findPercentCircles() {
     std::cout << "Loading population summation table." << std::endl;
+    if (USE_2020_DATA) {
+        std::cout << "Using 2020 data." << std::endl;
+    } else {
+        std::cout << "Using 2015 data." << std::endl;
+    }
     std::string sumTableFilename = "popSumTable.bin";
+    if (USE_2020_DATA) {
+        sumTableFilename = "popSumTable2020.bin";
+    }
     std::string smallestCircleResultsFilename = "popSmallestCircleResults.txt";
+    if (USE_2020_DATA) {
+        std::string smallestCircleResultsFilename = "popSmallestCircleResults2020.txt";
+    }
     RasterDataCircleFinder popData(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
 
@@ -827,9 +845,12 @@ void findPercentCircles() {
     //  percentageCirclesMapMakerTextInJSONOut.cpp so it knows where and how large to draw the
     //  circles
     std::string percentCirclesFilename = "foundPercentageCircles.txt";
+    if (USE_2020_DATA) {
+        percentCirclesFilename = "foundPercentageCircles2020.txt";
+    }
     std::ofstream percentCirclesFile;
     percentCirclesFile.open(percentCirclesFilename);
-    for (int percent = 1; percent <= 100; percent++) {
+    for (double percent = 0.1; percent <= 100; percent += 0.1) {
         double desiredPopulation = (WORLD_POP_2015 / 100.0) * percent;
         if (percent == 100) {
             desiredPopulation = (long long)WORLD_POP_2015;
@@ -852,7 +873,7 @@ void findPercentCircles() {
                   << std::setprecision(6) << std::endl;
         // TODO: Remove the magic number 6
         // TODO: Probably only wanna write if it's not already in there
-        percentCirclesFile << ((int)percent) << " " << smallestCircle.radius << " "
+        percentCirclesFile << percent << " " << smallestCircle.radius << " "
                            << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION) << smallestCircle.lon
                            << " " << smallestCircle.lat << " " << smallestCircle.pop
                            << std::setprecision(6) << std::endl;
