@@ -302,10 +302,12 @@ class RasterDataCircleFinder {
     // Passed in ranges are inclusive.
     // Adds all circles who's pop is at least cutoff * pop of the most populous circle to topCircles
     // Reassigns largestPop if necessary
+    // Can short circuit and return early as soon as it finds a circle with at least desiredPop.
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
         const double radius, const PixelBoundaries &boundaries, const int step,
         std::vector<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
-        const int skipX, const int skipY, std::map<int, std::vector<int>> &kernels) {
+        const int skipX, const int skipY, std::map<int, std::vector<int>> &kernels,
+        const double desiredPop) {
         for (int cenY = boundaries.upY; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
@@ -328,6 +330,9 @@ class RasterDataCircleFinder {
                     topCircles.emplace_back(cenX, cenY, popWithinNKilometers);
                     if (popWithinNKilometers > largestPop) {
                         largestPop = popWithinNKilometers;
+                        if (largestPop >= desiredPop) {
+                            return;
+                        }
                     }
                 }
             }
@@ -431,33 +436,31 @@ class RasterDataCircleFinder {
         std::cout << "step: " << step << std::endl;
         // -100 for skipY and skipX since we don't want to skip any pixels
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, pixelBoundaries, step, topCircles,
-                                                        largestPop, cutoff, -100, -100, kernels);
+                                                        largestPop, cutoff, -100, -100, kernels,
+                                                        desiredPop);
         std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
         cutUnderperformingCircles(topCircles, largestPop, cutoff);
         CircleResultMaybeShortCircuit result;
+        if (largestPop >= desiredPop) {
+            for (const auto &circle : topCircles) {
+                if (circle.pop == largestPop) {
+                    result.lat = lat(circle.y);
+                    result.lon = lon(circle.x);
+                    result.pop = largestPop;
+                    result.shortCircuited = true;
+                    std::cout << "(SS)Population within " << radius << " kilometers of ("
+                              << result.lat << ", " << result.lon << "): " << ((long)result.pop)
+                              << std::endl;
+                    std::cout << ">= " << ((long)desiredPop) << ". Short circuiting." << std::endl;
+                    return result;
+                }
+            }
+        }
         while (step > 1) {
             step /= 4;
             std::cout << "step: " << step << std::endl;
             std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
             std::cout << "largestPop: " << ((long)largestPop) << std::endl;
-
-            // TODO: Make this short circuit inbetween pixel boundaries of the same step.
-            if (largestPop > desiredPop) {
-                for (const auto &circle : topCircles) {
-                    if (circle.pop == largestPop) {
-                        result.lat = lat(circle.y);
-                        result.lon = lon(circle.x);
-                        result.pop = largestPop;
-                        result.shortCircuited = true;
-                        std::cout << "(SS)Population within " << radius << " kilometers of ("
-                                  << result.lat << ", " << result.lon << "): " << ((long)result.pop)
-                                  << std::endl;
-                        std::cout << ">= " << ((long)desiredPop) << ". Short circuiting."
-                                  << std::endl;
-                        return result;
-                    }
-                }
-            }
             if (step == 1) {
                 // Only want to keep most populous circle when step is 1
                 cutoff = 1;
@@ -483,7 +486,23 @@ class RasterDataCircleFinder {
                     topCircles[i].y - step * 2, topCircles[i].y + step * 2 - 1};
                 mostPopulousCirclesOfGivenRadiusPixelBoundaries(
                     radius, sectionBoundaries, step, topCircles, largestPop, cutoff,
-                    topCircles[i].x, topCircles[i].y, kernels);
+                    topCircles[i].x, topCircles[i].y, kernels, desiredPop);
+                if (largestPop >= desiredPop) {
+                    for (const auto &circle : topCircles) {
+                        if (circle.pop == largestPop) {
+                            result.lat = lat(circle.y);
+                            result.lon = lon(circle.x);
+                            result.pop = largestPop;
+                            result.shortCircuited = true;
+                            std::cout << "(SS)Population within " << radius << " kilometers of ("
+                                      << result.lat << ", " << result.lon
+                                      << "): " << ((long)result.pop) << std::endl;
+                            std::cout << ">= " << ((long)desiredPop) << ". Short circuiting."
+                                      << std::endl;
+                            return result;
+                        }
+                    }
+                }
             }
             cutUnderperformingCircles(topCircles, largestPop, cutoff);
         }
