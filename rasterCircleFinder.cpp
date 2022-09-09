@@ -438,7 +438,6 @@ class RasterDataCircleFinder {
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, pixelBoundaries, step, topCircles,
                                                         largestPop, cutoff, -100, -100, kernels,
                                                         desiredPop);
-        std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
         cutUnderperformingCircles(topCircles, largestPop, cutoff);
         CircleResultMaybeShortCircuit result;
         if (largestPop >= desiredPop) {
