@@ -857,7 +857,17 @@ class RasterDataCircleFinder {
             }
         }
 
-        int radius = lowerBound + (upperBound - lowerBound) / 2; // Start of binary search
+        int radius = upperBound / 2 + lowerBound / 2;
+        if (smallestCircleResults[upperBound].pop / 3.0 +
+                smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
+            pop && upperBound - lowerBound > 2) {
+            // + 0.00001 just in case floating point error
+            radius = upperBound / 3.0 + lowerBound * 2.0 / 3.0 + 0.00001;
+        } else if (smallestCircleResults[upperBound].pop * 2.0 / 3.0 +
+                       smallestCircleResults[lowerBound].pop / 3.0 <
+                   pop && upperBound - lowerBound > 2) {
+            radius = upperBound * 2.0 / 3.0 + lowerBound / 3.0;
+        }
         while (upperBound - lowerBound > 1 || softUpperBound) {
             CircleResultMaybeShortCircuit largestSumCircle;
             if (upperBound - lowerBound <= 3) {
@@ -900,7 +910,17 @@ class RasterDataCircleFinder {
                 smallestCircleResultsFile.close();
                 smallestCircleResults[radius] = largestSumCircle;
             }
-            radius = lowerBound + (upperBound - lowerBound) / 2; // Binary search
+            radius = upperBound / 2 + lowerBound / 2;
+            if (smallestCircleResults[upperBound].pop / 3.0 +
+                    smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
+                pop && upperBound - lowerBound > 2) {
+                // + 0.00001 just in case floating point error
+                radius = upperBound / 3.0 + lowerBound * 2.0 / 3.0 + 0.00001;
+            } else if (smallestCircleResults[upperBound].pop * 2.0 / 3.0 +
+                           smallestCircleResults[lowerBound].pop / 3.0 <
+                       pop && upperBound - lowerBound > 2) {
+                radius = upperBound * 2.0 / 3.0 + lowerBound / 3.0;
+            }
         }
         if (!foundSuitableCircle) {
             // TODO: Fail fast
