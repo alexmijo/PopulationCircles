@@ -452,9 +452,9 @@ class RasterDataCircleFinder {
         }
         while (step > 1) {
             step /= 4;
-            std::cout << "step: " << step << std::endl;
             std::cout << "topCircles.size(): " << topCircles.size() << std::endl;
             std::cout << "largestPop: " << ((long)largestPop) << std::endl;
+            std::cout << "step: " << step << std::endl;
             if (step == 1) {
                 // Only want to keep most populous circle when step is 1
                 cutoff = 1;
