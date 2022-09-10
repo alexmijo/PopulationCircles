@@ -16,6 +16,7 @@
 const double WORLD_POP = 7346242908.863955;
 const int NUM_ROWS = 2500;
 const int NUM_COLS = 5000;
+constexpr double FLOAT_THRESHOLD = 0.000001;
 
 class EquirectRasterData {
 
@@ -741,13 +742,13 @@ double lat(int y) { return -((((double)y + 0.5) / (double)NUM_ROWS) * 180.0 - 90
 
 int main() {
     // TODO: Make this a function taking the percent as a parameter.
-    int percent = 100; // Between 1 and 100 (inclusive). Must already have been found.
+    double percent = 100; // Between 0.1 and 100 (inclusive). Must already have been found.
     double cenLat;
     double cenLon;
     double radius;
     bool centerCoordsAndRadiusInitialized = false;
 
-    std::string foundPercentageCirclesFilename = "foundPercentageCircles.txt";
+    std::string foundPercentageCirclesFilename = "foundPercentageCircles2020.txt";
     std::ifstream foundPercentageCircles;
     foundPercentageCircles.open(foundPercentageCirclesFilename);
     std::string percentageCircleString;
@@ -755,7 +756,7 @@ int main() {
         std::stringstream percentageCircleSS(percentageCircleString);
         std::string percentString;
         getline(percentageCircleSS, percentString, ' ');
-        if (std::stoi(percentString) == percent) {
+        if (std::abs(std::stod(percentString) - percent) < FLOAT_THRESHOLD) {
             std::string radiusString;
             // TODO: See how to get bool from these getlines to see if file is formatted correctly
             getline(percentageCircleSS, radiusString, ' ');
@@ -783,9 +784,9 @@ int main() {
     std::ifstream landNBorders;
     landNBorders.open(landNBordersFileName);
     std::ofstream colorsJSON;
-    // TODO: Make a specific subdirectory for these
     std::string colorsJSONFilename =
-        "ColorsJSONFiles/colorsJSON" + std::to_string(percent) + ".txt";
+        "ColorsJSONFiles2020/colorsJSON" +
+        std::to_string(percent).substr(0, std::to_string(percent).size() - 5) + ".txt";
     colorsJSON.open(colorsJSONFilename);
     colorsJSON << "[";
     for (int r = 0; r < NUM_ROWS; r++) {
@@ -798,7 +799,7 @@ int main() {
         for (int c = 0; c < NUM_COLS; c++) {
             double distance = EquirectRasterData::distance(cenLat, cenLon, lat(r), lon(c));
             char landOrBorder = rString.at(c);
-            if (distance <= 35) {
+            if (distance <= 53 && distance <= radius) {
                 // TODO: Make color int constants
                 // Dark red
                 colorsJSON << '3';
@@ -814,7 +815,7 @@ int main() {
                     colorsJSON << '1';
                 }
             } else if (landOrBorder == '2') {
-                if (distance <= radius && distance > radius - 70) {
+                if (distance <= radius && distance > radius - 80) {
                     // Light red
                     colorsJSON << '5';
                 } else {
