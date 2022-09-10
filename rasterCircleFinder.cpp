@@ -64,7 +64,7 @@ class RasterDataCircleFinder {
         double lat, lon;
         // The population within the circle.
         double pop;
-        // True iff this circle was found by the algorithm running to completion, false if the
+        // False iff this circle was found by the algorithm running to completion, true if the
         //  algorithm "short circuited" and was a >= result (i.e., there may be other circles with a
         //  bigger population but the same radius).
         bool shortCircuited;
@@ -932,6 +932,24 @@ class RasterDataCircleFinder {
         }
         return result;
     }
+
+    bool previousResultsConsistent() {
+        double maxPop = -1;
+        int maxPopRadius = -1;
+        for (const auto &[key, value] : smallestCircleResults) {
+            if (value.pop < maxPop && !value.shortCircuited) {
+                std::cout << "Previous results inconsistent:" << std::endl;
+                std::cout << maxPopRadius << ": " << ((long)maxPop) << std::endl;
+                std::cout << key << ": " << ((long)value.pop) << std::endl;
+                return false;
+            }
+            if (value.pop > maxPop) {
+                maxPop = value.pop;
+                maxPopRadius = key;
+            }
+        }
+        return true;
+    }
 };
 
 // See what I can get away with
@@ -968,7 +986,9 @@ void findPercentCircles() {
     }
     RasterDataCircleFinder popData(sumTableFilename, smallestCircleResultsFilename);
     std::cout << "Loaded population summation table." << std::endl;
-
+    if (!popData.previousResultsConsistent()) {
+        return;
+    }
     // Used by imageManipulation.java so that it knows what text to add, as well as by
     //  percentageCirclesMapMakerTextInJSONOut.cpp so it knows where and how large to draw the
     //  circles
