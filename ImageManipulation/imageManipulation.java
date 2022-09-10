@@ -13,6 +13,7 @@ import java.text.NumberFormat;
 import javax.imageio.ImageIO;
 import static java.util.Map.entry;
 import java.util.Map;
+import java.lang.Math;
 
 
 /**
@@ -20,109 +21,10 @@ import java.util.Map;
  */
 class ImageManipulation {
 
-    private static int percent;
+    private static String percent;
 
-    private static Map<Integer, String> countries = Map.ofEntries(
-        entry(1, "Bangladesh"),
-        entry(2, "Bangladesh"),
-        entry(3, "Bangladesh"),
-        entry(4, "India"),
-        entry(5, "India"),
-        entry(6, "India"),
-        entry(7, "India"),
-        entry(8, "India"),
-        entry(9, "India"),
-        entry(10, "India"),
-        entry(11, "India"),
-        entry(12, "India"),
-        entry(13, "India"),
-        entry(14, "India"),
-        entry(15, "India"),
-        entry(16, "India"),
-        entry(17, "India"),
-        entry(18, "India"),
-        entry(19, "India"),
-        entry(20, "India"),
-        entry(21, "India"),
-        entry(22, "India"),
-        entry(23, "India"),
-        entry(24, "India"),
-        entry(25, "China"),
-        entry(26, "China"),
-        entry(27, "China"),
-        entry(28, "China"),
-        entry(29, "China"),
-        entry(30, "China"),
-        entry(31, "China"),
-        entry(32, "China"),
-        entry(33, "China"),
-        entry(34, "China"),
-        entry(35, "China"),
-        entry(36, "China"),
-        entry(37, "India"),
-        entry(38, "India"),
-        entry(39, "India"),
-        entry(40, "India"),
-        entry(41, "Myanmar"),
-        entry(42, "Myanmar"),
-        entry(43, "Myanmar"),
-        entry(44, "India"),
-        entry(45, "India"),
-        entry(46, "Myanmar"),
-        entry(47, "Myanmar"),
-        entry(48, "India"),
-        entry(49, "China"),
-        entry(50, "China"),
-        entry(51, "Vietnam"),
-        entry(52, "China"),
-        entry(53, "China"),
-        entry(54, "China"),
-        entry(55, "China"),
-        entry(56, "China"),
-        entry(57, "China"),
-        entry(58, "Kyrgyzstan"),
-        entry(59, "China"),
-        entry(60, "Tajikistan"),
-        entry(61, "Kyrgyzstan"),
-        entry(62, "Tajikistan"),
-        entry(63, "Tajikistan"),
-        entry(64, "Kazakhstan"),
-        entry(65, "Kazakhstan"),
-        entry(66, "Uzbekistan"),
-        entry(67, "Turkmenistan"),
-        entry(68, "Afghanistan"),
-        entry(69, "Afghanistan"),
-        entry(70, "Turkmenistan"),
-        entry(71, "Iran"),
-        entry(72, "Iran"),
-        entry(73, "Pakistan"),
-        entry(74, "Pakistan"),
-        entry(75, "Pakistan"),
-        entry(76, "Pakistan"),
-        entry(77, "Iran"),
-        entry(78, "the Indian Ocean"),
-        entry(79, "the Indian Ocean"),
-        entry(80, "the Indian Ocean"),
-        entry(81, "the Indian Ocean"),
-        entry(82, "Afghanistan"),
-        entry(83, "Pakistan"),
-        entry(84, "Pakistan"),
-        entry(85, "Iran"),
-        entry(86, "Russia"),
-        entry(87, "Russia"),
-        entry(88, "Russia"),
-        entry(89, "Russia"),
-        entry(90, "Sweden"),
-        entry(91, "Sweden"),
-        entry(92, "Germany"),
-        entry(93, "Czechia"),
-        entry(94, "the Arctic Ocean"),
-        entry(95, "Russia"),
-        entry(96, "Poland"),
-        entry(97, "Serbia"),
-        entry(98, "the Atlantic Ocean"),
-        entry(99, "Libya"),
-        entry(100, "Canada")
+    private static Map<String, String> countries = Map.ofEntries(
+        entry("100.0", "Canada")
     );
 
     // TODO: Spec
@@ -156,13 +58,14 @@ class ImageManipulation {
         int radius = -1;
         boolean populationAndRadiusInitialized = false;
         final String foundPercentCirclesFilename = 
-            "/home/alexmijo/PopulationCircles/foundPercentageCircles.txt";
+            "/home/alexmijo/PopulationCircles/foundPercentageCircles2020.txt";
         // TODO: Modularize into a function
         try(BufferedReader br = new BufferedReader(new FileReader(foundPercentCirclesFilename))) {
             String line = br.readLine();
             while (line != null) {
                 String[] foundPercentCircle = line.split(" ");
-                if (Integer.parseInt(foundPercentCircle[0]) == percent) {
+                if (Math.abs(Double.parseDouble(foundPercentCircle[0]) 
+                    - Double.parseDouble(percent)) < 0.0001) {
                     population = (long)Double.parseDouble(foundPercentCircle[4]);
                     lat = Double.parseDouble(foundPercentCircle[3]);
                     lon = Double.parseDouble(foundPercentCircle[2]);
@@ -196,7 +99,7 @@ class ImageManipulation {
         Graphics2D g2d = img.createGraphics();
         g2d.setColor(Color.BLACK);
         g2d.fillRect(0, 0, width, height);
-        g2d.setPaint(Color.RED);
+        g2d.setPaint(Color.WHITE);
         g2d.setFont(new Font("Serif", Font.BOLD, bigFontHeight));
         NumberFormat commasFormat = NumberFormat.getInstance();
         commasFormat.setGroupingUsed(true); // this will also round numbers, 3 decimal places
@@ -230,31 +133,32 @@ class ImageManipulation {
         g2d.setFont(new Font("Serif", Font.BOLD, veryVerySmallFontHeight));
         g2d.setPaint(Color.WHITE);
         FontMetrics fm = g2d.getFontMetrics();
-        String dataSourceString = "https://ghsl.jrc.ec.europa.eu/ghs_pop2019.php";
-        int dataSourceX = width - fm.stringWidth(dataSourceString) - 5;
+        // String dataSourceString = "https://sedac.ciesin.columbia.edu/data/collection/gpw-v4 (Adjusted)";
+        // int dataSourceX = width - fm.stringWidth(dataSourceString) - 5;
         int dataSourceY = height - (int)(veryVerySmallFontHeight * (lineSpacing - 1)) - 5;
-        g2d.drawString(dataSourceString, dataSourceX, dataSourceY);
+        // g2d.drawString(dataSourceString, dataSourceX, dataSourceY);
         String dataResolutionString = "30 arcsecond resolution";
         int dataResolutionX = width - fm.stringWidth(dataResolutionString) - 5;
         int dataResolutionY = dataSourceY - (int)(veryVerySmallFontHeight * lineSpacing);
-        g2d.drawString(dataResolutionString, dataResolutionX, dataResolutionY);
-        String dataYearString = "2015 population data";
+        // g2d.drawString(dataResolutionString, dataResolutionX, dataResolutionY);
+        g2d.drawString(dataResolutionString, dataResolutionX, dataSourceY);
+        String dataYearString = "2020 population data";
         int dataYearX = width - fm.stringWidth(dataYearString) - 5;
-        int dataYearY = dataResolutionY - (int)(veryVerySmallFontHeight * lineSpacing);
-        g2d.drawString(dataYearString, dataYearX, dataYearY);
+        // int dataYearY = dataResolutionY - (int)(veryVerySmallFontHeight * lineSpacing);
+        // g2d.drawString(dataYearString, dataYearX, dataYearY);
+        g2d.drawString(dataYearString, dataYearX, dataResolutionY);
         g2d.dispose();
         return img;
     }
 
     public static void main(String[] args) {
-        for (percent = 100; percent <= 100; percent++) {
-            String inputImageFileName =
-                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent + 
-                "PercentCircle.png";
-            String outputImageFileName =
-                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps/" + percent +
-                "PercentCircleWithText.png";
-            manipulateImage(inputImageFileName, outputImageFileName);
-        }
+        percent = "100.0";
+        String inputImageFileName =
+            "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
+            + "PercentCircle.png";
+        String outputImageFileName =
+            "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/" + percent 
+            + "PercentCircleWithText.png";
+        manipulateImage(inputImageFileName, outputImageFileName);
     }
 }
