@@ -742,7 +742,7 @@ double lat(int y) { return -((((double)y + 0.5) / (double)NUM_ROWS) * 180.0 - 90
 
 int main() {
     // TODO: Make this a function taking the percent as a parameter.
-    double percent = 100; // Between 0.1 and 100 (inclusive). Must already have been found.
+    double percent = 99.8; // Between 0.1 and 100 (inclusive). Must already have been found.
     double cenLat;
     double cenLon;
     double radius;

@@ -24,6 +24,8 @@ class ImageManipulation {
     private static String percent;
 
     private static Map<String, String> countries = Map.ofEntries(
+        entry("99.8", "Saudi Arabia"),
+        entry("99.9", "Saudi Arabia"),
         entry("100.0", "Canada")
     );
 
@@ -152,7 +154,7 @@ class ImageManipulation {
     }
 
     public static void main(String[] args) {
-        percent = "100.0";
+        percent = "99.8";
         String inputImageFileName =
             "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
             + "PercentCircle.png";

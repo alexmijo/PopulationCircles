@@ -856,8 +856,7 @@ class RasterDataCircleFinder {
                 break;
             }
         }
-
-        int radius = upperBound / 2 + lowerBound / 2;
+        int radius = (upperBound + lowerBound) / 2;
         if (smallestCircleResults[upperBound].pop / 3.0 +
                 smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
             pop && upperBound - lowerBound > 2) {
@@ -910,7 +909,7 @@ class RasterDataCircleFinder {
                 smallestCircleResultsFile.close();
                 smallestCircleResults[radius] = largestSumCircle;
             }
-            radius = upperBound / 2 + lowerBound / 2;
+            radius = (upperBound + lowerBound) / 2;
             if (smallestCircleResults[upperBound].pop / 3.0 +
                     smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
                 pop && upperBound - lowerBound > 2) {
