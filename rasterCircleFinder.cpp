@@ -658,10 +658,6 @@ class RasterDataCircleFinder {
             std::string radiusString;
             getline(resultSS, radiusString, ' ');
             const int radius = std::stoi(radiusString);
-            // TODO: Don't really need this as a variable
-            // The + 1 is to hold whether or not it's a >= result
-            // TODO: Hold the boolean some better way, probably by making this whole thing a
-            //  class;
             CircleResultMaybeShortCircuit result;
             std::string dummyString;
             getline(resultSS, dummyString, ' ');
@@ -858,14 +854,30 @@ class RasterDataCircleFinder {
         }
         int radius = (upperBound + lowerBound) / 2;
         if (smallestCircleResults[upperBound].pop / 3.0 +
-                smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
-            pop && upperBound - lowerBound > 2) {
+                    smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
+                pop &&
+            upperBound - lowerBound >= 3) {
             // + 0.00001 just in case floating point error
             radius = upperBound / 3.0 + lowerBound * 2.0 / 3.0 + 0.00001;
         } else if (smallestCircleResults[upperBound].pop * 2.0 / 3.0 +
-                       smallestCircleResults[lowerBound].pop / 3.0 <
-                   pop && upperBound - lowerBound > 2) {
-            radius = upperBound * 2.0 / 3.0 + lowerBound / 3.0;
+                           smallestCircleResults[lowerBound].pop / 3.0 <
+                       pop &&
+                   upperBound - lowerBound >= 3) {
+            // + 0.00001 just in case floating point error
+            radius = upperBound * 2.0 / 3.0 + lowerBound / 3.0 + 0.00001;
+        }
+        if (smallestCircleResults[upperBound].pop / 4.0 +
+                    smallestCircleResults[lowerBound].pop * 3.0 / 4.0 >
+                pop &&
+            upperBound - lowerBound >= 4) {
+            // + 0.00001 just in case floating point error
+            radius = upperBound / 4.0 + lowerBound * 3.0 / 4.0 + 0.00001;
+        } else if (smallestCircleResults[upperBound].pop * 3.0 / 4.0 +
+                           smallestCircleResults[lowerBound].pop / 4.0 <
+                       pop &&
+                   upperBound - lowerBound >= 4) {
+            // + 0.00001 just in case floating point error
+            radius = upperBound * 3.0 / 4.0 + lowerBound / 4.0 + 0.00001;
         }
         while (upperBound - lowerBound > 1 || softUpperBound) {
             CircleResultMaybeShortCircuit largestSumCircle;
@@ -911,14 +923,30 @@ class RasterDataCircleFinder {
             }
             radius = (upperBound + lowerBound) / 2;
             if (smallestCircleResults[upperBound].pop / 3.0 +
-                    smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
-                pop && upperBound - lowerBound > 2) {
+                        smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
+                    pop &&
+                upperBound - lowerBound >= 3) {
                 // + 0.00001 just in case floating point error
                 radius = upperBound / 3.0 + lowerBound * 2.0 / 3.0 + 0.00001;
             } else if (smallestCircleResults[upperBound].pop * 2.0 / 3.0 +
-                           smallestCircleResults[lowerBound].pop / 3.0 <
-                       pop && upperBound - lowerBound > 2) {
-                radius = upperBound * 2.0 / 3.0 + lowerBound / 3.0;
+                               smallestCircleResults[lowerBound].pop / 3.0 <
+                           pop &&
+                       upperBound - lowerBound >= 3) {
+                // + 0.00001 just in case floating point error
+                radius = upperBound * 2.0 / 3.0 + lowerBound / 3.0 + 0.00001;
+            }
+            if (smallestCircleResults[upperBound].pop / 4.0 +
+                        smallestCircleResults[lowerBound].pop * 3.0 / 4.0 >
+                    pop &&
+                upperBound - lowerBound >= 4) {
+                // + 0.00001 just in case floating point error
+                radius = upperBound / 4.0 + lowerBound * 3.0 / 4.0 + 0.00001;
+            } else if (smallestCircleResults[upperBound].pop * 3.0 / 4.0 +
+                               smallestCircleResults[lowerBound].pop / 4.0 <
+                           pop &&
+                       upperBound - lowerBound >= 4) {
+                // + 0.00001 just in case floating point error
+                radius = upperBound * 3.0 / 4.0 + lowerBound / 4.0 + 0.00001;
             }
         }
         if (!foundSuitableCircle) {
