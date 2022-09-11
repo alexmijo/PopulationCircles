@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <stdlib.h>
 #include <string>
@@ -296,7 +297,9 @@ class RasterDataCircleFinder {
         PixelCenterAndPop(int x, int y, double pop) : x(x), y(y), pop(pop) {}
 
         // Makes it easy to sort PixelCenterAndPops by latitude.
-        bool operator<(const PixelCenterAndPop &other) const { return y < other.y; }
+        bool operator<(const PixelCenterAndPop &other) const {
+            return y < other.y || (y == other.y && x < other.x);
+        }
     };
 
     // Passed in ranges are inclusive.
@@ -305,7 +308,7 @@ class RasterDataCircleFinder {
     // Can short circuit and return early as soon as it finds a circle with at least desiredPop.
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
         const double radius, const PixelBoundaries &boundaries, const int step,
-        std::vector<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
+        std::set<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
         const int skipX, const int skipY, std::map<int, std::vector<int>> &kernels,
         const double desiredPop) {
         for (int cenY = boundaries.upY + step / 2; cenY <= boundaries.downY; cenY += step) {
@@ -322,7 +325,7 @@ class RasterDataCircleFinder {
                 }
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernels[cenY]);
                 if (popWithinNKilometers > largestPop * cutoff) {
-                    topCircles.emplace_back(cenX, cenY, popWithinNKilometers);
+                    topCircles.emplace(cenX, cenY, popWithinNKilometers);
                     if (popWithinNKilometers > largestPop) {
                         largestPop = popWithinNKilometers;
                         if (largestPop >= desiredPop) {
@@ -336,16 +339,14 @@ class RasterDataCircleFinder {
 
     // Removes from topCircles any circles whose pop is less than largestPop * cutoff.
     // TODO: If this is slowing things down, use a linked list.
-    void cutUnderperformingCircles(std::vector<PixelCenterAndPop> &topCircles,
+    void cutUnderperformingCircles(std::set<PixelCenterAndPop> &topCircles,
                                    const double largestPop, const double cutoff) {
-        std::vector<int> indicesToErase;
-        for (int i = topCircles.size() - 1; i >= 0; i--) {
-            if (topCircles[i].pop < largestPop * cutoff) {
-                indicesToErase.push_back(i);
+        for (auto it = topCircles.begin(); it != topCircles.end(); ) {
+            if (it->pop < largestPop * cutoff) {
+                it = topCircles.erase(it);
+            } else {
+                ++it;
             }
-        }
-        for (int indexToErase : indicesToErase) {
-            topCircles.erase(topCircles.begin() + indexToErase);
         }
     }
 
@@ -520,7 +521,7 @@ class RasterDataCircleFinder {
         } else if (step <= 64) {
             cutoff = cutoff64;
         }
-        std::vector<PixelCenterAndPop> topCircles;
+        std::set<PixelCenterAndPop> topCircles;
         double largestPop = 0;
         std::map<int, std::vector<int>> kernels;
 
@@ -561,22 +562,19 @@ class RasterDataCircleFinder {
             } else if (step <= 64) {
                 cutoff = cutoff64;
             }
-            // Sorting by lattitude allows kernels to be reused between calls to
-            //  mostPopulousCirclesOfGivenRadiusPixelBoundaries().
-            std::sort(topCircles.begin(), topCircles.end());
-            const int numCirclesAtStartOfLoop = topCircles.size();
+            const std::set<PixelCenterAndPop> topCirclesCopy{topCircles};
             int currY = -1;
-            for (int i = 0; i < numCirclesAtStartOfLoop; i++) {
-                if (topCircles[i].y != currY) {
+            for (const auto &topCircle : topCirclesCopy) {
+                if (topCircle.y != currY) {
                     kernels.clear();
-                    currY = topCircles[i].y;
+                    currY = topCircle.y;
                 }
                 PixelBoundaries sectionBoundaries{
-                    topCircles[i].x - step * 2, topCircles[i].x + step * 2 - 1,
-                    topCircles[i].y - step * 2, topCircles[i].y + step * 2 - 1};
+                    topCircle.x - step * 2, topCircle.x + step * 2 - 1,
+                    topCircle.y - step * 2, topCircle.y + step * 2 - 1};
                 mostPopulousCirclesOfGivenRadiusPixelBoundaries(
                     radius, sectionBoundaries, step, topCircles, largestPop, cutoff,
-                    topCircles[i].x, topCircles[i].y, kernels, desiredPop);
+                    topCircle.x, topCircle.y, kernels, desiredPop);
                 if (largestPop >= desiredPop) {
                     for (const auto &circle : topCircles) {
                         if (circle.pop == largestPop) {
@@ -597,10 +595,10 @@ class RasterDataCircleFinder {
             cutUnderperformingCircles(topCircles, largestPop, cutoff);
         }
         // Only the most populous circle remains in the list, since the cutoff for step size 1 is 1.
-        result.lat = lat(topCircles[0].y);
-        result.lon = lon(topCircles[0].x);
-        if (topCircles[0].pop != largestPop) {
-            std::cout << "topCircles[0].pop: " << topCircles[0].pop << std::endl;
+        result.lat = lat(topCircles.begin()->y);
+        result.lon = lon(topCircles.begin()->x);
+        if (topCircles.begin()->pop != largestPop) {
+            std::cout << "topCircles[0].pop: " << topCircles.begin()->pop << std::endl;
             std::cout << "largestPop: " << largestPop << std::endl;
             throw std::logic_error(
                 "Should never get here. largestPop should be first element of topCircles.");
