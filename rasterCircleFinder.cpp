@@ -308,7 +308,7 @@ class RasterDataCircleFinder {
         std::vector<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
         const int skipX, const int skipY, std::map<int, std::vector<int>> &kernels,
         const double desiredPop) {
-        for (int cenY = boundaries.upY; cenY <= boundaries.downY; cenY += step) {
+        for (int cenY = boundaries.upY + step / 2; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
             }
@@ -316,7 +316,7 @@ class RasterDataCircleFinder {
             if (it == kernels.end()) {
                 kernels[cenY] = makeKernel(1000, cenY, radius);
             }
-            for (int cenX = boundaries.leftX; cenX <= boundaries.rightX; cenX += step) {
+            for (int cenX = boundaries.leftX + step / 2; cenX <= boundaries.rightX; cenX += step) {
                 if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
                     continue;
                 }
