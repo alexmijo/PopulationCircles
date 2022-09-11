@@ -921,6 +921,9 @@ class RasterDataCircleFinder {
                 smallestCircleResultsFile.close();
                 smallestCircleResults[radius] = largestSumCircle;
             }
+            if (!previousResultsConsistent()) {
+                throw std::logic_error("Previous results inconsistent.");
+            }
             radius = (upperBound + lowerBound) / 2;
             if (smallestCircleResults[upperBound].pop / 3.0 +
                         smallestCircleResults[lowerBound].pop * 2.0 / 3.0 >
