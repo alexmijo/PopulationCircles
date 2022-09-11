@@ -742,7 +742,7 @@ double lat(int y) { return -((((double)y + 0.5) / (double)NUM_ROWS) * 180.0 - 90
 
 int main() {
     // TODO: Make this a function taking the percent as a parameter.
-    double percent = 99.8; // Between 0.1 and 100 (inclusive). Must already have been found.
+    double percent = 99.6; // Between 0.1 and 100 (inclusive). Must already have been found.
     double cenLat;
     double cenLon;
     double radius;
@@ -799,7 +799,7 @@ int main() {
         for (int c = 0; c < NUM_COLS; c++) {
             double distance = EquirectRasterData::distance(cenLat, cenLon, lat(r), lon(c));
             char landOrBorder = rString.at(c);
-            if (distance <= 53 && distance <= radius) {
+            if (distance <= 100 && distance <= radius) {
                 // TODO: Make color int constants
                 // Dark red
                 colorsJSON << '3';
@@ -815,7 +815,7 @@ int main() {
                     colorsJSON << '1';
                 }
             } else if (landOrBorder == '2') {
-                if (distance <= radius && distance > radius - 80) {
+                if (distance <= radius && distance > radius - 100) {
                     // Light red
                     colorsJSON << '5';
                 } else {
