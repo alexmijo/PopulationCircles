@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <stdlib.h>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 // Uses 2015 population data if false.
@@ -302,6 +303,13 @@ class RasterDataCircleFinder {
         }
     };
 
+    struct intPairHash {
+        size_t operator()(const std::pair<int, int> &intPair) const {
+            std::hash<int> intHash;
+            return intHash(intPair.first) * 31 + intHash(intPair.second);
+        }
+    };
+
     // Passed in ranges are inclusive.
     // Adds all circles who's pop is at least cutoff * pop of the most populous circle to topCircles
     // Reassigns largestPop if necessary
@@ -309,8 +317,8 @@ class RasterDataCircleFinder {
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
         const double radius, const PixelBoundaries &boundaries, const int step,
         std::set<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
-        const int skipX, const int skipY, std::map<int, std::vector<int>> &kernels,
-        const double desiredPop) {
+        std::map<int, std::vector<int>> &kernels, const double desiredPop,
+        std::unordered_set<std::pair<int, int>, intPairHash> &alreadyChecked) {
         for (int cenY = boundaries.upY + step / 2; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
@@ -320,10 +328,12 @@ class RasterDataCircleFinder {
                 kernels[cenY] = makeKernel(1000, cenY, radius);
             }
             for (int cenX = boundaries.leftX + step / 2; cenX <= boundaries.rightX; cenX += step) {
-                if (cenX < 0 || cenX >= numCols || (cenX == skipX && cenY == skipY)) {
+                if (cenX < 0 || cenX >= numCols ||
+                    alreadyChecked.find(std::pair<int, int>(cenX, cenY)) != alreadyChecked.end()) {
                     continue;
                 }
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernels[cenY]);
+                alreadyChecked.emplace(cenX, cenY);
                 if (popWithinNKilometers > largestPop * cutoff) {
                     topCircles.emplace(cenX, cenY, popWithinNKilometers);
                     if (popWithinNKilometers > largestPop) {
@@ -339,9 +349,9 @@ class RasterDataCircleFinder {
 
     // Removes from topCircles any circles whose pop is less than largestPop * cutoff.
     // TODO: If this is slowing things down, use a linked list.
-    void cutUnderperformingCircles(std::set<PixelCenterAndPop> &topCircles,
-                                   const double largestPop, const double cutoff) {
-        for (auto it = topCircles.begin(); it != topCircles.end(); ) {
+    void cutUnderperformingCircles(std::set<PixelCenterAndPop> &topCircles, const double largestPop,
+                                   const double cutoff) {
+        for (auto it = topCircles.begin(); it != topCircles.end();) {
             if (it->pop < largestPop * cutoff) {
                 it = topCircles.erase(it);
             } else {
@@ -521,15 +531,15 @@ class RasterDataCircleFinder {
         } else if (step <= 64) {
             cutoff = cutoff64;
         }
+        std::unordered_set<std::pair<int, int>, intPairHash> alreadyChecked;
         std::set<PixelCenterAndPop> topCircles;
         double largestPop = 0;
         std::map<int, std::vector<int>> kernels;
 
         std::cout << "step: " << step << std::endl;
-        // -100 for skipY and skipX since we don't want to skip any pixels
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, pixelBoundaries, step, topCircles,
-                                                        largestPop, cutoff, -100, -100, kernels,
-                                                        desiredPop);
+                                                        largestPop, cutoff, kernels, desiredPop,
+                                                        alreadyChecked);
         cutUnderperformingCircles(topCircles, largestPop, cutoff);
         CircleResultMaybeShortCircuit result;
         if (largestPop >= desiredPop) {
@@ -570,11 +580,11 @@ class RasterDataCircleFinder {
                     currY = topCircle.y;
                 }
                 PixelBoundaries sectionBoundaries{
-                    topCircle.x - step * 2, topCircle.x + step * 2 - 1,
-                    topCircle.y - step * 2, topCircle.y + step * 2 - 1};
+                    topCircle.x - step * 4, topCircle.x + step * 4 - 1, topCircle.y - step * 4,
+                    topCircle.y + step * 4 - 1};
                 mostPopulousCirclesOfGivenRadiusPixelBoundaries(
-                    radius, sectionBoundaries, step, topCircles, largestPop, cutoff,
-                    topCircle.x, topCircle.y, kernels, desiredPop);
+                    radius, sectionBoundaries, step, topCircles, largestPop, cutoff, kernels,
+                    desiredPop, alreadyChecked);
                 if (largestPop >= desiredPop) {
                     for (const auto &circle : topCircles) {
                         if (circle.pop == largestPop) {
