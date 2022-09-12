@@ -160,13 +160,15 @@ class ImageManipulation {
     }
 
     public static void main(String[] args) {
-        percent = "100.0";
-        String inputImageFileName =
-            "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
-            + "PercentCircle.png";
-        String outputImageFileName =
-            "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/" + percent 
-            + "PercentCircleWithText.png";
-        manipulateImage(inputImageFileName, outputImageFileName);
+        for (int circleNum = 995; circleNum <= 1000; circleNum++) {
+            percent = (circleNum / 10) + "." + (circleNum % 10);
+            String inputImageFileName =
+                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
+                + "PercentCircle.png";
+            String outputImageFileName =
+                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/" + percent 
+                + "PercentCircleWithText.png";
+            manipulateImage(inputImageFileName, outputImageFileName);
+        }
     }
 }
