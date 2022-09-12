@@ -740,9 +740,8 @@ double lon(int x) { return (((double)x + 0.5) / (double)NUM_COLS) * 360.0 - 180.
 // Get lattitude of the center of the <y>th (0 indexed) row
 double lat(int y) { return -((((double)y + 0.5) / (double)NUM_ROWS) * 180.0 - 90.0); }
 
-int main() {
-    // TODO: Make this a function taking the percent as a parameter.
-    double percent = 99.6; // Between 0.1 and 100 (inclusive). Must already have been found.
+// TODO: Spec
+void oldMain(double percent) {
     double cenLat;
     double cenLon;
     double radius;
@@ -774,7 +773,7 @@ int main() {
     if (!centerCoordsAndRadiusInitialized) {
         std::cout << "Desired percentage circle wasn't in " + foundPercentageCirclesFilename
                   << std::endl;
-        return 1;
+        return;
     }
 
     // TODO: Make a JSON-ize function for arrays, or find one
@@ -799,7 +798,7 @@ int main() {
         for (int c = 0; c < NUM_COLS; c++) {
             double distance = EquirectRasterData::distance(cenLat, cenLon, lat(r), lon(c));
             char landOrBorder = rString.at(c);
-            if (distance <= 100 && distance <= radius) {
+            if (distance <= 125 && distance <= radius) {
                 // TODO: Make color int constants
                 // Dark red
                 colorsJSON << '3';
@@ -838,4 +837,10 @@ int main() {
     colorsJSON << "]";
     colorsJSON.close();
     landNBorders.close();
+}
+
+int main() {
+    for (double percent = 99.0; percent <= 100.0; percent += 0.1) {
+        oldMain(percent);
+    }
 }
