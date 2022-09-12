@@ -94,11 +94,12 @@ class ImageManipulation {
         }
         int bigFontHeight = 120;
         int smallFontHeight = 60;
-        int verySmallFontHeight = 53;
+        int verySmallFontHeight = 59;
         int veryVerySmallFontHeight = 35;
         double lineSpacing = 1.3;
         int width = old.getWidth();
-        int height = old.getHeight() + (int)(bigFontHeight * lineSpacing);
+        int height = old.getHeight() + (int)(bigFontHeight * lineSpacing) 
+                     + (int)(veryVerySmallFontHeight * lineSpacing);
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = img.createGraphics();
         g2d.setColor(Color.BLACK);
@@ -111,7 +112,9 @@ class ImageManipulation {
                        + "% of the world's population";
         String populationString = commasFormat.format(population) + " people";
         String radiusString = "Radius: " + commasFormat.format(radius) +" km";
-        g2d.drawImage(old, 0, height - old.getHeight(), null); // ImageObserver not needed
+        // ImageObserver not needed
+        g2d.drawImage(old, 0, height - old.getHeight() 
+                      - (int)(veryVerySmallFontHeight * lineSpacing), null);
         g2d.drawString(title, 5, bigFontHeight);
         g2d.setFont(new Font("Serif", Font.BOLD, smallFontHeight));
         g2d.drawString(populationString, 5, smallFontHeight + (int)(bigFontHeight * lineSpacing));
@@ -119,7 +122,7 @@ class ImageManipulation {
                        + (int)(bigFontHeight * lineSpacing));
         
         g2d.setFont(new Font("Serif", Font.BOLD, verySmallFontHeight));
-        int countryY = height - (int)(verySmallFontHeight * (lineSpacing - 1)) - 5;
+        int countryY = height - (int)(verySmallFontHeight * (lineSpacing - 1)) - 3;
         String centerString = "Center:";
         DecimalFormat latLonFormatter = new DecimalFormat("#0.000");
         String centerCoords = "(" + latLonFormatter.format(lat) + "°N, " 
@@ -137,26 +140,27 @@ class ImageManipulation {
         g2d.setFont(new Font("Serif", Font.BOLD, veryVerySmallFontHeight));
         g2d.setPaint(Color.WHITE);
         FontMetrics fm = g2d.getFontMetrics();
-        // String dataSourceString = "https://sedac.ciesin.columbia.edu/data/collection/gpw-v4 (Adjusted)";
-        // int dataSourceX = width - fm.stringWidth(dataSourceString) - 5;
-        int dataSourceY = height - (int)(veryVerySmallFontHeight * (lineSpacing - 1)) - 5;
-        // g2d.drawString(dataSourceString, dataSourceX, dataSourceY);
+        String dataSourceString = 
+            "https://sedac.ciesin.columbia.edu/data/set/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-rev11";
+        int dataSourceX = width - fm.stringWidth(dataSourceString) - 5;
+        int dataSourceY = height - (int)(veryVerySmallFontHeight * (lineSpacing - 1)) - 3;
+        g2d.drawString(dataSourceString, dataSourceX, dataSourceY);
         String dataResolutionString = "30 arcsecond resolution";
         int dataResolutionX = width - fm.stringWidth(dataResolutionString) - 5;
         int dataResolutionY = dataSourceY - (int)(veryVerySmallFontHeight * lineSpacing);
-        // g2d.drawString(dataResolutionString, dataResolutionX, dataResolutionY);
-        g2d.drawString(dataResolutionString, dataResolutionX, dataSourceY);
+        g2d.drawString(dataResolutionString, dataResolutionX, dataResolutionY);
+        // g2d.drawString(dataResolutionString, dataResolutionX, dataSourceY);
         String dataYearString = "2020 population data";
         int dataYearX = width - fm.stringWidth(dataYearString) - 5;
-        // int dataYearY = dataResolutionY - (int)(veryVerySmallFontHeight * lineSpacing);
-        // g2d.drawString(dataYearString, dataYearX, dataYearY);
-        g2d.drawString(dataYearString, dataYearX, dataResolutionY);
+        int dataYearY = dataResolutionY - (int)(veryVerySmallFontHeight * lineSpacing);
+        g2d.drawString(dataYearString, dataYearX, dataYearY);
+        // g2d.drawString(dataYearString, dataYearX, dataResolutionY);
         g2d.dispose();
         return img;
     }
 
     public static void main(String[] args) {
-        percent = "99.6";
+        percent = "100.0";
         String inputImageFileName =
             "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
             + "PercentCircle.png";
