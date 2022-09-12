@@ -1,16 +1,12 @@
 // Uses GDAL library
-// This is an early version of the program. It's still kinda spaghetti code and has code I copied
-//  from random places on the internet unattributed (GeoTiff and most of distance()). If you're a
+// This is an early version of the program. It's still kinda spaghetti code. If you're a
 //  prospective employer, please look at BlackjackSim on my github instead for C++ stuff I've
 //  written with better code style.
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cpl_conv.h>
 #include <fstream>
-#include <gdal.h>
-#include <gdal_priv.h>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -398,81 +394,81 @@ class RasterDataCircleFinder {
         } else if (radius >= 13750) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.88) * 0.9;
-            cutoff64 = 1 - (1 - 0.95) * 0.23;
-            cutoff16 = 1 - (1 - 0.9983) * 0.2;
-            cutoff4 = 1 - (1 - 0.99984) * 0.15;
+            cutoff64 = 1 - (1 - 0.95) * 0.195;
+            cutoff16 = 1 - (1 - 0.9983) * 0.18;
+            cutoff4 = 1 - (1 - 0.99984) * 0.14;
         } else if (radius >= 13625) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.8733) * 0.9;
-            cutoff64 = 1 - (1 - 0.9433) * 0.24;
-            cutoff16 = 1 - (1 - 0.9976) * 0.2;
-            cutoff4 = 1 - (1 - 0.99983) * 0.15;
+            cutoff64 = 1 - (1 - 0.9433) * 0.2;
+            cutoff16 = 1 - (1 - 0.9976) * 0.185;
+            cutoff4 = 1 - (1 - 0.99983) * 0.145;
         } else if (radius >= 13500) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.87) * 0.9;
-            cutoff64 = 1 - (1 - 0.94) * 0.25;
-            cutoff16 = 1 - (1 - 0.9973) * 0.2;
-            cutoff4 = 1 - (1 - 0.9998) * 0.15;
+            cutoff256 = 1 - (1 - 0.87) * 0.8;
+            cutoff64 = 1 - (1 - 0.94) * 0.205;
+            cutoff16 = 1 - (1 - 0.9973) * 0.19;
+            cutoff4 = 1 - (1 - 0.9998) * 0.145;
         } else if (radius >= 13250) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.8567) * 0.9;
-            cutoff64 = 1 - (1 - 0.9333) * 0.25;
-            cutoff16 = 1 - (1 - 0.9971) * 0.2;
-            cutoff4 = 1 - (1 - 0.9996) * 0.15;
+            cutoff256 = 1 - (1 - 0.8567) * 0.81;
+            cutoff64 = 1 - (1 - 0.9333) * 0.21;
+            cutoff16 = 1 - (1 - 0.9971) * 0.19;
+            cutoff4 = 1 - (1 - 0.9996) * 0.145;
         } else if (radius >= 13000) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.85) * 0.9;
-            cutoff64 = 1 - (1 - 0.93) * 0.25;
-            cutoff16 = 1 - (1 - 0.997) * 0.2;
-            cutoff4 = 1 - (1 - 0.9995) * 0.15;
+            cutoff256 = 1 - (1 - 0.85) * 0.82;
+            cutoff64 = 1 - (1 - 0.93) * 0.215;
+            cutoff16 = 1 - (1 - 0.997) * 0.19;
+            cutoff4 = 1 - (1 - 0.9995) * 0.145;
         } else if (radius >= 12500) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.7833) * 0.9;
-            cutoff64 = 1 - (1 - 0.9167) * 0.25;
-            cutoff16 = 1 - (1 - 0.9967) * 0.2;
-            cutoff4 = 1 - (1 - 0.9993) * 0.15;
+            cutoff256 = 1 - (1 - 0.7833) * 0.83;
+            cutoff64 = 1 - (1 - 0.9167) * 0.22;
+            cutoff16 = 1 - (1 - 0.9967) * 0.19;
+            cutoff4 = 1 - (1 - 0.9993) * 0.145;
         } else if (radius >= 12000) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.75) * 0.9;
-            cutoff64 = 1 - (1 - 0.91) * 0.25;
-            cutoff16 = 1 - (1 - 0.9965) * 0.2;
-            cutoff4 = 1 - (1 - 0.9992) * 0.15;
+            cutoff256 = 1 - (1 - 0.75) * 0.84;
+            cutoff64 = 1 - (1 - 0.91) * 0.225;
+            cutoff16 = 1 - (1 - 0.9965) * 0.19;
+            cutoff4 = 1 - (1 - 0.9992) * 0.145;
         } else if (radius >= 11500) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.7167) * 0.9;
-            cutoff64 = 1 - (1 - 0.9033) * 0.25;
-            cutoff16 = 1 - (1 - 0.9962) * 0.2;
-            cutoff4 = 1 - (1 - 0.9991) * 0.15;
+            cutoff256 = 1 - (1 - 0.7167) * 0.85;
+            cutoff64 = 1 - (1 - 0.9033) * 0.23;
+            cutoff16 = 1 - (1 - 0.9962) * 0.19;
+            cutoff4 = 1 - (1 - 0.9991) * 0.145;
         } else if (radius >= 11000) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.7) * 0.9;
-            cutoff64 = 1 - (1 - 0.9) * 0.25;
-            cutoff16 = 1 - (1 - 0.9961) * 0.2;
-            cutoff4 = 1 - (1 - 0.9987) * 0.15;
+            cutoff256 = 1 - (1 - 0.7) * 0.86;
+            cutoff64 = 1 - (1 - 0.9) * 0.24;
+            cutoff16 = 1 - (1 - 0.9961) * 0.19;
+            cutoff4 = 1 - (1 - 0.9987) * 0.145;
         } else if (radius >= 9925) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.6667) * 0.8;
-            cutoff64 = 1 - (1 - 0.8833) * 0.26;
-            cutoff16 = 1 - (1 - 0.9914) * 0.21;
-            cutoff4 = 1 - (1 - 0.9969) * 0.16;
+            cutoff256 = 1 - (1 - 0.6667) * 0.77;
+            cutoff64 = 1 - (1 - 0.8833) * 0.25;
+            cutoff16 = 1 - (1 - 0.9914) * 0.2;
+            cutoff4 = 1 - (1 - 0.9969) * 0.155;
         } else if (radius >= 8850) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.65) * 0.7;
-            cutoff64 = 1 - (1 - 0.875) * 0.27;
-            cutoff16 = 1 - (1 - 0.98905) * 0.22;
-            cutoff4 = 1 - (1 - 0.9958) * 0.17;
+            cutoff256 = 1 - (1 - 0.65) * 0.68;
+            cutoff64 = 1 - (1 - 0.875) * 0.26;
+            cutoff16 = 1 - (1 - 0.98905) * 0.21;
+            cutoff4 = 1 - (1 - 0.9958) * 0.165;
         } else if (radius >= 7775) {
             initialStep = 256;
-            cutoff256 = 1 - (1 - 0.6167) * 0.7;
-            cutoff64 = 1 - (1 - 0.865) * 0.28;
-            cutoff16 = 1 - (1 - 0.9843) * 0.23;
-            cutoff4 = 1 - (1 - 0.9937) * 0.18;
+            cutoff256 = 1 - (1 - 0.6167) * 0.69;
+            cutoff64 = 1 - (1 - 0.865) * 0.275;
+            cutoff16 = 1 - (1 - 0.9843) * 0.225;
+            cutoff4 = 1 - (1 - 0.9937) * 0.175;
         } else if (radius >= 6700) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.6) * 0.7;
-            cutoff64 = 1 - (1 - 0.86) * 0.3;
-            cutoff16 = 1 - (1 - 0.982) * 0.25;
-            cutoff4 = 1 - (1 - 0.9926) * 0.2;
+            cutoff64 = 1 - (1 - 0.86) * 0.295;
+            cutoff16 = 1 - (1 - 0.982) * 0.245;
+            cutoff4 = 1 - (1 - 0.9926) * 0.195;
         } else if (radius >= 5313) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.57) * 0.7;
