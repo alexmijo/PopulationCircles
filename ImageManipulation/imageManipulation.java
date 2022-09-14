@@ -22,8 +22,95 @@ import java.lang.Math;
 class ImageManipulation {
 
     private static String percent;
+    private static int circleNum;
 
     private static Map<String, String> countries = Map.ofEntries(
+        entry("91.0", ""),
+        entry("91.1", ""),
+        entry("91.2", ""),
+        entry("91.3", ""),
+        entry("91.4", ""),
+        entry("91.5", ""),
+        entry("91.6", ""),
+        entry("91.7", "Germany"),
+        entry("91.8", "Germany"),
+        entry("91.9", "Germany"),
+        entry("92.0", "Germany"),
+        entry("92.1", "Germany"),
+        entry("92.2", "Germany"),
+        entry("92.3", "Switzerland"),
+        entry("92.4", "Switzerland"),
+        entry("92.5", "France"),
+        entry("92.6", "Germany"),
+        entry("92.7", "Germany"),
+        entry("92.8", "Czechia"),
+        entry("92.9", "Czechia"),
+        entry("93.0", "Czechia"),
+        entry("93.1", "Czechia"),
+        entry("93.2", "Germany"),
+        entry("93.3", "Germany"),
+        entry("93.4", "the Arctic Ocean"),
+        entry("93.5", "the Arctic Ocean"),
+        entry("93.6", "the Arctic Ocean"),
+        entry("93.7", "the Arctic Ocean"),
+        entry("93.8", "the Arctic Ocean"),
+        entry("93.9", "the Arctic Ocean"),
+        entry("94.0", "the Arctic Ocean"),
+        entry("94.1", "the Arctic Ocean"),
+        entry("94.2", "Russia"),
+        entry("94.3", "Russia"),
+        entry("94.4", "Russia"),
+        entry("94.5", "Russia"),
+        entry("94.6", "Russia"),
+        entry("94.7", "Russia"),
+        entry("94.8", "Russia"),
+        entry("94.9", "Russia"),
+        entry("95.0", "Russia"),
+        entry("95.1", "Russia"),
+        entry("95.2", "Russia"),
+        entry("95.3", "Russia"),
+        entry("95.4", "Russia"),
+        entry("95.5", "Poland"),
+        entry("95.6", "Poland"),
+        entry("95.7", "Slovakia"),
+        entry("95.8", "Poland"),
+        entry("95.9", "Poland"),
+        entry("96.0", "Poland"),
+        entry("96.1", "Ukraine"),
+        entry("96.2", "Ukraine"),
+        entry("96.3", "Ukraine"),
+        entry("96.4", "Poland"),
+        entry("96.5", "Ukraine"),
+        entry("96.6", "Ukraine"),
+        entry("96.7", "Poland"),
+        entry("96.8", "Ukraine"),
+        entry("96.9", "Hungary"),
+        entry("97.0", "Serbia"),
+        entry("97.1", "Montenegro"),
+        entry("97.2", "Montenegro"),
+        entry("97.3", "Montenegro"),
+        entry("97.4", "Montenegro"),
+        entry("97.5", "the Atlantic Ocean"),
+        entry("97.6", "the Atlantic Ocean"),
+        entry("97.7", "the Atlantic Ocean"),
+        entry("97.8", "the Atlantic Ocean"),
+        entry("97.9", "the Atlantic Ocean"),
+        entry("98.0", "the Atlantic Ocean"),
+        entry("98.1", "the Atlantic Ocean"),
+        entry("98.2", "the Atlantic Ocean"),
+        entry("98.3", "the Atlantic Ocean"),
+        entry("98.4", "the Atlantic Ocean"),
+        entry("98.5", "the Atlantic Ocean"),
+        entry("98.6", "the Atlantic Ocean"),
+        entry("98.7", "the Atlantic Ocean"),
+        entry("98.8", "the Atlantic Ocean"),
+        entry("98.9", "Libya"),
+        entry("99.0", "Libya"),
+        entry("99.1", "Libya"),
+        entry("99.2", "Libya"),
+        entry("99.3", "Libya"),
+        entry("99.4", "Libya"),
+        entry("99.5", "Denmark"),
         entry("99.6", "Egypt"),
         entry("99.7", "the Indian Ocean"),
         entry("99.8", "Saudi Arabia"),
@@ -160,14 +247,14 @@ class ImageManipulation {
     }
 
     public static void main(String[] args) {
-        for (int circleNum = 995; circleNum <= 1000; circleNum++) {
+        for (circleNum = 917; circleNum <= 971; circleNum++) {
             percent = (circleNum / 10) + "." + (circleNum % 10);
             String inputImageFileName =
                 "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
                 + "PercentCircle.png";
             String outputImageFileName =
-                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/" + percent 
-                + "PercentCircleWithText.png";
+                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/0" + circleNum 
+                + ".png";
             manipulateImage(inputImageFileName, outputImageFileName);
         }
     }
