@@ -25,13 +25,33 @@ class ImageManipulation {
     private static int circleNum;
 
     private static Map<String, String> countries = Map.ofEntries(
-        entry("91.0", ""),
-        entry("91.1", ""),
-        entry("91.2", ""),
-        entry("91.3", ""),
-        entry("91.4", ""),
-        entry("91.5", ""),
-        entry("91.6", ""),
+        entry("89.0", ""),
+        entry("89.1", ""),
+        entry("89.2", ""),
+        entry("89.3", ""),
+        entry("89.4", ""),
+        entry("89.5", ""),
+        entry("89.6", ""),
+        entry("89.7", ""),
+        entry("89.8", ""),
+        entry("89.9", "Sweden"),
+        entry("90.0", "Sweden"),
+        entry("90.1", "Sweden"),
+        entry("90.2", "Sweden"),
+        entry("90.3", "Sweden"),
+        entry("90.4", "Sweden"),
+        entry("90.5", "Sweden"),
+        entry("90.6", "Sweden"),
+        entry("90.7", "Sweden"),
+        entry("90.8", "Sweden"),
+        entry("90.9", "Sweden"),
+        entry("91.0", "Sweden"),
+        entry("91.1", "Sweden"),
+        entry("91.2", "Germany"),
+        entry("91.3", "Germany"),
+        entry("91.4", "Germany"),
+        entry("91.5", "Germany"),
+        entry("91.6", "Germany"),
         entry("91.7", "Germany"),
         entry("91.8", "Germany"),
         entry("91.9", "Germany"),
@@ -247,7 +267,7 @@ class ImageManipulation {
     }
 
     public static void main(String[] args) {
-        for (circleNum = 917; circleNum <= 971; circleNum++) {
+        for (circleNum = 899; circleNum <= 916; circleNum++) {
             percent = (circleNum / 10) + "." + (circleNum % 10);
             String inputImageFileName =
                 "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
