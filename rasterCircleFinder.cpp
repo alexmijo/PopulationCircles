@@ -381,8 +381,8 @@ class RasterDataCircleFinder {
         double cutoff4;
         constexpr double diff256 = 0.2;
         constexpr double diff64 = 0.1375;
-        constexpr double diff16 = 0.0862;
-        constexpr double diff4 = 0.082;
+        constexpr double diff16 = 0.102;
+        constexpr double diff4 = 0.121;
         if (radius >= 14100) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.9) * 0.9;
@@ -453,14 +453,14 @@ class RasterDataCircleFinder {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.6667) * (0.676 - diff256);
             cutoff64 = 1 - (1 - 0.8833) * (0.231 - diff64);
-            cutoff16 = 1 - (1 - 0.9914) * (0.196 - diff16);
-            cutoff4 = 1 - (1 - 0.9969) * (0.151 - diff4);
+            cutoff16 = 1 - (1 - 0.9914) * (0.2 - diff16);
+            cutoff4 = 1 - (1 - 0.9969) * (0.169 - diff4);
         } else if (radius >= 8850) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.65) * (0.676 - diff256);
             cutoff64 = 1 - (1 - 0.875) * (0.251 - diff64);
-            cutoff16 = 1 - (1 - 0.98905) * (0.206 - diff16);
-            cutoff4 = 1 - (1 - 0.9958) * (0.161 - diff4);
+            cutoff16 = 1 - (1 - 0.98905) * (0.21 - diff16);
+            cutoff4 = 1 - (1 - 0.9958) * (0.17 - diff4);
         } else if (radius >= 7775) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.6167) * (0.686 - diff256);
