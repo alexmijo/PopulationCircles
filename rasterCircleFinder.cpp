@@ -889,7 +889,7 @@ class RasterDataCircleFinder {
         }
         while (upperBound - lowerBound > 1 || softUpperBound) {
             CircleResultMaybeShortCircuit largestSumCircle;
-            if (upperBound - lowerBound <= 4) {
+            if (radius - lowerBound <= 1) {
                 if (upperBound - lowerBound == 1) {
                     // Need to make upperBound not soft
                     radius = upperBound;
