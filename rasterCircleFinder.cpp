@@ -382,7 +382,7 @@ class RasterDataCircleFinder {
         constexpr double diff256 = 0.2;
         constexpr double diff64 = 0.1375;
         constexpr double diff16 = 0.0862;
-        constexpr double diff4 = 0.069;
+        constexpr double diff4 = 0.082;
         if (radius >= 14100) {
             initialStep = 256;
             cutoff256 = 1 - (1 - 0.9) * 0.9;
