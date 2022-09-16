@@ -313,7 +313,7 @@ class RasterDataCircleFinder {
     void mostPopulousCirclesOfGivenRadiusPixelBoundaries(
         const double radius, const PixelBoundaries &boundaries, const int step,
         std::set<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
-        std::map<int, std::vector<int>> &kernels, const double desiredPop,
+        std::unordered_map<int, std::vector<int>> &kernels, const double desiredPop,
         std::unordered_set<std::pair<int, int>, intPairHash> &alreadyChecked) {
         for (int cenY = boundaries.upY + step / 2; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
@@ -538,7 +538,7 @@ class RasterDataCircleFinder {
         std::unordered_set<std::pair<int, int>, intPairHash> alreadyChecked;
         std::set<PixelCenterAndPop> topCircles;
         double largestPop = 0;
-        std::map<int, std::vector<int>> kernels;
+        std::unordered_map<int, std::vector<int>> kernels;
 
         std::cout << "step: " << step << std::endl;
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, pixelBoundaries, step, topCircles,
@@ -580,8 +580,11 @@ class RasterDataCircleFinder {
             int currY = -1;
             for (const auto &topCircle : topCirclesCopy) {
                 if (topCircle.y != currY) {
-                    kernels.clear();
                     currY = topCircle.y;
+                    // TODO: Magic number?
+                    if (kernels.size() > 2000) {
+                        kernels.clear();
+                    }
                 }
                 PixelBoundaries sectionBoundaries{
                     topCircle.x - step * 4, topCircle.x + step * 4 - 1, topCircle.y - step * 4,
