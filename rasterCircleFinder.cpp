@@ -319,14 +319,18 @@ class RasterDataCircleFinder {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
             }
-            auto it = kernels.find(cenY);
-            if (it == kernels.end()) {
-                kernels[cenY] = makeKernel(1000, cenY, radius);
-            }
+            bool checkedForKernel = false;
             for (int cenX = boundaries.leftX + step / 2; cenX <= boundaries.rightX; cenX += step) {
                 if (cenX < 0 || cenX >= numCols ||
                     alreadyChecked.find(std::pair<int, int>(cenX, cenY)) != alreadyChecked.end()) {
                     continue;
+                }
+                if (!checkedForKernel) {
+                    auto it = kernels.find(cenY);
+                    if (it == kernels.end()) {
+                        kernels[cenY] = makeKernel(1000, cenY, radius);
+                    }
+                    checkedForKernel = true;
                 }
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernels[cenY]);
                 alreadyChecked.emplace(cenX, cenY);
