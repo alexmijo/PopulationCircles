@@ -30,7 +30,7 @@ def prepareMap():
     # set selected layer visible
     iface.actionShowSelectedLayers().trigger()
     # Wait a second and export the map
-    QTimer.singleShot(1000, exportMap)
+    QTimer.singleShot(2000, exportMap)
     
 def exportMap(): 
     global count
@@ -79,7 +79,7 @@ def exportMap():
     if count < len(layer_list)-1:
         # Wait a second and prepare next map (timer is needed because otherwise all images have the samec content 
         # the script excecutes faster then the mapCanvas can be reloaded
-        QTimer.singleShot(1000, prepareMap) 
+        QTimer.singleShot(2000, prepareMap) 
     count += 1
     
 exportMap()

@@ -25,15 +25,75 @@ class ImageManipulation {
     private static int circleNum;
 
     private static Map<String, String> countries = Map.ofEntries(
-        entry("89.0", ""),
-        entry("89.1", ""),
-        entry("89.2", ""),
-        entry("89.3", ""),
-        entry("89.4", ""),
-        entry("89.5", ""),
-        entry("89.6", ""),
-        entry("89.7", ""),
-        entry("89.8", ""),
+        entry("83.0", ""),
+        entry("83.1", ""),
+        entry("83.2", ""),
+        entry("83.3", ""),
+        entry("83.4", ""),
+        entry("83.5", ""),
+        entry("83.6", ""),
+        entry("83.7", ""),
+        entry("83.8", "Pakistan"),
+        entry("83.9", "Pakistan"),
+        entry("84.0", "Iran"),
+        entry("84.1", "Iran"),
+        entry("84.2", "Pakistan"),
+        entry("84.3", "Iran"),
+        entry("84.4", "Pakistan"),
+        entry("84.5", "Iran"),
+        entry("84.6", "Iran"),
+        entry("84.7", "Iran"),
+        entry("84.8", "Iran"),
+        entry("84.9", "Iran"),
+        entry("85.0", "Iran"),
+        entry("85.1", "Iran"),
+        entry("85.2", "Iran"),
+        entry("85.3", "Iran"),
+        entry("85.4", "Iran"),
+        entry("85.5", "Iran"),
+        entry("85.6", "Iran"),
+        entry("85.7", "Iran"),
+        entry("85.8", "the Indian Ocean"),
+        entry("85.9", "Oman"),
+        entry("86.0", "the Indian Ocean"),
+        entry("86.1", "the Indian Ocean"),
+        entry("86.2", "Russia"),
+        entry("86.3", "Russia"),
+        entry("86.4", "Russia"),
+        entry("86.5", "Russia"),
+        entry("86.6", "Russia"),
+        entry("86.7", "Russia"),
+        entry("86.8", "Russia"),
+        entry("86.9", "Russia"),
+        entry("87.0", "Russia"),
+        entry("87.1", "Russia"),
+        entry("87.2", "Russia"),
+        entry("87.3", "Russia"),
+        entry("87.4", "Russia"),
+        entry("87.5", "Russia"),
+        entry("87.6", "Russia"),
+        entry("87.7", "Russia"),
+        entry("87.8", "Russia"),
+        entry("87.9", "Russia"),
+        entry("88.0", "Russia"),
+        entry("88.1", "Russia"),
+        entry("88.2", "Russia"),
+        entry("88.3", "Russia"),
+        entry("88.4", "Russia"),
+        entry("88.5", "Russia"),
+        entry("88.6", "Russia"),
+        entry("88.7", "Russia"),
+        entry("88.8", "Russia"),
+        entry("88.9", "Russia"),
+        entry("89.0", "Russia"),
+        entry("89.1", "Russia"),
+        entry("89.2", "Russia"),
+        entry("89.3", "Russia"),
+        entry("89.4", "Russia"),
+        entry("89.5", "the Atlantic Ocean"),
+        entry("89.6", "the Atlantic Ocean"),
+        entry("89.7", "Denmark"),
+        entry("89.8", "the Atlantic Ocean"),
         entry("89.9", "Sweden"),
         entry("90.0", "Sweden"),
         entry("90.1", "Sweden"),
@@ -267,14 +327,29 @@ class ImageManipulation {
     }
 
     public static void main(String[] args) {
-        for (circleNum = 899; circleNum <= 916; circleNum++) {
+        for (circleNum = 898; circleNum <= 1000; circleNum++) {
             percent = (circleNum / 10) + "." + (circleNum % 10);
             String inputImageFileName =
-                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/" + percent 
-                + "PercentCircle.png";
-            String outputImageFileName =
-                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/0" + circleNum 
+                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/reprojected/" + circleNum 
                 + ".png";
+            String outputImageFileName;
+            if (circleNum < 10) {
+                outputImageFileName =
+                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/000" + circleNum 
+                    + ".png";
+            } else if (circleNum < 100) {
+                outputImageFileName =
+                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/00" + circleNum 
+                    + ".png";
+            } else if (circleNum < 1000) {
+                outputImageFileName =
+                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/0" + circleNum 
+                    + ".png";
+            } else {
+                outputImageFileName =
+                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/" + circleNum 
+                    + ".png";
+            }
             manipulateImage(inputImageFileName, outputImageFileName);
         }
     }
