@@ -1,7 +1,7 @@
 import rasterio
 import json
 
-for circleNum in range(838, 899):
+for circleNum in range(1, 838):
     circleToDraw = str(circleNum // 10) + "." + str(circleNum % 10)
     print(circleToDraw)
 

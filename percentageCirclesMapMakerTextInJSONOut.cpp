@@ -840,7 +840,7 @@ void oldMain(double percent) {
 }
 
 int main() {
-    for (double percent = 83.8; percent <= 89.8; percent += 0.1) {
+    for (double percent = 45.2; percent <= 83.7; percent += 0.1) {
         oldMain(percent);
     }
 }
