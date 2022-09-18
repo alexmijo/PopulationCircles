@@ -10,15 +10,14 @@ layer_id_list = []
 # variable for further processing
 count = 0
 layerNum = 0
-#look for files inpath
-for file in dirs:
-    # search for ".tif" files 
-    if file.endswith(".tif"):
-        #add rasterlayers
-        vlayer = iface.addRasterLayer(path + file, "layer" + str(layerNum))
-        layerNum += 1
-        layer_list.append(vlayer.name())
-        layer_id_list.append(vlayer)
+# look for files in path
+for fileNum in range(1,101):
+    file = str(fileNum) + ".tif"
+    #add rasterlayers
+    vlayer = iface.addRasterLayer(path + file, "layer" + str(layerNum))
+    layerNum += 1
+    layer_list.append(vlayer.name())
+    layer_id_list.append(vlayer)
 
 def prepareMap():
     # make all layers invisible
@@ -30,7 +29,7 @@ def prepareMap():
     # set selected layer visible
     iface.actionShowSelectedLayers().trigger()
     # Wait a second and export the map
-    QTimer.singleShot(2000, exportMap)
+    QTimer.singleShot(2300, exportMap)
     
 def exportMap(): 
     global count
@@ -79,7 +78,7 @@ def exportMap():
     if count < len(layer_list)-1:
         # Wait a second and prepare next map (timer is needed because otherwise all images have the samec content 
         # the script excecutes faster then the mapCanvas can be reloaded
-        QTimer.singleShot(2000, prepareMap) 
+        QTimer.singleShot(2300, prepareMap) 
     count += 1
     
 exportMap()
