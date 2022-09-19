@@ -24,6 +24,8 @@ class ImageManipulation {
     private static String percent;
     private static int circleNum;
 
+    // May be too big to compile. I split it into thirds and did each third separately. Should put
+    //  this in a text file instead in the future (TODO).
     private static Map<String, String> countries = Map.ofEntries(
         entry("0.1", "Bangladesh"),
         entry("0.2", "China"),
@@ -824,7 +826,6 @@ class ImageManipulation {
         entry("79.7", "the Indian Ocean"),
         entry("79.8", "the Indian Ocean"),
         entry("79.9", "the Indian Ocean"),
-        entry("79.0", "the Indian Ocean"),
         entry("80.0", "the Indian Ocean"),
         entry("80.1", "the Indian Ocean"),
         entry("80.2", "the Indian Ocean"),
@@ -1160,24 +1161,24 @@ class ImageManipulation {
         for (circleNum = 1; circleNum <= 1000; circleNum++) {
             percent = (circleNum / 10) + "." + (circleNum % 10);
             String inputImageFileName =
-                "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/reprojected/" + circleNum 
+                "/mnt/d/PopCirclesStuff/linuxPythonMadePercentMaps2020/reprojected/pngs/" + circleNum 
                 + ".png";
             String outputImageFileName;
             if (circleNum < 10) {
                 outputImageFileName =
-                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/000" + circleNum 
+                    "/mnt/d/PopCirclesStuff/linuxPythonMadePercentMaps2020/WithText/000" + circleNum 
                     + ".png";
             } else if (circleNum < 100) {
                 outputImageFileName =
-                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/00" + circleNum 
+                    "/mnt/d/PopCirclesStuff/linuxPythonMadePercentMaps2020/WithText/00" + circleNum 
                     + ".png";
             } else if (circleNum < 1000) {
                 outputImageFileName =
-                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/0" + circleNum 
+                    "/mnt/d/PopCirclesStuff/linuxPythonMadePercentMaps2020/WithText/0" + circleNum 
                     + ".png";
             } else {
                 outputImageFileName =
-                    "/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/WithText/" + circleNum 
+                    "/mnt/d/PopCirclesStuff/linuxPythonMadePercentMaps2020/WithText/" + circleNum 
                     + ".png";
             }
             manipulateImage(inputImageFileName, outputImageFileName);

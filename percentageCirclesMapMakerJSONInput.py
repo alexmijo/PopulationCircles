@@ -1,7 +1,7 @@
 import rasterio
 import json
 
-for circleNum in range(1, 838):
+for circleNum in range(321, 838):
     circleToDraw = str(circleNum // 10) + "." + str(circleNum % 10)
     print(circleToDraw)
 
@@ -62,7 +62,7 @@ for circleNum in range(1, 838):
             output2[latPix][lonPix] = cm[colors[latPix][lonPix]][1]
             output3[latPix][lonPix] = cm[colors[latPix][lonPix]][2]
 
-    map = rasterio.open('/mnt/c/Users/Administrator/Desktop/linuxPythonMadePercentMaps2020/'
+    map = rasterio.open('/mnt/d/PopCirclesStuff/linuxPythonMadePercentMaps2020/'
                         + circleToDraw + "PercentCircle.tif", 'w', driver=landTif.driver,
                         height=landTif.height, width=landTif.width, count=3, dtype='uint8',
                         crs=landTif.crs, transform=landTif.transform)
