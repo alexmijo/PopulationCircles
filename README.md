@@ -4,6 +4,7 @@ Note to any potential employers: This code kinda got spaghettified and I haven't
 This program, among other things, can beat the previous best known results for finding the smallest possible circles on earth containing a given percentage of the
 world’s population. Also wrote code in C++, Python and Java to render the maps.
 This software is what I used to make these maps:
+https://www.reddit.com/r/dataisbeautiful/comments/xii6hg/the_smallest_possible_circles_containing_011000/
 https://www.reddit.com/r/dataisbeautiful/comments/ventld/oc_the_largest_and_smallest_possible_circles/
 https://www.reddit.com/r/MapPorn/comments/vdv3vw/the_smallest_possible_circle_containing_10_of_the/
 https://www.reddit.com/r/MapPorn/comments/vc85v3/oc_the_smallest_possible_circles_containing_25_50/
