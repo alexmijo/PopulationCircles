@@ -314,7 +314,8 @@ class RasterDataCircleFinder {
         const double radius, const PixelBoundaries &boundaries, const int step,
         std::set<PixelCenterAndPop> &topCircles, double &largestPop, const double cutoff,
         std::unordered_map<int, std::vector<int>> &kernels, const double desiredPop,
-        std::unordered_set<std::pair<int, int>, intPairHash> &alreadyChecked) {
+        std::unordered_set<std::pair<int, int>, intPairHash> &alreadyChecked,
+        bool useAlreadyChecked = true) {
         for (int cenY = boundaries.upY + step / 2; cenY <= boundaries.downY; cenY += step) {
             if (cenY < 0 || cenY >= numRows) {
                 continue;
@@ -322,7 +323,8 @@ class RasterDataCircleFinder {
             bool checkedForKernel = false;
             for (int cenX = boundaries.leftX + step / 2; cenX <= boundaries.rightX; cenX += step) {
                 if (cenX < 0 || cenX >= numCols ||
-                    alreadyChecked.find(std::pair<int, int>(cenX, cenY)) != alreadyChecked.end()) {
+                    (useAlreadyChecked && alreadyChecked.find(std::pair<int, int>(cenX, cenY)) !=
+                                              alreadyChecked.end())) {
                     continue;
                 }
                 if (!checkedForKernel) {
@@ -333,7 +335,9 @@ class RasterDataCircleFinder {
                     checkedForKernel = true;
                 }
                 double popWithinNKilometers = popWithinKernel(cenX, cenY, kernels[cenY]);
-                alreadyChecked.emplace(cenX, cenY);
+                if (useAlreadyChecked) {
+                    alreadyChecked.emplace(cenX, cenY);
+                }
                 if (popWithinNKilometers > largestPop * cutoff) {
                     topCircles.emplace(cenX, cenY, popWithinNKilometers);
                     if (popWithinNKilometers > largestPop) {
@@ -378,6 +382,7 @@ class RasterDataCircleFinder {
         PixelBoundaries pixelBoundaries = pixelBoundariesFromLatLonBoundaries(boundaries);
 
         // TODO: Make this nicer
+        bool useAlreadyChecked = true;
         int initialStep;
         double cutoff256;
         double cutoff64;
@@ -521,6 +526,7 @@ class RasterDataCircleFinder {
             cutoff4 = 1 - (1 - 0.7) * (0.99 - diff4);
         } else {
             initialStep = 1;
+            useAlreadyChecked = false;
         }
 
         int step = initialStep; // Must be a power of 4, I think
@@ -543,7 +549,7 @@ class RasterDataCircleFinder {
         std::cout << "step: " << step << std::endl;
         mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, pixelBoundaries, step, topCircles,
                                                         largestPop, cutoff, kernels, desiredPop,
-                                                        alreadyChecked);
+                                                        alreadyChecked, useAlreadyChecked);
         cutUnderperformingCircles(topCircles, largestPop, cutoff);
         CircleResultMaybeShortCircuit result;
         if (largestPop >= desiredPop) {
@@ -1042,7 +1048,7 @@ void findPercentCircles() {
     }
     std::ofstream percentCirclesFile;
     percentCirclesFile.open(percentCirclesFilename);
-    for (double percent = 100; percent > 0.09; percent -= 0.1) {
+    for (double percent = 0.01; percent > 0.009; percent -= 0.1) {
         double desiredPopulation = (WORLD_POP / 100.0) * percent;
         if (percent > 99.99) {
             desiredPopulation = (long long)WORLD_POP;
