@@ -367,8 +367,8 @@ class RasterDataCircleFinder {
         for (int y = north + 1; y <= south; y++) {
             bool skipThisY = true;
             for (const CircleResult &city : largestCities) {
-                // 1.1 > (180*60*2)/20004 TODO: Name constant
-                if (std::abs(y - latToY(city.lat)) < 1.1 * city.radius) {
+                // 1.25 > (180*60*2)/20004 TODO: Name constant
+                if (std::abs(y - latToY(city.lat)) < 1.25 * city.radius) {
                     skipThisY = false;
                     break;
                 }
@@ -621,7 +621,7 @@ class RasterDataCircleFinder {
             cutoff4 = 1 - (1 - 0.965) * (0.99 - diff4);
         } else if (radius >= 20) {
             initialStep = 4;
-            cutoff4 = 1 - (1 - 0.7) * (0.99 - diff4);
+            cutoff4 = 0.4;
         } else {
             initialStep = 1;
         }
@@ -1315,6 +1315,7 @@ void findLargestCities() {
     std::ofstream largestCitiesFile;
     largestCitiesFile.open(largestCitiesFilename);
     std::vector<CircleResult> largestCities;
+
     for (int i = 1; i <= 100; i++) {
         std::cout << std::endl << "Now finding the " << i << "th largest city." << std::endl;
         CircleResult city;
