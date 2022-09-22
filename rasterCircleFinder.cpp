@@ -377,6 +377,17 @@ class RasterDataCircleFinder {
                 continue;
             }
             for (int x = west + 1; x <= east; x++) {
+                bool skipThisX = true;
+                for (const CircleResult &city : largestCities) {
+                    // TODO: Name constant
+                    if (std::abs(x - lonToX(city.lon)) < 20 * city.radius) {
+                        skipThisX = false;
+                        break;
+                    }
+                }
+                if (skipThisX) {
+                    continue;
+                }
                 for (const CircleResult &city : largestCities) {
                     if (distance(city.lat, city.lon, lat(y), lon(x)) <= city.radius) {
                         overlappingPop += popWithinRectangle(x - 1, x, y - 1, y);
@@ -1290,6 +1301,7 @@ void findPercentCircles() {
 }
 
 void findLargestCities() {
+    int radius = 40;
     std::cout << "Loading population summation table." << std::endl;
     if (USE_2020_DATA) {
         std::cout << "Using 2020 data." << std::endl;
@@ -1308,27 +1320,45 @@ void findLargestCities() {
     // Used by imageManipulation.java so that it knows what text to add, as well as by
     //  percentageCirclesMapMakerTextInJSONOut.cpp so it knows where and how large to draw the
     //  circles
-    std::string largestCitiesFilename = "largestCities2015.txt";
+    std::string largestCitiesFilename = "largestCities2015Radius" + std::to_string(radius) + ".txt";
     if (USE_2020_DATA) {
-        largestCitiesFilename = "largestCities2020.txt";
+        largestCitiesFilename = "largestCities2020Radius" + std::to_string(radius) + ".txt";
     }
-    std::ofstream largestCitiesFile;
+    std::fstream largestCitiesFile;
     largestCitiesFile.open(largestCitiesFilename);
+    // TODO: Make if not exists and also write full pop with overlap to file.
     std::vector<CircleResult> largestCities;
-
-    for (int i = 1; i <= 100; i++) {
-        std::cout << std::endl << "Now finding the " << i << "th largest city." << std::endl;
+    std::string cityString;
+    int rank = 1;
+    while (getline(largestCitiesFile, cityString)) {
+        std::stringstream citySS(cityString);
+        std::string dummyString;
+        getline(citySS, dummyString, ' '); // Rank
+        getline(citySS, dummyString, ' ');
+        double lat = std::stod(dummyString);
+        getline(citySS, dummyString, ' ');
+        double lon = std::stod(dummyString);
+        getline(citySS, dummyString, ' ');
+        double pop = std::stod(dummyString);
+        largestCities.emplace_back(CircleResult{lat, lon, (double)radius, pop});
+        std::cout << rank << "th largest city:" << std::endl;
+        std::cout << "Population within " << radius << " km of (" << lat << ", " << lon
+                  << "): " << ((long)pop) << std::endl;
+        rank++;
+    }
+    for (; rank <= 100; rank++) {
+        std::cout << std::endl << "Now finding the " << rank << "th largest city." << std::endl;
         CircleResult city;
-        city = popData.findNextLargestCity(20, largestCities);
+        city = popData.findNextLargestCity(radius, largestCities, {-160, 180, 70, -50});
         largestCities.emplace_back(city);
-        std::cout << i << "th largest city:" << std::endl;
+        std::cout << rank << "th largest city:" << std::endl;
         std::cout << "Population within " << city.radius << " km of (" << city.lat << ", "
                   << city.lon << "): " << ((long)city.pop) << std::endl;
         // TODO: Remove the magic number 6
         // TODO: Probably only wanna write if it's not already in there
-        largestCitiesFile << i << " " << city.radius << " "
-                          << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION) << city.lat << " "
-                          << city.lon << " " << city.pop << std::setprecision(6) << std::endl;
+        largestCitiesFile << rank << " " << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION)
+                          << city.lat << " " << city.lon << " " << city.pop << std::setprecision(6)
+                          << std::endl;
     }
     largestCitiesFile.close();
 }
