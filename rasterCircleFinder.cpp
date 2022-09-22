@@ -1324,12 +1324,11 @@ void findLargestCities() {
     if (USE_2020_DATA) {
         largestCitiesFilename = "largestCities2020Radius" + std::to_string(radius) + ".txt";
     }
-    std::fstream largestCitiesFile;
+    std::ifstream largestCitiesFile;
     largestCitiesFile.open(largestCitiesFilename);
     // TODO: Make if not exists and also write full pop with overlap to file.
     std::vector<CircleResult> largestCities;
     std::string cityString;
-    int rank = 1;
     while (getline(largestCitiesFile, cityString)) {
         std::stringstream citySS(cityString);
         std::string dummyString;
@@ -1341,26 +1340,32 @@ void findLargestCities() {
         getline(citySS, dummyString, ' ');
         double pop = std::stod(dummyString);
         largestCities.emplace_back(CircleResult{lat, lon, (double)radius, pop});
+    }
+    largestCitiesFile.close();
+    int rank = 1;
+    for (; rank < largestCities.size(); rank++) {
         std::cout << rank << "th largest city:" << std::endl;
-        std::cout << "Population within " << radius << " km of (" << lat << ", " << lon
-                  << "): " << ((long)pop) << std::endl;
-        rank++;
+        std::cout << "Population within " << largestCities[rank].radius << " km of ("
+                  << largestCities[rank].lat << ", " << largestCities[rank].lon
+                  << "): " << ((long)largestCities[rank].pop) << std::endl;
     }
     for (; rank <= 100; rank++) {
         std::cout << std::endl << "Now finding the " << rank << "th largest city." << std::endl;
-        CircleResult city;
-        city = popData.findNextLargestCity(radius, largestCities, {-160, 180, 70, -50});
+        CircleResult city =
+            popData.findNextLargestCity(radius, largestCities, {-160, 180, 70, -50});
         largestCities.emplace_back(city);
         std::cout << rank << "th largest city:" << std::endl;
         std::cout << "Population within " << city.radius << " km of (" << city.lat << ", "
                   << city.lon << "): " << ((long)city.pop) << std::endl;
+        std::fstream largestCitiesOFile;
+        largestCitiesOFile.open(largestCitiesFilename);
+        largestCitiesOFile.seekg(0, std::ios::end);
         // TODO: Remove the magic number 6
-        // TODO: Probably only wanna write if it's not already in there
-        largestCitiesFile << rank << " " << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION)
-                          << city.lat << " " << city.lon << " " << city.pop << std::setprecision(6)
-                          << std::endl;
+        largestCitiesOFile << rank << " " << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION)
+                           << city.lat << " " << city.lon << " " << city.pop << std::setprecision(6)
+                           << std::endl;
+        largestCitiesOFile.close();
     }
-    largestCitiesFile.close();
 }
 
 int main() { findLargestCities(); }
