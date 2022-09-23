@@ -313,10 +313,10 @@ class RasterDataCircleFinder {
     double lat(int y) const { return -(((y + 0.5) / numRows) * 180.0 - 90.0); }
 
     // The inverse of the lon function
-    int lonToX(double lon) const { return ((lon + 180.0) / 360.0) * numCols - 0.5; }
+    int lonToX(double lon) const { return ((lon + 180.0) / 360.0) * numCols; }
 
     // The inverse of the lat function
-    int latToY(double lat) const { return ((-lat + 90.0) / 180.0) * numRows - 0.5; }
+    int latToY(double lat) const { return ((-lat + 90.0) / 180.0) * numRows; }
 
     struct PixelCenterAndPop {
         // The center pixel of the circle
