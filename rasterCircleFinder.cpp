@@ -655,8 +655,8 @@ class RasterDataCircleFinder {
             cutoff4 = 1 - (1 - 0.965) * (0.99 - diff4);
         } else if (radius >= 35) {
             initialStep = 16;
-            cutoff16 = 0.11;
-            cutoff4 = 0.42;
+            cutoff16 = 0.22;
+            cutoff4 = 0.6;
         } else if (radius >= 20) {
             initialStep = 4;
             cutoff4 = 0.4;
