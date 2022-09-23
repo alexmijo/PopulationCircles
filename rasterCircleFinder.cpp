@@ -18,7 +18,7 @@
 #include <vector>
 
 // Uses 2015 population data if false.
-constexpr bool USE_2020_DATA = true;
+constexpr bool USE_2020_DATA = false;
 constexpr double WORLD_POP = USE_2020_DATA ? 7757982599.3135586 : 7346242908.863955;
 // See
 //  https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
@@ -421,6 +421,7 @@ class RasterDataCircleFinder {
         return overlappingPop;
     }
 
+    // TODO: First, check if bounding boxes touch.
     double getOverlappingPop(int cenX, int cenY, const std::vector<int> &kernel,
                              const std::vector<CirclePixelSet> &largestCitiesPixels) {
         double overlappingPop = 0;
@@ -1401,7 +1402,7 @@ void findPercentCircles() {
 }
 
 void findLargestCities() {
-    int radius = 40;
+    int radius = 35;
     std::cout << "Loading population summation table." << std::endl;
     if (USE_2020_DATA) {
         std::cout << "Using 2020 data." << std::endl;
@@ -1449,7 +1450,7 @@ void findLargestCities() {
                   << largestCities[rank - 1].lat << ", " << largestCities[rank - 1].lon
                   << "): " << ((long)largestCities[rank - 1].pop) << std::endl;
     }
-    for (; rank <= 100; rank++) {
+    for (; rank <= 250; rank++) {
         std::cout << std::endl << "Now finding the " << rank << "th largest city." << std::endl;
         CircleResult city =
             popData.findNextLargestCity(radius, largestCities, {-160, 180, 70, -50});

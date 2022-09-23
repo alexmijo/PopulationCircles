@@ -236,7 +236,7 @@ int main() {
     // const int GDP_NUM_COLS = 2 * 60 * 360;
 
     // Load tiff data
-    const std::string popTiffFilename = "NASA2020POPDATA.tif";
+    const std::string popTiffFilename = "GHS_POP_E2015_GLOBE_R2019A_4326_30ss_V1_0.tif";
     // const std::string gdpTiffFilename = "gdpPPPdata.tif"; // This is too large to fit in github
     // by the way (11GB)
     Geotiff popTiff(popTiffFilename.c_str());
@@ -252,7 +252,7 @@ int main() {
     turnIntoSummationTable(popData, POP_NUM_ROWS, POP_NUM_COLS); // Mutates popdata
 
     std::fstream popSumTableFile;
-    popSumTableFile.open("popSumTable2020.bin", std::ios::out | std::ios::binary);
+    popSumTableFile.open("popSumTable.bin", std::ios::out | std::ios::binary);
     popSumTableFile.write(reinterpret_cast<char *>(&numRows), sizeof(int));
     popSumTableFile.write(reinterpret_cast<char *>(&numCols), sizeof(int));
     for (int r = 0; r < POP_NUM_ROWS; r++) {
