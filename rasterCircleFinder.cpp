@@ -64,12 +64,12 @@ class CirclePixelSet {
     CirclePixelSet(const RasterDataCircleFinder &, Pixel, double);
     bool containsY(const int) const;
     bool contains(Pixel) const;
+    PixelBoundaries boundingBox;
 
   private:
     Pixel center;
     // Inclusive on both sides
     std::multimap<int, std::pair<int, int>> xRanges;
-    PixelBoundaries boundingBox;
 };
 
 // TODO: Have this actually just be the data, and then a separate class has the actual circle
@@ -391,16 +391,18 @@ class RasterDataCircleFinder {
         }
     }
 
-    // TODO: If slow, redo this with largestCities as pixels contents (set/unordered_set, I think)
-    // instead
+    // TODO: Maybe there are rather easy ways to reduce work here for speed. Definitely should
+    // clean.
     double getRectanglesOverlappingPop(const int west, const int east, const int north,
                                        const int south,
-                                       const std::vector<CirclePixelSet> &largestCitiesPixels) {
+                                       const std::vector<CirclePixelSet> &largestCitiesPixels,
+                                       const std::vector<int> &couldIntersectWithIndices) {
         double overlappingPop = 0;
         for (int y = north + 1; y <= south; y++) {
             bool skipThisY = true;
-            for (const CirclePixelSet &cityPixels : largestCitiesPixels) {
-                if (cityPixels.containsY(y)) {
+            for (int i : couldIntersectWithIndices) {
+                const CirclePixelSet &cityPixels = largestCitiesPixels[i];
+                if (largestCitiesPixels[i].containsY(y)) {
                     skipThisY = false;
                     break;
                 }
@@ -410,8 +412,8 @@ class RasterDataCircleFinder {
             }
             for (int x = west + 1; x <= east; x++) {
                 // Could add larger rectangles at a time in order to try to speed things up.
-                for (const CirclePixelSet &cityPixels : largestCitiesPixels) {
-                    if (cityPixels.contains({x, y})) {
+                for (int i : couldIntersectWithIndices) {
+                    if (largestCitiesPixels[i].contains({x, y})) {
                         overlappingPop += popWithinRectangle(x - 1, x, y - 1, y);
                         break;
                     }
@@ -421,9 +423,22 @@ class RasterDataCircleFinder {
         return overlappingPop;
     }
 
-    // TODO: First, check if bounding boxes touch.
+    // TODO: Clean/spec
     double getOverlappingPop(int cenX, int cenY, const std::vector<int> &kernel,
+                             PixelBoundaries boundingBox,
                              const std::vector<CirclePixelSet> &largestCitiesPixels) {
+        std::vector<int> couldIntersectWithIndices;
+        for (int i = 0; i < largestCitiesPixels.size(); i++) {
+            if ((boundingBox.rightX >= largestCitiesPixels[i].boundingBox.leftX &&
+                 boundingBox.leftX <= largestCitiesPixels[i].boundingBox.rightX) &&
+                (boundingBox.downY >= largestCitiesPixels[i].boundingBox.upY &&
+                 boundingBox.upY <= largestCitiesPixels[i].boundingBox.downY)) {
+                couldIntersectWithIndices.emplace_back(i);
+            }
+        }
+        if (couldIntersectWithIndices.empty()) {
+            return 0;
+        }
         double overlappingPop = 0;
         for (int kernelRow = 0; kernelRow < kernel.size() / KERNEL_WIDTH; kernelRow++) {
             // Sides of the rectangle
@@ -433,26 +448,38 @@ class RasterDataCircleFinder {
             const int south = kernel[kernelIndex(kernelRow, 3)] + cenY;
             if (kernel[kernelIndex(kernelRow, 1)] == numCols / 2) {
                 // This rectangle encircles the entire latitude
-                overlappingPop +=
-                    getRectanglesOverlappingPop(-1, numCols - 1, north, south, largestCitiesPixels);
+                overlappingPop += getRectanglesOverlappingPop(
+                    -1, numCols - 1, north, south, largestCitiesPixels, couldIntersectWithIndices);
             } else if (west < -1) {
                 // Need to wrap around the antimeridian, creating two rectangles
+                overlappingPop += getRectanglesOverlappingPop(
+                    -1, east, north, south, largestCitiesPixels, couldIntersectWithIndices);
                 overlappingPop +=
-                    getRectanglesOverlappingPop(-1, east, north, south, largestCitiesPixels);
-                overlappingPop += getRectanglesOverlappingPop(numCols + west, numCols - 1, north,
-                                                              south, largestCitiesPixels);
+                    getRectanglesOverlappingPop(numCols + west, numCols - 1, north, south,
+                                                largestCitiesPixels, couldIntersectWithIndices);
             } else if (east >= numCols) {
                 // Need to wrap around the antimeridian, creating two rectangles
-                overlappingPop += getRectanglesOverlappingPop(west, numCols - 1, north, south,
-                                                              largestCitiesPixels);
-                overlappingPop += getRectanglesOverlappingPop(-1, east - numCols, north, south,
-                                                              largestCitiesPixels);
-            } else {
                 overlappingPop +=
-                    getRectanglesOverlappingPop(west, east, north, south, largestCitiesPixels);
+                    getRectanglesOverlappingPop(west, numCols - 1, north, south,
+                                                largestCitiesPixels, couldIntersectWithIndices);
+                overlappingPop +=
+                    getRectanglesOverlappingPop(-1, east - numCols, north, south,
+                                                largestCitiesPixels, couldIntersectWithIndices);
+            } else {
+                overlappingPop += getRectanglesOverlappingPop(
+                    west, east, north, south, largestCitiesPixels, couldIntersectWithIndices);
             }
         }
         return overlappingPop;
+    }
+
+    // TODO: Spec
+    int maxEastWestExtent(const std::vector<int> &kernel) {
+        int maxExtent = 0;
+        for (int kernelRow = 0; kernelRow < kernel.size() / KERNEL_WIDTH; kernelRow++) {
+            maxExtent = std::max(kernel[kernelIndex(kernelRow, 1)], maxExtent); // East
+        }
+        return maxExtent;
     }
 
     void mostPopulousCirclesOfGivenRadiusPixelBoundariesForFindingLargestCities(
@@ -468,6 +495,8 @@ class RasterDataCircleFinder {
             }
             bool checkedForKernel = false;
             std::vector<int> kernel;
+            PixelBoundaries boundingBox;
+            int maxEWExtent;
             for (int cenX = boundaries.leftX + step / 2; cenX <= boundaries.rightX; cenX += step) {
                 if (cenX < 0 || cenX >= numCols ||
                     (useAlreadyChecked && alreadyChecked.find(std::pair<int, int>(cenX, cenY)) !=
@@ -479,19 +508,35 @@ class RasterDataCircleFinder {
                     if (it == kernels.end()) {
                         if (step <= 4) {
                             kernel = makeKernel(1000, cenY, radius);
+                            // TODO: Deal with antimeridian and poles
+                            maxEWExtent = maxEastWestExtent(kernel);
+                            boundingBox = PixelBoundaries{
+                                cenX - maxEWExtent, cenX + maxEWExtent,
+                                cenY + kernel[kernelIndex(0, 2)] + 1,
+                                cenY + kernel[kernelIndex(kernel.size() / KERNEL_WIDTH - 1, 3)]};
                         } else {
                             kernels[cenY] = makeKernel(1000, cenY, radius);
+                            maxEWExtent = maxEastWestExtent(kernels[cenY]);
+                            boundingBox = PixelBoundaries{
+                                cenX - maxEWExtent,
+                                cenX + maxEWExtent,
+                                cenY + kernels[cenY][kernelIndex(0, 2)] + 1,
+                                cenY + kernels[cenY][kernelIndex(
+                                           kernels[cenY].size() / KERNEL_WIDTH - 1, 3)]};
                         }
                     }
                     checkedForKernel = true;
                 }
+                boundingBox.leftX = cenX - maxEWExtent;
+                boundingBox.rightX = cenX + maxEWExtent;
                 double popWithinNKilometers = (step <= 4)
                                                   ? popWithinKernel(cenX, cenY, kernel)
                                                   : popWithinKernel(cenX, cenY, kernels[cenY]);
                 popWithinNKilometers -=
                     (step <= 4)
-                        ? getOverlappingPop(cenX, cenY, kernel, largestCitiesPixels)
-                        : getOverlappingPop(cenX, cenY, kernels[cenY], largestCitiesPixels);
+                        ? getOverlappingPop(cenX, cenY, kernel, boundingBox, largestCitiesPixels)
+                        : getOverlappingPop(cenX, cenY, kernels[cenY], boundingBox,
+                                            largestCitiesPixels);
                 if (useAlreadyChecked) {
                     alreadyChecked.emplace(cenX, cenY);
                 }
@@ -1401,8 +1446,7 @@ void findPercentCircles() {
     percentCirclesFile.close();
 }
 
-void findLargestCities() {
-    int radius = 35;
+void findLargestCities(int radius) {
     std::cout << "Loading population summation table." << std::endl;
     if (USE_2020_DATA) {
         std::cout << "Using 2020 data." << std::endl;
@@ -1452,8 +1496,9 @@ void findLargestCities() {
     }
     for (; rank <= 250; rank++) {
         std::cout << std::endl << "Now finding the " << rank << "th largest city." << std::endl;
+        // WARNING: Can't yet touch antimeridian or poles
         CircleResult city =
-            popData.findNextLargestCity(radius, largestCities, {-160, 180, 70, -50});
+            popData.findNextLargestCity(radius, largestCities, {-160, 173, 70, -50});
         largestCities.emplace_back(city);
         std::cout << rank << "th largest city:" << std::endl;
         std::cout << "Population within " << city.radius << " km of (" << city.lat << ", "
@@ -1469,4 +1514,8 @@ void findLargestCities() {
     }
 }
 
-int main() { findLargestCities(); }
+int main() {
+    for (int radius = 15; radius <= 50; radius += 5) {
+        findLargestCities(radius);
+    }
+}
