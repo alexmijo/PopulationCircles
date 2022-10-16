@@ -518,8 +518,7 @@ class RasterDataCircleFinder {
                             kernels[cenY] = makeKernel(1000, cenY, radius);
                             maxEWExtent = maxEastWestExtent(kernels[cenY]);
                             boundingBox = PixelBoundaries{
-                                cenX - maxEWExtent,
-                                cenX + maxEWExtent,
+                                cenX - maxEWExtent, cenX + maxEWExtent,
                                 cenY + kernels[cenY][kernelIndex(0, 2)] + 1,
                                 cenY + kernels[cenY][kernelIndex(
                                            kernels[cenY].size() / KERNEL_WIDTH - 1, 3)]};
@@ -706,6 +705,9 @@ class RasterDataCircleFinder {
         } else if (radius >= 20) {
             initialStep = 4;
             cutoff4 = 0.4;
+        } else if (radius >= 10) {
+            initialStep = 4;
+            cutoff4 = 0.15;
         } else {
             initialStep = 1;
         }
@@ -1494,11 +1496,11 @@ void findLargestCities(int radius) {
                   << largestCities[rank - 1].lat << ", " << largestCities[rank - 1].lon
                   << "): " << ((long)largestCities[rank - 1].pop) << std::endl;
     }
-    for (; rank <= 250; rank++) {
+    for (; rank <= 40; rank++) {
         std::cout << std::endl << "Now finding the " << rank << "th largest city." << std::endl;
         // WARNING: Can't yet touch antimeridian or poles
         CircleResult city =
-            popData.findNextLargestCity(radius, largestCities, {-160, 173, 70, -50});
+            popData.findNextLargestCity(radius, largestCities, {-180, 180, 80, -60});
         largestCities.emplace_back(city);
         std::cout << rank << "th largest city:" << std::endl;
         std::cout << "Population within " << city.radius << " km of (" << city.lat << ", "
@@ -1514,8 +1516,51 @@ void findLargestCities(int radius) {
     }
 }
 
-int main() {
-    for (int radius = 15; radius <= 50; radius += 5) {
+void makeGoogleMapsJavascript(int radius) {
+    std::string largestCitiesFilename = "largestCities2015Radius" + std::to_string(radius) + ".txt";
+    std::string largestCitiesJavascriptFilename =
+        "largestCities2015Radius" + std::to_string(radius) + "Javascript.txt";
+    if (USE_2020_DATA) {
+        largestCitiesFilename = "largestCities2020Radius" + std::to_string(radius) + ".txt";
+        largestCitiesJavascriptFilename =
+            "largestCities2020Radius" + std::to_string(radius) + "Javascript.txt";
+    }
+    std::ifstream largestCitiesFile;
+    largestCitiesFile.open(largestCitiesFilename);
+    // TODO: Make if not exists and also write full pop with overlap to file.
+    std::vector<CircleResult> largestCities;
+    std::string cityString;
+    while (getline(largestCitiesFile, cityString)) {
+        std::stringstream citySS(cityString);
+        std::string dummyString;
+        getline(citySS, dummyString, ' '); // Rank
+        getline(citySS, dummyString, ' ');
+        double lat = std::stod(dummyString);
+        getline(citySS, dummyString, ' ');
+        double lon = std::stod(dummyString);
+        getline(citySS, dummyString, ' ');
+        double pop = std::stod(dummyString);
+        largestCities.emplace_back(CircleResult{lat, lon, (double)radius, pop});
+    }
+    largestCitiesFile.close();
+    int rank = 1;
+    std::fstream largestCitiesJavascriptFile;
+    largestCitiesJavascriptFile.open(largestCitiesJavascriptFilename);
+    largestCitiesJavascriptFile << std::setprecision(DOUBLE_ROUND_TRIP_PRECISION);
+    for (const CircleResult &city : largestCities) {
+        largestCitiesJavascriptFile << rank++ << ": { center: { lat: " << city.lat
+                                    << ", lng: " << city.lon << " } }, " << std::endl;
+    }
+    largestCitiesJavascriptFile.close();
+}
+
+void findLargestCitiesManyRadiuses() {
+    for (int radius = 70; radius <= 100; radius += 10) {
         findLargestCities(radius);
     }
+}
+
+int main() {
+    // makeGoogleMapsJavascript(60);
+    findLargestCitiesManyRadiuses();
 }
