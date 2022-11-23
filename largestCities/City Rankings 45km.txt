@@ -1,0 +1,11 @@
+1.  32.039  Tokyo                   Japan                       Asia        35.6 N  139.7 E (1) EA
+2.  31.479  Jakarta                 Indonesia                   Asia         6.4 S  106.8 E (4) SEA
+3.  31.431  Delhi                   India                       Asia        28.7 N   77.4 E (1) SA
+4.  27.663  Shanghai                China                       Asia        31.1 N  121.3 E (1) EA
+5.  27.551  Cairo                   Egypt                       Africa      30.4 N   31.2 E (1) NA
+6.  27.47   Dhaka                   Bangladesh                  Asia        23.9 N   90.6 E (1) SA
+7.  26.196  Kolkata                 India                       Asia        22.6 N   88.2 E (1) SA
+8.  26.007  The Pearl River Delta   China                       Asia        22.9 N  113.5 E (1) EA
+9.  24.942  Mumbai                  India                       Asia        19.2 N   73.1 E (1) SA
+10. 23.858  Seoul                   South Korea                 Asia        37.5 N  127.0 E (1) EA
+|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   

@@ -16,6 +16,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <chrono>
 
 // Uses 2015 population data if false.
 constexpr bool USE_2020_DATA = false;
@@ -698,10 +699,14 @@ class RasterDataCircleFinder {
             initialStep = 16;
             cutoff16 = 1 - (1 - 0.8) * (1 - diff16);
             cutoff4 = 1 - (1 - 0.965) * (0.99 - diff4);
-        } else if (radius >= 35) {
+        } else if (radius >= 95) {
             initialStep = 16;
             cutoff16 = 0.22;
-            cutoff4 = 0.6;
+            cutoff4 = 0.8;
+        } else if (radius >= 40) {
+            initialStep = 16;
+            cutoff16 = 0.4;
+            cutoff4 = 0.7;
         } else if (radius >= 20) {
             initialStep = 4;
             cutoff4 = 0.4;
@@ -842,6 +847,19 @@ class RasterDataCircleFinder {
     }
 
   public:
+    double popWithinCircle(const double lat, const double lon, const double radius) {
+        const int y = latToY(lat);
+        const int x = lonToX(lon);
+        std::set<PixelCenterAndPop> topCircles;
+        double largestPop = 0;
+        std::map<int, std::vector<int>> kernels;
+        std::unordered_set<std::pair<int, int>, intPairHash> alreadyChecked;
+        mostPopulousCirclesOfGivenRadiusPixelBoundaries(radius, PixelBoundaries{x, x, y, y}, 1,
+                                                        topCircles, largestPop, 0, kernels,
+                                                        100000000000, alreadyChecked, false);
+        return largestPop;
+    }
+
     CircleResult
     findNextLargestCity(const double radius, const std::vector<CircleResult> &largestCities,
                         const LatLonBoundaries &boundaries = LatLonBoundaries{-180, 180, 90, -90}) {
@@ -1448,6 +1466,48 @@ void findPercentCircles() {
     percentCirclesFile.close();
 }
 
+void findPop(double lat, double lon) {
+    std::cout << "Loading population summation table." << std::endl;
+    if (USE_2020_DATA) {
+        std::cout << "Using 2020 data." << std::endl;
+    } else {
+        std::cout << "Using 2015 data." << std::endl;
+    }
+    std::string sumTableFilename = "popSumTable.bin";
+    if (USE_2020_DATA) {
+        sumTableFilename = "popSumTable2020.bin";
+    }
+    RasterDataCircleFinder popData(sumTableFilename, "placeholder.txt");
+    std::cout << "Loaded population summation table." << std::endl;
+    if (!popData.previousResultsConsistent()) {
+        return;
+    }
+    int radius = 2;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 5;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 10;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 20;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 50;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 100;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 200;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 500;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 1000;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 2000;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 5000;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    radius = 10000;
+    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+}
+
 void findLargestCities(int radius) {
     std::cout << "Loading population summation table." << std::endl;
     if (USE_2020_DATA) {
@@ -1490,13 +1550,23 @@ void findLargestCities(int radius) {
     }
     largestCitiesFile.close();
     int rank = 1;
+    double smallestPopSoFar = std::numeric_limits<double>::max();
     for (; rank <= largestCities.size(); rank++) {
         std::cout << "\n" << rank << "th largest city:" << std::endl;
         std::cout << "Population within " << largestCities[rank - 1].radius << " km of ("
                   << largestCities[rank - 1].lat << ", " << largestCities[rank - 1].lon
                   << "): " << ((long)largestCities[rank - 1].pop) << std::endl;
+        if (largestCities[rank - 1].pop > smallestPopSoFar) {
+            std::cout << "WEE WOO WEE WOO INCONSISTENCY" << std::endl;
+            std::cout << "WEE WOO WEE WOO INCONSISTENCY" << std::endl;
+            std::cout << "WEE WOO WEE WOO INCONSISTENCY" << std::endl;
+            return;
+        } else {
+            smallestPopSoFar = largestCities[rank - 1].pop;
+        }
     }
-    for (; rank <= 40; rank++) {
+    auto t0 = std::chrono::system_clock::now();
+    for (; rank <= 40000; rank++) {
         std::cout << std::endl << "Now finding the " << rank << "th largest city." << std::endl;
         // WARNING: Can't yet touch antimeridian or poles
         CircleResult city =
@@ -1505,6 +1575,11 @@ void findLargestCities(int radius) {
         std::cout << rank << "th largest city:" << std::endl;
         std::cout << "Population within " << city.radius << " km of (" << city.lat << ", "
                   << city.lon << "): " << ((long)city.pop) << std::endl;
+        const auto t1 = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        std::cout << t1 << "\n\n\n";
+        const auto tn = std::chrono::system_clock::now();
+        std::cout << (std::chrono::duration_cast<std::chrono::seconds>(tn - t0).count() / 60) << "\n\n\n";
+        t0 = tn;
         std::fstream largestCitiesOFile;
         largestCitiesOFile.open(largestCitiesFilename);
         largestCitiesOFile.seekg(0, std::ios::end);
@@ -1513,6 +1588,14 @@ void findLargestCities(int radius) {
                            << city.lat << " " << city.lon << " " << city.pop << std::setprecision(6)
                            << std::endl;
         largestCitiesOFile.close();
+        if (largestCities[rank - 1].pop > smallestPopSoFar) {
+            std::cout << "WEE WOO WEE WOO INCONSISTENCY" << std::endl;
+            std::cout << "WEE WOO WEE WOO INCONSISTENCY" << std::endl;
+            std::cout << "WEE WOO WEE WOO INCONSISTENCY" << std::endl;
+            return;
+        } else {
+            smallestPopSoFar = largestCities[rank - 1].pop;
+        }
     }
 }
 
@@ -1555,12 +1638,15 @@ void makeGoogleMapsJavascript(int radius) {
 }
 
 void findLargestCitiesManyRadiuses() {
-    for (int radius = 70; radius <= 100; radius += 10) {
+    for (int radius = 45; radius <= 100; radius += 10) {
         findLargestCities(radius);
     }
 }
 
 int main() {
-    // makeGoogleMapsJavascript(60);
+    // makeGoogleMapsJavascript(45);
     findLargestCitiesManyRadiuses();
+    // double lat = 41.8816344;
+    // double lon = -87.6288451;
+    // findPop(lat, lon);
 }
