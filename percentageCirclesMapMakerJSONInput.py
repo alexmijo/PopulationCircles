@@ -1,7 +1,7 @@
 import rasterio
 import json
 
-for circleNum in range(321, 838):
+for circleNum in range(49, 141):
     circleToDraw = str(circleNum // 10) + "." + str(circleNum % 10)
     print(circleToDraw)
 
@@ -46,24 +46,26 @@ for circleNum in range(321, 838):
         5: (255, 180, 180),  # Light red
         0: (0, 0, 0),        # Black
         3: (97, 0, 0),       # Dark red
-        1: (128, 128, 128)   # Grey
+        1: (128, 128, 128),  # Grey
+        6: (0, 0, 255),      # Blue
+        7: (120, 120, 255),  # Light blue
+        8: (230, 230, 255)   # Very light blue
     }
 
-    colorsJSONFilename = "ColorsJSONFiles2020/colorsJSON" + circleToDraw + ".txt"
+    colorsJSONFilename = str(circleNum + 1) + ".txt" #"ColorsJSONFiles2020/colorsJSON" + circleToDraw + ".txt"
     colorsJSON = open(colorsJSONFilename, 'r')
     colors = json.load(colorsJSON)
     colorsJSON.close()
 
     for latPix in range(0, num_rows):
-        if latPix % 10 == 0 and printProgress:
+        if latPix % 100 == 0 and printProgress:
             print(latPix)
         for lonPix in range(0, num_cols):
             output1[latPix][lonPix] = cm[colors[latPix][lonPix]][0]
             output2[latPix][lonPix] = cm[colors[latPix][lonPix]][1]
             output3[latPix][lonPix] = cm[colors[latPix][lonPix]][2]
 
-    map = rasterio.open('/mnt/d/PopCirclesStuff/linuxPythonMadePercentMaps2020/'
-                        + circleToDraw + "PercentCircle.tif", 'w', driver=landTif.driver,
+    map = rasterio.open('/mnt/d/PopCirclesStuff/' + str(circleNum + 1) + '.tif', 'w', driver=landTif.driver,
                         height=landTif.height, width=landTif.width, count=3, dtype='uint8',
                         crs=landTif.crs, transform=landTif.transform)
     map.write(output1, indexes=1)

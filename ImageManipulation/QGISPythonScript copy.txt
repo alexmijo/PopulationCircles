@@ -1,0 +1,85 @@
+# Must be run in the QGIS3 Python console.
+
+# path to look for files
+path = "D:\\PopCirclesStuff\\reprojected\\"
+# set path
+dirs = os.listdir( path )
+# array for storing layer_names
+layer_list = []
+layer_id_list = []
+# variable for further processing
+count = 0
+layerNum = 0
+sstart = 50
+# look for files in path
+for fileNum in range(sstart,132):
+    file = str(fileNum) + ".tif"
+    #add rasterlayers
+    vlayer = iface.addRasterLayer(path + file, "layer" + str(layerNum))
+    layerNum += 1
+    layer_list.append(vlayer.name())
+    layer_id_list.append(vlayer)
+
+def prepareMap():
+    # make all layers invisible
+    iface.actionHideAllLayers().trigger()
+    # get layer by layer_name
+    layer_name = QgsProject.instance().mapLayersByName(layer_list[count])[0]
+    # select layer
+    iface.layerTreeView().setCurrentLayer(layer_name)
+    # set selected layer visible
+    iface.actionShowSelectedLayers().trigger()
+    # Wait a second and export the map
+    QTimer.singleShot(2300, exportMap)
+    
+def exportMap(): 
+    global count
+    
+    # create image
+    img = QImage(QSize(5000, 2500), QImage.Format_ARGB32_Premultiplied)
+
+    # set image's background color
+    color = QColor(255, 255, 255)
+    img.fill(color.rgb())
+
+    # create painter
+    p = QPainter()
+    p.begin(img)
+    p.setRenderHint(QPainter.Antialiasing)
+
+    mapSettings = QgsMapSettings() # first create the map settings, then pass to a renderer
+
+    # set layer set
+    mapSettings.setLayers([layer_id_list[count]]) # this takes a list of QgsMapLayer as input
+
+    # set extent
+    rect = QgsRectangle(mapSettings.fullExtent())
+    rect.scale(1)
+    mapSettings.setExtent(rect)
+
+    # set output size
+    mapSettings.setOutputSize(img.size()) # dpi is now set separately (you would use mapsettings.setDpi(), but it's not necessary here)
+
+    # do the rendering
+    render = QgsMapRendererCustomPainterJob(mapSettings, p) # takes the settings and painter as parameters
+    render.start()             # rendering is now asynchronous, so you could use threads here
+    render.waitForFinished()   # but we will block until it's finished
+    p.end()
+
+    # save image
+    img.save(path + "pngs\\" + str(count + sstart) + ".png", "png")
+    
+    #---------------------------------------------------------------------------
+    # save current view as image
+    #iface.mapCanvas().saveAsImage( path + "00a" + layer_list[count] + ".png" )
+    #---------------------------------------------------------------------------
+    # feedback for printed map
+    print('{}.png exported sucessfully'.format(layer_list[count]))
+    # get map for every layer in layer_list
+    if count < len(layer_list)-1:
+        # Wait a second and prepare next map (timer is needed because otherwise all images have the samec content 
+        # the script excecutes faster then the mapCanvas can be reloaded
+        QTimer.singleShot(2300, prepareMap) 
+    count += 1
+    
+exportMap()

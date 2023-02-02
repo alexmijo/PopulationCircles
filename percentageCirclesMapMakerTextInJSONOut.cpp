@@ -313,7 +313,7 @@ class EquirectRasterData {
         delete[] sumTable;
         for (std::map<int, double *>::iterator it = smallestCircleResults.begin();
              it != smallestCircleResults.end(); it++) {
-            delete[](it->second);
+            delete[] (it->second);
         }
     }
 
@@ -741,40 +741,91 @@ double lon(int x) { return (((double)x + 0.5) / (double)NUM_COLS) * 360.0 - 180.
 double lat(int y) { return -((((double)y + 0.5) / (double)NUM_ROWS) * 180.0 - 90.0); }
 
 // TODO: Spec
-void oldMain(double percent) {
-    double cenLat;
-    double cenLon;
-    double radius;
-    bool centerCoordsAndRadiusInitialized = false;
-
-    std::string foundPercentageCirclesFilename = "foundPercentageCircles2020.txt";
-    std::ifstream foundPercentageCircles;
-    foundPercentageCircles.open(foundPercentageCirclesFilename);
-    std::string percentageCircleString;
-    while (getline(foundPercentageCircles, percentageCircleString)) {
-        std::stringstream percentageCircleSS(percentageCircleString);
-        std::string percentString;
-        getline(percentageCircleSS, percentString, ' ');
-        if (std::abs(std::stod(percentString) - percent) < FLOAT_THRESHOLD) {
-            std::string radiusString;
-            // TODO: See how to get bool from these getlines to see if file is formatted correctly
-            getline(percentageCircleSS, radiusString, ' ');
-            radius = std::stoi(radiusString);
-            std::string lonString;
-            getline(percentageCircleSS, lonString, ' ');
-            cenLon = std::stod(lonString);
-            std::string latString;
-            getline(percentageCircleSS, latString, ' ');
-            cenLat = std::stod(latString);
-            centerCoordsAndRadiusInitialized = true;
-        }
-    }
-    foundPercentageCircles.close();
-    if (!centerCoordsAndRadiusInitialized) {
-        std::cout << "Desired percentage circle wasn't in " + foundPercentageCirclesFilename
-                  << std::endl;
+void oldMain(int whichOne) {
+    std::string colorsJSONFilename = std::to_string(whichOne) + ".txt";
+    double radius = 1000;
+    std::vector<double> centerLats = {27.7172, 28.613895, 23.763889, 27.472222, 39.906667, 33.693056, 39.019444, 37.56, 25.066667, 19.7475, 21.028333, 34.525278, 49.611667, 47.141, 46.948056, 48.2, 46.051389, 17.966667, 48.143889, 52.52, 50.0875, 50.846667, 52.372778, 43.731111, 48.856613, 45.816667, 47.4925, 9.066667, 43.9346,
+        6.497222,   44.817778,  51.507222,  43.856389,  38.536667,  6.131944,   33.886944,
+        55.676111,  42.5,       13.515,     33.513056,  52.23,      4.85,       35.1725,
+        -1.286389,  3.752064,   41.9025,    41.893333,  0.313611,   42.441286,  5.55,
+        31.949722,  -3.428333,  3.866667,   31.778889,  31.778889,  13.7525,    47.022778,
+        42.663333,  -1.943889,  39.93,      44.4325,    -6.173056,  33.315278,  42.7,
+        41.996111,  12.368611,  -6.175,     41.328889,  6.934444,   9.03,       54.687222,
+        53.9,       50.45,      15.322778,  40.181389,  11.569444,  30.044444,  11.588333,
+        38.904722,  1.283333,   56.948889,  0.336111,   41.7225,    35.689167,  41.311111,
+        6.816111,   53.35,      0.390278,   12.11,      40.416667,  29.369722,  36.753889,
+        37.984167,  40.395278,  36.806389,  35.689722,  12.639167,  19.433333,  3.147778,
+        55.755833,  -17.829167, 15.348333,  -13.983333, 45.424722,  -15.793889, 15.500556,
+        37.9375,    14.5958,    42.874722,  4.175278,   59.437222,  59.329444,  59.913333,
+        -15.416667, 34.020882,  60.170833,  26.225,     38.725267,  24.633333,  35.898333,
+        4.711111,   6.313333,   -25.746111, 8.484444,   9.509167,   -24.658056, -25.966667,
+        -26.416667, 25.286667,  14.613333,  -4.269444,  17.251389,  8.983333,   -4.325,
+        4.373333,   2.039167,   -11.699,    -29.31,     -25.3,      13.698889,  24.466667,
+        10.480556,  -0.22,      32.887222,  11.85,      14.1,       18.466667,  12.136389,
+        23.588889,  13.453056,  17.971389,  25.078056,  -34.603333, -8.838333,  -34.883611,
+        9.9325,     18.533333,  14.692778,  23.136667,  18.08581,   17.3,       -18.933333,
+        4.890278,   -12.06,     -33.45,     12.05,      10.666667,  51.166667,  15.301389,
+        13.157778,  17.116667,  14.016667,  -8.553611,  13.0975,    -19.0475,   47.920278,
+        14.918,     -35.293056, 6.805833,   -22.57,     -9.478889,  5.852222,   7.500556,
+        -20.164444, -41.288889, -21.133333, -9.431944,  -18.1416,   -17.733333, -13.833333,
+        64.146667,  -8.516667,  7.1167,     1.433333,   -0.5477,    -4.6167,    6.917222};
+    std::vector<double> centerLons = {85.324, 77.209006, 90.388889, 89.636111, 116.3975, 73.063889, 125.738056, 126.99, 121.516667, 96.115, 105.854167, 69.178333, 6.131944, 9.521, 7.4475, 16.366667, 14.506111, 102.6, 17.109722, 13.405, 14.421389, 4.3525, 4.893611, 7.42, 2.352222, 15.983333, 19.051389, 7.483333, 12.4473,
+        2.605,      20.456944,  -0.1275,    18.413056,  68.78,      1.222778,   35.513056,
+        12.568333,  1.5,        2.1175,     36.291944,  21.011111,  31.6,       33.365,
+        36.817222,  8.7737,     12.4525,    12.482778,  32.581111,  19.262892,  -0.2,
+        35.932778,  29.925,     11.516667,  35.225556,  35.225556,  100.494167, 28.835278,
+        21.162222,  30.059444,  32.85,      26.103889,  35.741944,  44.366111,  23.33,
+        21.431667,  -1.5275,    106.8275,   19.817778,  79.842778,  38.74,      25.28,
+        27.566667,  30.523333,  38.925,     44.514444,  104.921111, 31.235833,  43.145,
+        -77.016389, 103.833333, 24.106389,  6.730556,   44.7925,    51.388889,  69.279722,
+        -5.274167,  -6.260278,  9.454167,   15.05,      -3.7025,    47.978333,  3.058889,
+        23.728056,  49.882222,  10.181667,  139.692222, -8.002778,  -99.133333, 101.695278,
+        37.617222,  31.052222,  44.206389,  33.783333,  -75.695,    -47.882778, 32.56,
+        58.38,      120.9772,   74.612222,  73.508889,  24.745278,  18.068611,  10.738889,
+        28.283333,  -6.84165,   24.9375,    50.5775,    -9.150019,  46.716667,  14.5125,
+        -74.072222, -10.801389, 28.188056,  -13.234444, -13.712222, 25.912222,  32.583333,
+        31.166667,  51.533333,  -90.535278, 15.271389,  -88.766944, -79.516667, 15.322222,
+        18.562778,  45.341944,  43.256,     27.48,      -57.633333, -89.191389, 54.366667,
+        -66.903611, -78.5125,   13.191389,  -15.566667, -87.216667, -69.95,     -86.251389,
+        58.408333,  -16.5775,   -76.793056, -77.338611, -58.381667, 13.234444,  -56.181944,
+        -84.08,     -72.333333, -17.446667, -82.358889, -15.9785,   -62.733333, 47.516667,
+        114.942222, -77.0375,   -70.666667, -61.75,     -61.516667, 71.433333,  -61.388333,
+        -61.225,    -61.85,     -60.983333, 125.578333, -59.616667, -65.26,     106.917222,
+        -23.509,    149.126944, -58.150833, 17.083611,  147.149444, -55.203889, 134.624167,
+        57.504167,  174.777222, -175.2,     159.955556, 178.4419,   168.316667, -171.75,
+        -21.94,     179.2,      171.3667,   173,        166.920867, 55.45,      158.158889};
+    if (centerLats.size() != centerLons.size()) {
+        std::cout << "BADDDD" << std::endl;
         return;
     }
+    whichOne = centerLats.size() - whichOne;
+    // bool centerCoordsAndRadiusInitialized = false;
+
+    // std::string foundPercentageCirclesFilename = "foundPercentageCircles2020.txt";
+    // std::ifstream foundPercentageCircles;
+    // foundPercentageCircles.open(foundPercentageCirclesFilename);
+    // std::string percentageCircleString;
+    // while (getline(foundPercentageCircles, percentageCircleString)) {
+    //     std::stringstream percentageCircleSS(percentageCircleString);
+    //     std::string percentString;
+    //     getline(percentageCircleSS, percentString, ' ');
+    //     if (std::abs(std::stod(percentString) - percent) < FLOAT_THRESHOLD) {
+    //         std::string radiusString;
+    //         // TODO: See how to get bool from these getlines to see if file is formatted
+    //         correctly getline(percentageCircleSS, radiusString, ' '); radius =
+    //         std::stoi(radiusString); std::string lonString; getline(percentageCircleSS,
+    //         lonString, ' '); cenLon = std::stod(lonString); std::string latString;
+    //         getline(percentageCircleSS, latString, ' ');
+    //         cenLat = std::stod(latString);
+    //         centerCoordsAndRadiusInitialized = true;
+    //     }
+    // }
+    // foundPercentageCircles.close();
+    // if (!centerCoordsAndRadiusInitialized) {
+    //     std::cout << "Desired percentage circle wasn't in " + foundPercentageCirclesFilename
+    //               << std::endl;
+    //     return;
+    // }
 
     // TODO: Make a JSON-ize function for arrays, or find one
     // int output[NUM_ROWS][NUM_COLS];
@@ -783,9 +834,6 @@ void oldMain(double percent) {
     std::ifstream landNBorders;
     landNBorders.open(landNBordersFileName);
     std::ofstream colorsJSON;
-    std::string colorsJSONFilename =
-        "ColorsJSONFiles2020/colorsJSON" +
-        std::to_string(percent).substr(0, std::to_string(percent).size() - 5) + ".txt";
     colorsJSON.open(colorsJSONFilename);
     colorsJSON << "[";
     for (int r = 0; r < NUM_ROWS; r++) {
@@ -796,9 +844,10 @@ void oldMain(double percent) {
         getline(landNBorders, rString);
         colorsJSON << "[";
         for (int c = 0; c < NUM_COLS; c++) {
-            double distance = EquirectRasterData::distance(cenLat, cenLon, lat(r), lon(c));
+            double distance = EquirectRasterData::distance(centerLats[whichOne],
+                                                           centerLons[whichOne], lat(r), lon(c));
             char landOrBorder = rString.at(c);
-            if (distance <= 125 && distance <= radius) {
+            if (distance <= 60 && distance <= radius) {
                 // TODO: Make color int constants
                 // Dark red
                 colorsJSON << '3';
@@ -810,16 +859,35 @@ void oldMain(double percent) {
                     // Red
                     colorsJSON << '4';
                 } else {
-                    // Grey
-                    colorsJSON << '1';
+                    char toSend = '1'; // Grey
+                    for (int i = whichOne + 1; i < centerLats.size(); ++i) {
+                        double d = EquirectRasterData::distance(centerLats[i], centerLons[i],
+                                                                lat(r), lon(c));
+                        if (d <= 60 && d <= radius) {
+                            toSend = '6'; // Blue
+                        } else if (d <= radius) {
+                            if (toSend != '6') {
+                                toSend = '7'; // Light blue
+                            }
+                        }
+                    }
+
+                    colorsJSON << toSend;
                 }
             } else if (landOrBorder == '2') {
-                if (distance <= radius && distance > radius - 100) {
+                if (distance <= radius && distance > radius - 60) {
                     // Light red
                     colorsJSON << '5';
                 } else {
-                    // White
-                    colorsJSON << '2';
+                    char toSend = '2'; // White
+                    for (int i = whichOne + 1; i < centerLats.size(); ++i) {
+                        double d = EquirectRasterData::distance(centerLats[i], centerLons[i],
+                                                                lat(r), lon(c));
+                        if (d <= radius && d > radius - 60) {
+                            toSend = '8'; // Very light blue
+                        }
+                    }
+                    colorsJSON << toSend;
                 }
             } else {
                 std::cout << "Illegal LandOrBorder file!" << std::endl;
@@ -840,7 +908,14 @@ void oldMain(double percent) {
 }
 
 int main() {
-    for (double percent = 45.2; percent <= 83.7; percent += 0.1) {
-        oldMain(percent);
+    // Federated States of Micronesia
+    // oldMain(6.917222, 158.158889);
+    // Seychelles
+    for (int i = 177; i <= 197; ++i) {
+        oldMain(i);
     }
+    // Russia
+    // oldMain(55.755833, 37.617222);
+    // Nepal
+    // oldMain(27.7172, 85.324);
 }

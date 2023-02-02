@@ -19,7 +19,7 @@
 #include <chrono>
 
 // Uses 2015 population data if false.
-constexpr bool USE_2020_DATA = false;
+constexpr bool USE_2020_DATA = true;
 constexpr double WORLD_POP = USE_2020_DATA ? 7757982599.3135586 : 7346242908.863955;
 // See
 //  https://stackoverflow.com/questions/554063/how-do-i-print-a-double-value-with-full-precision-using-cout#comment99267684_554134
@@ -509,12 +509,19 @@ class RasterDataCircleFinder {
                     if (it == kernels.end()) {
                         if (step <= 4) {
                             kernel = makeKernel(1000, cenY, radius);
-                            // TODO: Deal with antimeridian and poles
                             maxEWExtent = maxEastWestExtent(kernel);
-                            boundingBox = PixelBoundaries{
-                                cenX - maxEWExtent, cenX + maxEWExtent,
-                                cenY + kernel[kernelIndex(0, 2)] + 1,
-                                cenY + kernel[kernelIndex(kernel.size() / KERNEL_WIDTH - 1, 3)]};
+                            if (cenX - maxEWExtent >= 0 && cenX + maxEWExtent < numCols) {
+                                // Doesn't cross the antimeridian
+                                boundingBox = PixelBoundaries{
+                                    cenX - maxEWExtent, cenX + maxEWExtent,
+                                    cenY + kernel[kernelIndex(0, 2)] + 1,
+                                    cenY + kernel[kernelIndex(kernel.size() / KERNEL_WIDTH - 1, 3)]};
+                            } else {
+                                boundingBox = PixelBoundaries{
+                                    cenX - maxEWExtent, cenX + maxEWExtent,
+                                    cenY + kernel[kernelIndex(0, 2)] + 1,
+                                    cenY + kernel[kernelIndex(kernel.size() / KERNEL_WIDTH - 1, 3)]};
+                            }
                         } else {
                             kernels[cenY] = makeKernel(1000, cenY, radius);
                             maxEWExtent = maxEastWestExtent(kernels[cenY]);
@@ -1466,10 +1473,10 @@ void findPercentCircles() {
     percentCirclesFile.close();
 }
 
-void findPop(double lat, double lon) {
-    std::cout << "Loading population summation table." << std::endl;
+void findPop(double lat, double lon, std::vector<std::string>& results, const std::string& cityName) {
+    //std::cout << "Loading population summation table." << std::endl;
     if (USE_2020_DATA) {
-        std::cout << "Using 2020 data." << std::endl;
+        //std::cout << "Using 2020 data." << std::endl;
     } else {
         std::cout << "Using 2015 data." << std::endl;
     }
@@ -1477,35 +1484,37 @@ void findPop(double lat, double lon) {
     if (USE_2020_DATA) {
         sumTableFilename = "popSumTable2020.bin";
     }
-    RasterDataCircleFinder popData(sumTableFilename, "placeholder.txt");
-    std::cout << "Loaded population summation table." << std::endl;
+    static RasterDataCircleFinder popData(sumTableFilename, "placeholder.txt");
+    //std::cout << "Loaded population summation table." << std::endl;
     if (!popData.previousResultsConsistent()) {
         return;
     }
-    int radius = 2;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 5;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 10;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 20;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 50;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 100;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 200;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 500;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 1000;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 2000;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 5000;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
-    radius = 10000;
-    std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // int radius = 2;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 5;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 10;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 20;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 50;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 100;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 200;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 500;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    int radius = 1000;
+    std::stringstream result;
+    result << lat << "~" << lon << "~" << ((long long)(popData.popWithinCircle(lat, lon, radius))) << "~" << cityName;
+    results.emplace_back(result.str());
+    // radius = 2000;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 5000;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
+    // radius = 10000;
+    // std::cout << "Pop within" << radius << " km of (" << lat << ", " << lon << "): " << ((long long)(popData.popWithinCircle(lat, lon, radius))) << std::endl;
 }
 
 void findLargestCities(int radius) {
@@ -1645,8 +1654,1000 @@ void findLargestCitiesManyRadiuses() {
 
 int main() {
     // makeGoogleMapsJavascript(45);
-    findLargestCitiesManyRadiuses();
-    // double lat = 41.8816344;
-    // double lon = -87.6288451;
-    // findPop(lat, lon);
+    // findLargestCitiesManyRadiuses();
+
+    std::vector<std::string> results;
+    std::string cityName;
+
+    cityName = "Moscow, Russia:";
+    double lat = 55.755833;
+    double lon = 37.617222;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Ottawa, Canada";
+    lat = 45.424722;
+    lon = -75.695;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Beijing, China";
+    lat = 39.906667;
+    lon = 116.3975;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Washington, D.C., USA";
+    lat = 38.904722;
+    lon = -77.016389;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Brasilia, Brazil";
+    lat = -15.793889;
+    lon = -47.882778;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Canberra, Australia";
+    lat = -35.293056;
+    lon = 149.126944;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "New Delhi, India";
+    lat = 28.613895;
+    lon = 77.209006;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Buenos Aires, Argentina";
+    lat = -34.603333;
+    lon = -58.381667;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Astana, Kazakhstan";
+    lat = 51.166667;
+    lon = 71.433333;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Algiers, Algeria";
+    lat = 36.753889;
+    lon = 3.058889;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Kinshasa, Democratic Republic of the Congo";
+    lat = -4.325;
+    lon = 15.322222;
+    findPop(lat, lon, results, cityName);
+
+    cityName = "Copenhagen, Denmark";
+    lat = 55.676111;
+    lon = 12.568333;
+    findPop(lat, lon, results, cityName);
+
+    lat = 24.633333;
+    lon = 46.716667;
+    cityName = "Riyadh, Saudi Arabia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 19.433333;
+    lon = -99.133333;
+    cityName = "Mexico City, Mexico";
+    findPop(lat, lon, results, cityName);
+
+    lat = -6.175;
+    lon = 106.8275;
+    cityName = "Jakarta, Indonesia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 15.500556;
+    lon = 32.56;
+    cityName = "Khartoum, Sudan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 32.887222;
+    lon = 13.191389;
+    cityName = "Tripoli, Libya";
+    findPop(lat, lon, results, cityName);
+
+    lat = 35.689167;
+    lon = 51.388889;
+    cityName = "Tehran, Iran";
+    findPop(lat, lon, results, cityName);
+
+    lat = 47.920278;
+    lon = 106.917222;
+    cityName = "Ulaanbaatar, Mongolia";
+    findPop(lat, lon, results, cityName);
+
+    lat = -12.06;
+    lon = -77.0375;
+    cityName = "Lima, Peru";
+    findPop(lat, lon, results, cityName);
+
+    lat = 12.11;
+    lon = 15.05;
+    cityName = "N'Djamena, Chad";
+    findPop(lat, lon, results, cityName);
+
+    lat = 13.515;
+    lon = 2.1175;
+    cityName = "Niamey, Niger";
+    findPop(lat, lon, results, cityName);
+
+    lat = -8.838333;
+    lon = 13.234444;
+    cityName = "Luanda, Angola";
+    findPop(lat, lon, results, cityName);
+
+    lat = 12.639167;
+    lon = -8.002778;
+    cityName = "Bamako, Mali";
+    findPop(lat, lon, results, cityName);
+
+    lat = -25.746111;
+    lon = 28.188056;
+    cityName = "Pretoria, South Africa";
+    findPop(lat, lon, results, cityName);
+
+    lat = 4.711111;
+    lon = -74.072222;
+    cityName = "Bogota, Colombia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 9.03;
+    lon = 38.74;
+    cityName = "Addis Ababa, Ethiopia";
+    findPop(lat, lon, results, cityName);
+
+    lat = -19.0475;
+    lon = -65.26;
+    cityName = "Sucre, Bolivia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 18.08581;
+    lon = -15.9785;
+    cityName = "Nouakchott, Mauritania";
+    findPop(lat, lon, results, cityName);
+
+    lat = 30.044444;
+    lon = 31.235833;
+    cityName = "Cairo, Egypt";
+    findPop(lat, lon, results, cityName);
+
+    lat = -6.173056;
+    lon = 35.741944;
+    cityName = "Dodoma, Tanzania";
+    findPop(lat, lon, results, cityName);
+
+    lat = 9.066667;
+    lon = 7.483333;
+    cityName = "Abuja, Nigeria";
+    findPop(lat, lon, results, cityName);
+
+    lat = 10.480556;
+    lon = -66.903611;
+    cityName = "Caracas, Venezuela";
+    findPop(lat, lon, results, cityName);
+
+    lat = 33.693056;
+    lon = 73.063889;
+    cityName = "Islamabad, Pakistan";
+    findPop(lat, lon, results, cityName);
+
+    lat = -22.57;
+    lon = 17.083611;
+    cityName = "Windhoek, Namibia";
+    findPop(lat, lon, results, cityName);
+
+    lat = -25.966667;
+    lon = 32.583333;
+    cityName = "Maputo, Mozambique";
+    findPop(lat, lon, results, cityName);
+
+    lat = 39.93;
+    lon = 32.85;
+    cityName = "Ankara, Turkey";
+    findPop(lat, lon, results, cityName);
+
+    lat = -33.45;
+    lon = -70.666667;
+    cityName = "Santiago, Chile";
+    findPop(lat, lon, results, cityName);
+
+    lat = -15.416667;
+    lon = 28.283333;
+    cityName = "Lusaka, Zambia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 19.7475;
+    lon = 96.115;
+    cityName = "Naypyidaw, Myanmar";
+    findPop(lat, lon, results, cityName);
+
+    lat = 34.525278;
+    lon = 69.178333;
+    cityName = "Kabul, Afghanistan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 4.85;
+    lon = 31.6;
+    cityName = "Juba, South Sudan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 48.856613;
+    lon = 2.352222;
+    cityName = "Paris, France";
+    findPop(lat, lon, results, cityName);
+
+    lat = 2.039167;
+    lon = 45.341944;
+    cityName = "Mogadishu, Somalia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 4.373333;
+    lon = 18.562778;
+    cityName = "Bangui, Central African Republic";
+    findPop(lat, lon, results, cityName);
+
+    lat = 50.45;
+    lon = 30.523333;
+    cityName = "Kyiv, Ukraine";
+    findPop(lat, lon, results, cityName);
+
+    lat = -18.933333;
+    lon = 47.516667;
+    cityName = "Antananarivo, Madagascar";
+    findPop(lat, lon, results, cityName);
+
+    lat = -24.658056;
+    lon = 25.912222;
+    cityName = "Gaborone, Botswana";
+    findPop(lat, lon, results, cityName);
+
+    lat = -1.286389;
+    lon = 36.817222;
+    cityName = "Nairobi, Kenya";
+    findPop(lat, lon, results, cityName);
+
+    lat = 15.348333;
+    lon = 44.206389;
+    cityName = "Sanaa, Yemen";
+    findPop(lat, lon, results, cityName);
+
+    lat = 13.7525;
+    lon = 100.494167;
+    cityName = "Bangkok, Thailand";
+    findPop(lat, lon, results, cityName);
+
+    lat = 40.416667;
+    lon = -3.7025;
+    cityName = "Madrid, Spain";
+    findPop(lat, lon, results, cityName);
+
+    lat = 37.9375;
+    lon = 58.38;
+    cityName = "Ashgabat, Turkmenistan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 3.866667;
+    lon = 11.516667;
+    cityName = "Yaounde, Cameroon";
+    findPop(lat, lon, results, cityName);
+
+    lat = -9.478889;
+    lon = 147.149444;
+    cityName = "Port Moresby, Papua New Guinea";
+    findPop(lat, lon, results, cityName);
+
+    lat = 59.329444;
+    lon = 18.068611;
+    cityName = "Stockholm, Sweden";
+    findPop(lat, lon, results, cityName);
+
+    lat = 41.311111;
+    lon = 69.279722;
+    cityName = "Tashkent, Uzbekistan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 34.020882;
+    lon = -6.84165;
+    cityName = "Rabat, Morocco";
+    findPop(lat, lon, results, cityName);
+
+    lat = 33.315278;
+    lon = 44.366111;
+    cityName = "Baghdad, Iraq";
+    findPop(lat, lon, results, cityName);
+
+    lat = -25.3;
+    lon = -57.633333;
+    cityName = "Asuncion, Paraguay";
+    findPop(lat, lon, results, cityName);
+
+    lat = -17.829167;
+    lon = 31.052222;
+    cityName = "Harare, Zimbabwe";
+    findPop(lat, lon, results, cityName);
+
+    lat = 59.913333;
+    lon = 10.738889;
+    cityName = "Oslo, Norway";
+    findPop(lat, lon, results, cityName);
+
+    lat = 35.689722;
+    lon = 139.692222;
+    cityName = "Tokyo, Japan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 52.52;
+    lon = 13.405;
+    cityName = "Berlin, Germany";
+    findPop(lat, lon, results, cityName);
+
+    lat = -4.269444;
+    lon = 15.271389;
+    cityName = "Brazzaville Republic of the Congo";
+    findPop(lat, lon, results, cityName);
+
+    lat = 60.170833;
+    lon = 24.9375;
+    cityName = "Helsinki, Finland";
+    findPop(lat, lon, results, cityName);
+
+    lat = 21.028333;
+    lon = 105.854167;
+    cityName = "Hanoi, Vietnam";
+    findPop(lat, lon, results, cityName);
+
+    lat = 3.147778;
+    lon = 101.695278;
+    cityName = "Kuala Lumpur, Malaysia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 6.816111;
+    lon = -5.274167;
+    cityName = "Yamoussoukro, Ivory Coast";
+    findPop(lat, lon, results, cityName);
+
+    lat = 52.23;
+    lon = 21.011111;
+    cityName = "Warsaw, Poland";
+    findPop(lat, lon, results, cityName);
+
+    lat = 23.588889;
+    cityName = "Muscat, Oman";
+    lon = 58.408333;
+    findPop(lat, lon, results, cityName);
+
+    lat = 41.893333;
+    lon = 12.482778;
+    cityName = "Rome, Italy";
+    findPop(lat, lon, results, cityName);
+
+    lat = 14.5958;
+    lon = 120.9772;
+    cityName = "Manila, Philippines";
+    findPop(lat, lon, results, cityName);
+
+    lat = -0.22;
+    lon = -78.5125;
+    cityName = "Quito, Ecuador";
+    findPop(lat, lon, results, cityName);
+
+    lat = 12.368611;
+    lon = -1.5275;
+    cityName = "Ouagadougou, Burkina Faso";
+    findPop(lat, lon, results, cityName);
+
+    lat = -41.288889;
+    lon = 174.777222;
+    cityName = "Wellington, New Zealand";
+    findPop(lat, lon, results, cityName);
+
+    lat = 0.390278;
+    lon = 9.454167;
+    cityName = "Libreville, Gabon";
+    findPop(lat, lon, results, cityName);
+
+    lat = 9.509167;
+    lon = -13.712222;
+    cityName = "Conakry, Guinea";
+    findPop(lat, lon, results, cityName);
+
+    lat = 51.507222;
+    lon = -0.1275;
+    cityName = "London, UK";
+    findPop(lat, lon, results, cityName);
+
+    lat = 0.313611;
+    lon = 32.581111;
+    cityName = "Kampala, Uganda";
+    findPop(lat, lon, results, cityName);
+
+    lat = 5.55;
+    lon = -0.2;
+    cityName = "Accra, Ghana";
+    findPop(lat, lon, results, cityName);
+
+    lat = 44.4325;
+    lon = 26.103889;
+    cityName = "Bucharest, Romania";
+    findPop(lat, lon, results, cityName);
+
+    lat = 17.966667;
+    lon = 102.6;
+    cityName = "Vientiane, Laos";
+    findPop(lat, lon, results, cityName);
+
+    lat = 6.805833;
+    lon = -58.150833;
+    cityName = "Georgetown, Guyana";
+    findPop(lat, lon, results, cityName);
+
+    lat = 53.9;
+    lon = 27.566667;
+    cityName = "Minsk, Belarus";
+    findPop(lat, lon, results, cityName);
+
+    lat = 42.874722;
+    lon = 74.612222;
+    cityName = "Bishkek, Kyrgyzstan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 14.692778;
+    lon = -17.446667;
+    cityName = "Dakar, Senegal";
+    findPop(lat, lon, results, cityName);
+
+    lat = 33.513056;
+    lon = 36.291944;
+    cityName = "Damascus, Syria";
+    findPop(lat, lon, results, cityName);
+
+    lat = 11.569444;
+    lon = 104.921111;
+    cityName = "Phnom Penh, Cambodia";
+    findPop(lat, lon, results, cityName);
+
+    lat = -34.883611;
+    lon = -56.181944;
+    cityName = "Montevideo, Uruguay";
+    findPop(lat, lon, results, cityName);
+
+    lat = 5.852222;
+    lon = -55.203889;
+    cityName = "Paramaribo, Suriname";
+    findPop(lat, lon, results, cityName);
+
+    lat = 36.806389;
+    lon = 10.181667;
+    cityName = "Tunis, Tunisia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 23.763889;
+    lon = 90.388889;
+    cityName = "Dhaka, Bangladesh";
+    findPop(lat, lon, results, cityName);
+
+    lat = 27.7172;
+    lon = 85.324;
+    cityName = "Kathmandu, Nepal";
+    findPop(lat, lon, results, cityName);
+
+    lat = 38.536667;
+    lon = 68.78;
+    cityName = "Dushanbe, Tajikistan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 37.984167;
+    lon = 23.728056;
+    cityName = "Athens, Greece";
+    findPop(lat, lon, results, cityName);
+
+    lat = 12.136389;
+    lon = -86.251389;
+    cityName = "Managua, Nicaragua";
+    findPop(lat, lon, results, cityName);
+
+    lat = 15.322778;
+    lon = 38.925;
+    cityName = "Asmara, Eritrea";
+    findPop(lat, lon, results, cityName);
+
+    lat = 39.019444;
+    lon = 125.738056;
+    cityName = "Pyongyang, North Korea";
+    findPop(lat, lon, results, cityName);
+
+    lat = -13.983333;
+    lon = 33.783333;
+    cityName = "Lilongwe, Malawi";
+    findPop(lat, lon, results, cityName);
+
+    lat = 6.497222;
+    lon = 2.605;
+    cityName = "Porto-Novo, Benin";
+    findPop(lat, lon, results, cityName);
+
+    lat = 14.1;
+    lon = -87.216667;
+    cityName = "Tegucigalpa, Honduras";
+    findPop(lat, lon, results, cityName);
+
+    lat = 6.313333;
+    lon = -10.801389;
+    cityName = "Monrovia, Liberia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 42.7;
+    lon = 23.33;
+    cityName = "Sofia, Bulgaria";
+    findPop(lat, lon, results, cityName);
+
+    lat = 23.136667;
+    lon = -82.358889;
+    cityName = "Havana, Cuba";
+    findPop(lat, lon, results, cityName);
+
+    lat = 14.613333;
+    lon = -90.535278;
+    cityName = "Guatemala City, Guatemala";
+    findPop(lat, lon, results, cityName);
+
+    lat = 64.146667;
+    lon = -21.94;
+    cityName = "Reykjavik, Iceland";
+    findPop(lat, lon, results, cityName);
+
+    lat = 37.56;
+    lon = 126.99;
+    cityName = "Seoul, South Korea";
+    findPop(lat, lon, results, cityName);
+
+    lat = 47.4925;
+    lon = 19.051389;
+    cityName = "Budapest, Hungary";
+    findPop(lat, lon, results, cityName);
+
+    lat = 38.725267;
+    lon = -9.150019;
+    cityName = "Lisbon, Portugal";
+    findPop(lat, lon, results, cityName);
+
+    lat = 31.949722;
+    lon = 35.932778;
+    cityName = "Amman, Jordan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 44.817778;
+    lon = 20.456944;
+    cityName = "Belgrade, Serbia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 40.395278;
+    lon = 49.882222;
+    cityName = "Baku, Azerbaijan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 48.2;
+    lon = 16.366667;
+    cityName = "Vienna, Austria";
+    findPop(lat, lon, results, cityName);
+
+    lat = 24.466667;
+    lon = 54.366667;
+    cityName = "Abu Dhabi, United Arab Emirates";
+    findPop(lat, lon, results, cityName);
+
+    lat = 50.0875;
+    lon = 14.421389;
+    cityName = "Prague, Czechia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 8.983333;
+    lon = -79.516667;
+    cityName = "Panama City, Panama";
+    findPop(lat, lon, results, cityName);
+
+    lat = 8.484444;
+    lon = -13.234444;
+    cityName = "Freetown, Sierra Leone";
+    findPop(lat, lon, results, cityName);
+
+    lat = 53.35;
+    lon = -6.260278;
+    cityName = "Dublin, Ireland";
+    findPop(lat, lon, results, cityName);
+
+    lat = 41.7225;
+    lon = 44.7925;
+    cityName = "Tbilisi, Georgia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 6.934444;
+    lon = 79.842778;
+    cityName = "Colombo, Sri Lanka";
+    findPop(lat, lon, results, cityName);
+
+    lat = 54.687222;
+    lon = 25.28;
+    cityName = "Vilnius, Lithuania";
+    findPop(lat, lon, results, cityName);
+
+    lat = 56.948889;
+    lon = 24.106389;
+    cityName = "Riga, Latvia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 6.131944;
+    lon = 1.222778;
+    cityName = "Lome, Togo";
+    findPop(lat, lon, results, cityName);
+
+    lat = 45.816667;
+    lon = 15.983333;
+    cityName = "Zagreb, Croatia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 43.856389;
+    lon = 18.413056;
+    cityName = "Sarajevo, Bosnia and Herzegovina";
+    findPop(lat, lon, results, cityName);
+
+    lat = 9.9325;
+    lon = -84.08;
+    cityName = "San Jose, Costa Rica";
+    findPop(lat, lon, results, cityName);
+
+    lat = 48.143889;
+    lon = 17.109722;
+    cityName = "Bratislava, Slovakia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 18.466667;
+    lon = -69.95;
+    cityName = "Santo Domingo, Dominican Republic";
+    findPop(lat, lon, results, cityName);
+
+    lat = 59.437222;
+    lon = 24.745278;
+    cityName = "Tallinn, Estonia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 52.372778;
+    lon = 4.893611;
+    cityName = "Amsterdam, Netherlands";
+    findPop(lat, lon, results, cityName);
+
+    lat = 46.948056;
+    lon = 7.4475;
+    cityName = "Bern, Switzerland";
+    findPop(lat, lon, results, cityName);
+
+    lat = 27.472222;
+    lon = 89.636111;
+    cityName = "Thimphu, Bhutan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 25.066667;
+    lon = 121.516667;
+    cityName = "Taipei, Taiwan";
+    findPop(lat, lon, results, cityName);
+
+    lat = 11.85;
+    lon = -15.566667;
+    cityName = "Bissau, Guinea-Bissau";
+    findPop(lat, lon, results, cityName);
+
+    lat = 47.022778;
+    lon = 28.835278;
+    cityName = "Chisinau, Moldova";
+    findPop(lat, lon, results, cityName);
+
+    lat = 50.846667;
+    lon = 4.3525;
+    cityName = "Brussels, Belgium";
+    findPop(lat, lon, results, cityName);
+
+    lat = -29.31;
+    lon = 27.48;
+    cityName = "Maseru, Lesotho";
+    findPop(lat, lon, results, cityName);
+
+    lat = 40.181389;
+    lon = 44.514444;
+    cityName = "Yerevan, Armenia";
+    findPop(lat, lon, results, cityName);
+
+    lat = -9.431944;
+    lon = 159.955556;
+    cityName = "Honiara, Solomon Islands";
+    findPop(lat, lon, results, cityName);
+
+    lat = 41.328889;
+    lon = 19.817778;
+    cityName = "Tirana, Albania";
+    findPop(lat, lon, results, cityName);
+
+    lat = 3.752064;
+    lon = 8.7737;
+    cityName = "Malabo, Equitorial Guinea";
+    findPop(lat, lon, results, cityName);
+
+    lat = -3.428333;
+    lon = 29.925;
+    cityName = "Gitega, Burundi";
+    findPop(lat, lon, results, cityName);
+
+    lat = 18.533333;
+    lon = -72.333333;
+    cityName = "Port-au-Prince, Haiti";
+    findPop(lat, lon, results, cityName);
+
+    lat = -1.943889;
+    lon = 30.059444;
+    cityName = "Kigali, Rwanda";
+    findPop(lat, lon, results, cityName);
+
+    lat = 41.996111;
+    lon = 21.431667;
+    cityName = "Skopje, North Macedonia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 11.588333;
+    lon = 43.145;
+    cityName = "Djibouti City, Djibouti";
+    findPop(lat, lon, results, cityName);
+
+    lat = 17.251389;
+    lon = -88.766944;
+    cityName = "Belmopan, Belize";
+    findPop(lat, lon, results, cityName);
+
+    lat = 13.698889;
+    lon = -89.191389;
+    cityName = "San Salvador, El Salvador";
+    findPop(lat, lon, results, cityName);
+
+    lat = 31.778889;
+    lon = 35.225556;
+    cityName = "Jerusalem, Israel";
+    findPop(lat, lon, results, cityName);
+
+    lat = 46.051389;
+    lon = 14.506111;
+    cityName = "Ljubljana, Slovenia";
+    findPop(lat, lon, results, cityName);
+
+    lat = -18.1416;
+    lon = 178.4419;
+    cityName = "Suva, Fiji";
+    findPop(lat, lon, results, cityName);
+
+    lat = 29.369722;
+    lon = 47.978333;
+    cityName = "Kuwait City, Kuwait";
+    findPop(lat, lon, results, cityName);
+
+    lat = -26.416667;
+    lon = 31.166667;
+    cityName = "Lobamba, Eswatini";
+    findPop(lat, lon, results, cityName);
+
+    lat = -8.553611;
+    lon = 125.578333;
+    cityName = "Dili, East Timor";
+    findPop(lat, lon, results, cityName);
+
+    lat = 25.078056;
+    lon = -77.338611;
+    cityName = "Nassau, Bahamas";
+    findPop(lat, lon, results, cityName);
+
+    lat = 42.441286;
+    lon = 19.262892;
+    cityName = "Podgorica, Montenegro";
+    findPop(lat, lon, results, cityName);
+
+    lat = -17.733333;
+    lon = 168.316667;
+    cityName = "Port Vila, Vanuatu";
+    findPop(lat, lon, results, cityName);
+
+    lat = 25.286667;
+    lon = 51.533333;
+    cityName = "Doha, Qatar";
+    findPop(lat, lon, results, cityName);
+
+    lat = 13.453056;
+    lon = -16.5775;
+    cityName = "Banjul, Gambia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 17.971389;
+    lon = -76.793056;
+    cityName = "Kingston, Jamaica";
+    findPop(lat, lon, results, cityName);
+
+    lat = 42.663333;
+    lon = 21.162222;
+    cityName = "Pristina, Kosovo";
+    findPop(lat, lon, results, cityName);
+
+    lat = 33.886944;
+    lon = 35.513056;
+    cityName = "Beirut, Lebanon";
+    findPop(lat, lon, results, cityName);
+
+    lat = 35.1725;
+    lon = 33.365;
+    cityName = "Nicosia, Cyprus";
+    findPop(lat, lon, results, cityName);
+
+    lat = 31.778889;
+    lon = 35.225556;
+    cityName = "Jerusalem, Palestine";
+    findPop(lat, lon, results, cityName);
+
+    lat = 4.890278;
+    lon = 114.942222;
+    cityName = "Bandar Seri Begawan, Brunei";
+    findPop(lat, lon, results, cityName);
+
+    lat = 10.666667;
+    lon = -61.516667;
+    cityName = "Port of Spain, Trinidad and Tobago";
+    findPop(lat, lon, results, cityName);
+
+    lat = 14.918;
+    lon = -23.509;
+    cityName = "Praia, Cape Verde";
+    findPop(lat, lon, results, cityName);
+
+    lat = -13.833333;
+    lon = -171.75;
+    cityName = "Apia, Samoa";
+    findPop(lat, lon, results, cityName);
+
+    lat = 49.611667;
+    lon = 6.131944;
+    cityName = "Luxembourg City, Luxembourg";
+    findPop(lat, lon, results, cityName);
+
+    lat = -20.164444;
+    lon = 57.504167;
+    cityName = "Port Louis, Mauritius";
+    findPop(lat, lon, results, cityName);
+
+    lat = -11.699;
+    lon = 43.256;
+    cityName = "Moroni, Comoros";
+    findPop(lat, lon, results, cityName);
+
+    lat = 0.336111;
+    lon = 6.730556;
+    cityName = "Sao Tome, Sao Tome and Principe";
+    findPop(lat, lon, results, cityName);
+
+    lat = 1.433333;
+    lon = 173;
+    cityName = "South Tarawa, Kiribati";
+    findPop(lat, lon, results, cityName);
+
+    lat = 26.225;
+    lon = 50.5775;
+    cityName = "Manama, Bahrain";
+    findPop(lat, lon, results, cityName);
+
+    lat = 15.301389;
+    lon = -61.388333;
+    cityName = "Roseau, Dominica";
+    findPop(lat, lon, results, cityName);
+
+    lat = -21.133333;
+    lon = -175.2;
+    cityName = "Nuku'alofa, Tonga";
+    findPop(lat, lon, results, cityName);
+
+    lat = 1.283333;
+    lon = 103.833333;
+    cityName = "Singapore";
+    findPop(lat, lon, results, cityName);
+
+    lat = 6.917222;
+    lon = 158.158889;
+    cityName = "Palikir, Federated States of Micronesia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 14.016667;
+    lon = -60.983333;
+    cityName = "Castries, Saint Lucia";
+    findPop(lat, lon, results, cityName);
+
+    lat = 42.5;
+    lon = 1.5;
+    cityName = "Andorra la Vella, Andorra";
+    findPop(lat, lon, results, cityName);
+
+    lat = 7.500556;
+    lon = 134.624167;
+    cityName = "Ngerulmud, Palau";
+    findPop(lat, lon, results, cityName);
+
+    lat = -4.6167;
+    lon = 55.45;
+    cityName = "Victoria, Seychelles";
+    findPop(lat, lon, results, cityName);
+
+    lat = 17.116667;
+    lon = -61.85;
+    cityName = "St. John's, Antigua and Barbuda";
+    findPop(lat, lon, results, cityName);
+
+    lat = 13.0975;
+    lon = -59.616667;
+    cityName = "Bridgetown, Barbados";
+    findPop(lat, lon, results, cityName);
+
+    lat = 13.157778;
+    lon = -61.225;
+    cityName = "Kingstown, Saint Vincent and the Grenadines";
+    findPop(lat, lon, results, cityName);
+
+    lat = 12.05;
+    lon = -61.75;
+    cityName = "St. George's, Grenada";
+    findPop(lat, lon, results, cityName);
+
+    lat = 35.898333;
+    lon = 14.5125;
+    cityName = "Valletta, Malta";
+    findPop(lat, lon, results, cityName);
+
+    lat = 4.175278;
+    lon = 73.508889;
+    cityName = "Male, Maldives";
+    findPop(lat, lon, results, cityName);
+
+    lat = 17.3;
+    lon = -62.733333;
+    cityName = "Basseterre, Saint Kitts and Nevis";
+    findPop(lat, lon, results, cityName);
+
+    lat = 7.1167;
+    lon = 171.3667;
+    cityName = "Delap-Uliga-Djarrit, Marshall Islands";
+    findPop(lat, lon, results, cityName);
+
+    lat = 47.141;
+    lon = 9.521;
+    cityName = "Vaduz, Liechtenstein";
+    findPop(lat, lon, results, cityName);
+
+    lat = 43.9346;
+    lon = 12.4473;
+    cityName = "City of San Marino, San Marino";
+    findPop(lat, lon, results, cityName);
+
+    lat = -8.516667;
+    lon = 179.2;
+    cityName = "Funafuti, Tuvalu";
+    findPop(lat, lon, results, cityName);
+
+    lat = -0.5477;
+    lon = 166.920867;
+    cityName = "Yaren District, Nauru";
+    findPop(lat, lon, results, cityName);
+
+    lat = 43.731111;
+    lon = 7.42;
+    cityName = "Monaco";
+    findPop(lat, lon, results, cityName);
+
+    lat = 41.9025;
+    lon = 12.4525;
+    cityName = "Vatican City";
+    findPop(lat, lon, results, cityName);
+
+    std::ofstream test;
+    test.open("bigBoris.txt");
+    for (const auto& resulte : results) {
+        test << resulte << std::endl;
+    }
+    test.close();
 }
