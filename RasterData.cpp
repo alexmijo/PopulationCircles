@@ -40,13 +40,11 @@ class RasterData {
     // Get the latitude and longitude of the center of a pixel.
     Location pixelToLocation(Pixel p) const { return {lat(p.y), lon(p.x)}; }
 
-    // TODO: Test if these are actually correct inverses!
-
     // Get the column containing a longitude.
     int lonToX(double lon) const { return ((lon + 180.0) / 360.0) * numCols; }
 
     // Get the row containing a lattitude.
-    int latToY(double lat) const { return ((-lat + 90.0) / 180.0) * height; }
+    int latToY(double lat) const { return ((lat + 90.0) / 180.0) * height; }
 
     // Get the pixel containing a location.
     Pixel locationToPixel(Location loc) const { return {lonToX(loc.lon), latToY(loc.lat)}; }
