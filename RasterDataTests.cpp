@@ -1,4 +1,6 @@
 #include "RasterData.cpp"
+#include "Utility.h"
+#include "fmt-9.1.0/include/fmt/format.h"
 #include <chrono>
 #include <iostream>
 
@@ -16,21 +18,26 @@ class RasterDataTests {
             const double lon = rd.lon(x);
             const int lonToXResult = rd.lonToX(lon);
             if (lonToXResult != x) {
-                std::cout << "x: " << x << "\n";
-                std::cout << "lon: " << lon << "\n";
-                std::cout << "lonToXResult: " << lonToXResult << "\n";
+                utils::printLine(fmt::format("{} - x: {}, lon: {}, lonToXResult: {}", kFunctionName,
+                                             x, lon, lonToXResult));
+                return false;
             }
         }
+        return true;
     }
 
     bool inversesTestYLat() {
+        static const std::string kFunctionName{"inversesTestYLat"};
         for (int y = 0; y < kNumRows; y += 600) {
-            std::cout << "y: " << y << "\n";
-            const auto lat = rd.lat(y);
-            std::cout << "lat: " << lat << "\n";
-            const auto latToYResult = rd.latToY(lat);
-            std::cout << "latToYResult: " << latToYResult << "\n";
+            const double lat = rd.lat(y);
+            const int latToYResult = rd.latToY(lat);
+            if (latToYResult != y) {
+                utils::printLine(fmt::format("{} - y: {}, lat: {}, latToYResult: {}", kFunctionName,
+                                             y, lat, latToYResult));
+                return false;
+            }
         }
+        return true;
     }
 
   private:
@@ -38,6 +45,8 @@ class RasterDataTests {
 };
 
 int main() {
-    std::string sumTableFilename = "popSumTable2020.bin";
-    RasterData rd(sumTableFilename);
+    const std::string sumTableFilename = "popSumTable2020.bin";
+    RasterDataTests rdTests(sumTableFilename);
+    rdTests.inversesTestXLon();
+    rdTests.inversesTestYLat();
 }
