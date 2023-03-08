@@ -6,13 +6,14 @@
 #include <memory>
 #include <vector>
 
-constexpr int k30ArcSecsPerDegree = 2 * 60;
-constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
-constexpr int kNumRows = 180 * k30ArcSecsPerDegree;
+// constexpr int k30ArcSecsPerDegree = 2 * 60;
+// constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
+// constexpr int kNumRows = 180 * k30ArcSecsPerDegree;
 
 class RasterDataTests {
   public:
     RasterDataTests(const std::string &sumTableFilename) : rd(sumTableFilename) {}
+    RasterDataTests() {}
 
     bool inversesTestXLon() {
         static const std::string kFunctionName{"inversesTestXLon"};
@@ -71,15 +72,27 @@ class RasterDataTests {
 };
 
 int main() {
-    const std::string sumTableFilename = "popSumTable2020.bin";
-    RasterDataTests rdTests(sumTableFilename);
-    if (rdTests.runTests()) {
-        utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+    // const std::string sumTableFilename = "popSumTable2020.bin";
+    // RasterDataTests rdTests(sumTableFilename);
+    // if (rdTests.runTests()) {
+    //     utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+    //     // utils::printLine(fmt::format("Passed {} tests", rdTests.numTestsRun()));
+    // } else {
+    //     utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+    //                      std::to_string(rdTests.numTestsRun()) + " tests");
+    //     // utils::printLine(
+    //     //     fmt::format("Failed {}/{} tests", rdTests.numTestsFailed() /
+    //     rdTests.numTestsRun()));
+    // }
+
+    RasterDataTests rdTests2;
+    if (rdTests2.runTests()) {
+        utils::printLine("Passed " + std::to_string(rdTests2.numTestsRun()) + " tests");
         // utils::printLine(fmt::format("Passed {} tests", rdTests.numTestsRun()));
     } else {
-        utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
-                         std::to_string(rdTests.numTestsRun()) + " tests");
-        // utils::printLine(
-        //     fmt::format("Failed {}/{} tests", rdTests.numTestsFailed() / rdTests.numTestsRun()));
+        utils::printLine("Failed " + std::to_string(rdTests2.numTestsFailed()) + "/" +
+                         std::to_string(rdTests2.numTestsRun()) + " tests");
+        // utils::printLine(fmt::format("Failed {}/{} tests", rdTests2.numTestsFailed() /
+        // rdTests2.numTestsRun()));
     }
 }
