@@ -1,8 +1,10 @@
 #include "RasterData.cpp"
 #include "Utility.h"
-#include "fmt-9.1.0/include/fmt/format.h"
+#include "fmt/include/fmt/core.h"
 #include <chrono>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 constexpr int k30ArcSecsPerDegree = 2 * 60;
 constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
@@ -18,8 +20,11 @@ class RasterDataTests {
             const double lon = rd.lon(x);
             const int lonToXResult = rd.lonToX(lon);
             if (lonToXResult != x) {
-                utils::printLine(fmt::format("{} - x: {}, lon: {}, lonToXResult: {}", kFunctionName,
-                                             x, lon, lonToXResult));
+                utils::printLine(kFunctionName + " - x: " + std::to_string(x) +
+                                 ", lon: " + std::to_string(lon) +
+                                 ", lonToXResult: " + std::to_string(lonToXResult));
+                // utils::printLine(fmt::format("{} - x: {}, lon: {}, lonToXResult: {}",
+                // kFunctionName, x, lon, lonToXResult));
                 return false;
             }
         }
@@ -32,21 +37,49 @@ class RasterDataTests {
             const double lat = rd.lat(y);
             const int latToYResult = rd.latToY(lat);
             if (latToYResult != y) {
-                utils::printLine(fmt::format("{} - y: {}, lat: {}, latToYResult: {}", kFunctionName,
-                                             y, lat, latToYResult));
+                utils::printLine(kFunctionName + " - y: " + std::to_string(y) +
+                                 ", lat: " + std::to_string(lat) +
+                                 ", latToYResult: " + std::to_string(latToYResult));
+                // utils::printLine(fmt::format("{} - y: {}, lat: {}, latToYResult: {}",
+                // kFunctionName, y, lat, latToYResult));
                 return false;
             }
         }
         return true;
     }
 
+    int numTestsRun() { return m_NumTestsRun; }
+    int numTestsFailed() { return m_NumTestsFailed; }
+
+    bool runTests() {
+        m_NumTestsRun = 0;
+        m_NumTestsFailed = 0;
+
+        m_NumTestsRun++;
+        m_NumTestsFailed += inversesTestXLon() ? 0 : 1;
+
+        m_NumTestsRun++;
+        m_NumTestsFailed += inversesTestYLat() ? 0 : 1;
+
+        return m_NumTestsFailed == 0;
+    }
+
   private:
     RasterData rd;
+    int m_NumTestsRun{0};
+    int m_NumTestsFailed{0};
 };
 
 int main() {
     const std::string sumTableFilename = "popSumTable2020.bin";
     RasterDataTests rdTests(sumTableFilename);
-    rdTests.inversesTestXLon();
-    rdTests.inversesTestYLat();
+    if (rdTests.runTests()) {
+        utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+        // utils::printLine(fmt::format("Passed {} tests", rdTests.numTestsRun()));
+    } else {
+        utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+                         std::to_string(rdTests.numTestsRun()) + " tests");
+        // utils::printLine(
+        //     fmt::format("Failed {}/{} tests", rdTests.numTestsFailed() / rdTests.numTestsRun()));
+    }
 }
