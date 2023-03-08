@@ -49,6 +49,8 @@ class RasterDataTests {
         return true;
     }
 
+    
+
     int numTestsRun() { return m_NumTestsRun; }
     int numTestsFailed() { return m_NumTestsFailed; }
 
@@ -85,14 +87,11 @@ int main() {
     //     rdTests.numTestsRun()));
     // }
 
-    RasterDataTests rdTests2;
-    if (rdTests2.runTests()) {
-        utils::printLine("Passed " + std::to_string(rdTests2.numTestsRun()) + " tests");
-        // utils::printLine(fmt::format("Passed {} tests", rdTests.numTestsRun()));
+    RasterDataTests rdTests;
+    if (rdTests.runTests()) {
+        utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
     } else {
-        utils::printLine("Failed " + std::to_string(rdTests2.numTestsFailed()) + "/" +
-                         std::to_string(rdTests2.numTestsRun()) + " tests");
-        // utils::printLine(fmt::format("Failed {}/{} tests", rdTests2.numTestsFailed() /
-        // rdTests2.numTestsRun()));
+        utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+                         std::to_string(rdTests.numTestsRun()) + " tests");
     }
 }

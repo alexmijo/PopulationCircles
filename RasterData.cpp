@@ -113,6 +113,7 @@ class RasterData {
     //  array cause it's too large.
     // TODO: See if I should actually make this a 1D array (both for loading speed and using speed)
     double **sumTable;
+    // True iff destructor must actually free resources
     bool mustFree{false};
 };
 
