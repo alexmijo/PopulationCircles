@@ -5,9 +5,6 @@
 #include <memory>
 #include <vector>
 
-// constexpr int k30ArcSecsPerDegree = 2 * 60;
-// constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
-// constexpr int kNumRows = 180 * k30ArcSecsPerDegree;
 constexpr bool kUse2020Data = true;
 constexpr double kWorldPop = kUse2020Data ? 7757982599.3135586 : 7346242908.863955;
 
