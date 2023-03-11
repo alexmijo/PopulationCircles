@@ -24,8 +24,6 @@ class RasterDataTests {
                 utils::printLine(kFunctionName + " - x: " + std::to_string(x) +
                                  ", lon: " + std::to_string(lon) +
                                  ", lonToXResult: " + std::to_string(lonToXResult));
-                // utils::printLine(fmt::format("{} - x: {}, lon: {}, lonToXResult: {}",
-                // kFunctionName, x, lon, lonToXResult));
                 return false;
             }
         }
@@ -41,8 +39,6 @@ class RasterDataTests {
                 utils::printLine(kFunctionName + " - y: " + std::to_string(y) +
                                  ", lat: " + std::to_string(lat) +
                                  ", latToYResult: " + std::to_string(latToYResult));
-                // utils::printLine(fmt::format("{} - y: {}, lat: {}, latToYResult: {}",
-                // kFunctionName, y, lat, latToYResult));
                 return false;
             }
         }
@@ -54,7 +50,7 @@ class RasterDataTests {
         if (!rd.hasData()) {
             return false;
         }
-        PixelRectangle pr{0, kNumCols, 0, kNumRows};
+        PixelRectangle pr{0, kNumCols - 1, kNumRows - 1, 0};
         const double result = rd.sumWithinRectangle(pr);
         if (result != kWorldPop) {
             utils::printLine(kFunctionName + " - result: " + std::to_string(result) +
