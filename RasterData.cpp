@@ -100,6 +100,8 @@ class RasterData {
 
     int getNumCols() const { return width; }
 
+    bool hasData() const { return mustFree; }
+
   private:
     // Dimensions of the original raster data.
     int height = kNumRows;

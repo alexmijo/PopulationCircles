@@ -9,11 +9,15 @@
 // constexpr int k30ArcSecsPerDegree = 2 * 60;
 // constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
 // constexpr int kNumRows = 180 * k30ArcSecsPerDegree;
+constexpr bool kUse2020Data = true;
+constexpr double kWorldPop = kUse2020Data ? 7757982599.3135586 : 7346242908.863955;
 
 class RasterDataTests {
   public:
-    RasterDataTests(const std::string &sumTableFilename) : rd(sumTableFilename) {}
+    RasterDataTests(const std::string &sumTableFilename) { loadData(sumTableFilename); }
     RasterDataTests() {}
+
+    void loadData(const std::string &sumTableFilename) { rd.loadData(sumTableFilename); }
 
     bool inversesTestXLon() {
         static const std::string kFunctionName{"inversesTestXLon"};
@@ -49,14 +53,30 @@ class RasterDataTests {
         return true;
     }
 
-    
+    bool totalPopulationRectangle() {
+        static const std::string kFunctionName{"totalPopulationRectangle"};
+        if (!rd.hasData()) {
+            return false;
+        }
+        PixelRectangle pr{0, kNumCols, 0, kNumRows};
+        const double result = rd.sumWithinRectangle(pr);
+        if (result != kWorldPop) {
+            utils::printLine(kFunctionName + " - result: " + std::to_string(result) +
+                             ", kWorldPop: " + std::to_string(kWorldPop));
+            return false;
+        }
+        return true;
+    }
 
     int numTestsRun() { return m_NumTestsRun; }
     int numTestsFailed() { return m_NumTestsFailed; }
 
-    bool runTests() {
-        m_NumTestsRun = 0;
-        m_NumTestsFailed = 0;
+    bool runFastTests(bool resetNumTests = true) {
+        if (resetNumTests) {
+            m_NumTestsRun = 0;
+            m_NumTestsFailed = 0;
+        }
+        const int startingNumTestsFailed = m_NumTestsFailed;
 
         m_NumTestsRun++;
         m_NumTestsFailed += inversesTestXLon() ? 0 : 1;
@@ -64,7 +84,23 @@ class RasterDataTests {
         m_NumTestsRun++;
         m_NumTestsFailed += inversesTestYLat() ? 0 : 1;
 
-        return m_NumTestsFailed == 0;
+        return m_NumTestsFailed == startingNumTestsFailed;
+    }
+
+    bool runSlowTests(bool resetNumTests = true) {
+        if (resetNumTests) {
+            m_NumTestsRun = 0;
+            m_NumTestsFailed = 0;
+        }
+        int startingNumTestsFailed = m_NumTestsFailed;
+        if (!rd.hasData()) {
+            return false;
+        }
+
+        m_NumTestsRun++;
+        m_NumTestsFailed += totalPopulationRectangle() ? 0 : 1;
+
+        return m_NumTestsFailed == startingNumTestsFailed;
     }
 
   private:
@@ -74,7 +110,7 @@ class RasterDataTests {
 };
 
 int main() {
-    // const std::string sumTableFilename = "popSumTable2020.bin";
+    const std::string sumTableFilename = "popSumTable2020.bin";
     // RasterDataTests rdTests(sumTableFilename);
     // if (rdTests.runTests()) {
     //     utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
@@ -88,7 +124,15 @@ int main() {
     // }
 
     RasterDataTests rdTests;
-    if (rdTests.runTests()) {
+    if (rdTests.runFastTests()) {
+        utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+    } else {
+        utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+                         std::to_string(rdTests.numTestsRun()) + " tests");
+    }
+    
+    rdTests.loadData(sumTableFilename);
+    if (rdTests.runSlowTests()) {
         utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
     } else {
         utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
