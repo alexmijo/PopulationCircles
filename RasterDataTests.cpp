@@ -1,6 +1,5 @@
 #include "RasterData.cpp"
 #include "Utility.h"
-#include "fmt/include/fmt/core.h"
 #include <chrono>
 #include <iostream>
 #include <memory>
