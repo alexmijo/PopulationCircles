@@ -69,12 +69,12 @@ class RasterData {
         // The 0.0s will remain only as a column of 0s to the west and a row of 0s to the north.
         // This is padding for the data which will replace the rest of the zeros, and explains why
         // sumTable has dimensions one greater than both height and width.
-        sumTable.resize(m_Height + 1, std::vector<double>(width + 1, 0.0));
+        sumTable.resize(m_Height + 1, std::vector<double>(m_Width + 1, 0.0));
         for (int r = 1; r < m_Height + 1; r++) {
             // Read in an entire row at once
             sumTableFile.read(reinterpret_cast<char *>(&sumTable[r][1]), sizeof(double) * m_Width);
         }
-        hasData = true;
+        m_HasData = true;
     }
 
     int getNumRows() const { return m_Height; }
