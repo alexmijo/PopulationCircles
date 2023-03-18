@@ -21,7 +21,7 @@ class RasterDataTests {
             const double lon = rd.lon(x);
             const int lonToXResult = rd.lonToX(lon);
             if (lonToXResult != x) {
-                utils::printLine(kFunctionName + " - x: " + std::to_string(x) +
+                util::printLine(kFunctionName + " - x: " + std::to_string(x) +
                                  ", lon: " + std::to_string(lon) +
                                  ", lonToXResult: " + std::to_string(lonToXResult));
                 return false;
@@ -102,32 +102,22 @@ class RasterDataTests {
 };
 
 int main() {
-    const std::string sumTableFilename = "popSumTable2020.bin";
-    // RasterDataTests rdTests(sumTableFilename);
-    // if (rdTests.runTests()) {
-    //     utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
-    //     // utils::printLine(fmt::format("Passed {} tests", rdTests.numTestsRun()));
-    // } else {
-    //     utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
-    //                      std::to_string(rdTests.numTestsRun()) + " tests");
-    //     // utils::printLine(
-    //     //     fmt::format("Failed {}/{} tests", rdTests.numTestsFailed() /
-    //     rdTests.numTestsRun()));
-    // }
+    const std::string sumTableFilename =
+        kUse2020Data ? "PopData/popSumTable2020.bin" : "PopData/popSumTable2015.bin";
 
     RasterDataTests rdTests;
     if (rdTests.runFastTests()) {
-        utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+        util::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
     } else {
-        utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+        util::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
                          std::to_string(rdTests.numTestsRun()) + " tests");
     }
-    
+
     rdTests.loadData(sumTableFilename);
     if (rdTests.runSlowTests()) {
-        utils::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+        util::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
     } else {
-        utils::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+        util::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
                          std::to_string(rdTests.numTestsRun()) + " tests");
     }
 }
