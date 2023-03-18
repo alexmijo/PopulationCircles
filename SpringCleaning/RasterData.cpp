@@ -66,7 +66,7 @@ class RasterData {
         std::ifstream sumTableFile(sumTableFilename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&m_Height), sizeof(int));
         sumTableFile.read(reinterpret_cast<char *>(&m_Width), sizeof(int));
-        // The 0.0s will remain only as a column of 0s to the west and a row of 0s to the north.
+        // The 0.0s will remain only as a column of 0.0s to the west and a row of 0.0s to the north.
         // This is padding for the data which will replace the rest of the zeros, and explains why
         // sumTable has dimensions one greater than both height and width.
         sumTable.resize(m_Height + 1, std::vector<double>(m_Width + 1, 0.0));
