@@ -81,7 +81,7 @@ class RasterData {
 
     int getNumCols() const { return m_Width; }
 
-    bool hasData() const { return hasData; }
+    bool hasData() const { return m_HasData; }
 
   private:
     // Dimensions of the original raster data.
