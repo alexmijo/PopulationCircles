@@ -1,5 +1,5 @@
 #include "RasterData.cpp"
-#include "Utility.h"
+#include "Utility.cpp"
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -36,7 +36,7 @@ class RasterDataTests {
             const double lat = rd.lat(y);
             const int latToYResult = rd.latToY(lat);
             if (latToYResult != y) {
-                utils::printLine(kFunctionName + " - y: " + std::to_string(y) +
+                util::printLine(kFunctionName + " - y: " + std::to_string(y) +
                                  ", lat: " + std::to_string(lat) +
                                  ", latToYResult: " + std::to_string(latToYResult));
                 return false;
@@ -53,7 +53,7 @@ class RasterDataTests {
         PixelRectangle pr{0, kNumCols - 1, kNumRows - 1, 0};
         const double result = rd.sumWithinRectangle(pr);
         if (result != kWorldPop) {
-            utils::printLine(kFunctionName + " - result: " + std::to_string(result) +
+            util::printLine(kFunctionName + " - result: " + std::to_string(result) +
                              ", kWorldPop: " + std::to_string(kWorldPop));
             return false;
         }
