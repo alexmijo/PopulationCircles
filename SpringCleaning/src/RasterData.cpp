@@ -1,27 +1,8 @@
+#pragma once
 #include "Utility.cpp"
+#include "EarthCircle.cpp"
 #include <fstream>
 #include <vector>
-
-constexpr int k30ArcSecsPerDegree = 2 * 60;
-constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
-constexpr int kNumRows = 180 * k30ArcSecsPerDegree;
-
-struct Pixel {
-    // x from left to right, y from bottom to top
-    int x, y;
-};
-
-// Defines a rectangular region of the raster data. Ranges are inclusive.
-class PixelRectangle {
-  public:
-    int west, east;
-    int south, north;
-
-    // TODO: Is Pixel small enough that pass by value is faster?
-    bool contains(const Pixel &p) const {
-        return west <= p.x && p.x <= east && north <= p.y && p.y <= south;
-    }
-};
 
 // Equirectangular raster data. Implemented using a summation table so it can get the sum of
 // rectangular regions of the data in O(1) time.
@@ -34,6 +15,43 @@ class RasterData {
                sumTable[rect.south + 1][rect.west] + sumTable[rect.north][rect.west];
     }
 
+    // Returns the northernmost or southernmost row containing any pixel within <radius> km of the
+    //  given row (specified by <y>).
+    int boundingBoxEdge(const int y, const double radius,
+                        const bool isNorth) const {
+        // Turn x and y (indices in the pop data) into geographic coordinates.
+        const double cenLat = lat(y);
+
+        // Start at center
+        int edge = y;
+        int edgeOfMap = kNumRows - 1;
+        // Added to edge to move one pixel in desired direction
+        int incOrDec = isNorth ? -1 : 1;
+
+        while (edge >= 0 && edge <= edgeOfMap) {
+            double currLat;
+            currLat = lat(edge);
+            // Since this function only works for north and south, longitude never changes
+            const double distanceFromCen = distance({currLat, 0}, {cenLat, 0});
+            if (distanceFromCen > radius) {
+                edge -= incOrDec; // Went too far, walk it back
+                break;
+            } else {
+                edge += incOrDec;
+            }
+        }
+        if (edge < 0) {
+            edge = 0;
+        } else if (edge > edgeOfMap) {
+            edge = edgeOfMap;
+        }
+        return edge;
+    }
+
+    double sumWithinCircle(const EarthCircle& circle) {
+        
+    }
+
     // Get longitude of the center of the <x>th (0 indexed) column.
     double lon(int x) const { return ((x + 0.5) / m_Width) * 360.0 - 180.0; }
 
@@ -42,7 +60,7 @@ class RasterData {
 
     // Get the latitude and longitude of the center of a pixel.
     // TODO: Is Pixel small enough that pass by value is faster?
-    util::Location pixelToLocation(const Pixel &p) const { return {lat(p.y), lon(p.x)}; }
+    Location pixelToLocation(const Pixel &p) const { return {lat(p.y), lon(p.x)}; }
 
     // Get the column containing a longitude.
     int lonToX(double lon) const { return ((lon + 180.0) / 360.0) * m_Width; }
@@ -52,9 +70,7 @@ class RasterData {
 
     // Get the pixel containing a location.
     // TODO: Is util::Location small enough that pass by value is faster?
-    Pixel locationToPixel(const util::Location &loc) const {
-        return {lonToX(loc.lon), latToY(loc.lat)};
-    }
+    Pixel locationToPixel(const Location &loc) const { return {lonToX(loc.lon), latToY(loc.lat)}; }
 
     RasterData() = default;
     explicit RasterData(const std::string &sumTableFilename) { loadData(sumTableFilename); }

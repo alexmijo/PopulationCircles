@@ -2,7 +2,10 @@
 #include <cmath>
 #include <iostream>
 
-namespace util {
+constexpr int k30ArcSecsPerDegree = 2 * 60;
+constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
+constexpr int kNumRows = 180 * k30ArcSecsPerDegree;
+
 void print(const std::string &line) { std::cout << line; }
 
 void printLine(const std::string &line) {
@@ -12,6 +15,23 @@ void printLine(const std::string &line) {
 
 struct Location {
     double lat, lon;
+};
+
+struct Pixel {
+    // x from left to right, y from bottom to top
+    int x, y;
+};
+
+// Defines a rectangular region of the raster data. Ranges are inclusive.
+class PixelRectangle {
+  public:
+    int west, east;
+    int south, north;
+
+    // TODO: Is Pixel small enough that pass by value is faster?
+    bool contains(const Pixel &p) const {
+        return west <= p.x && p.x <= east && north <= p.y && p.y <= south;
+    }
 };
 
 // Returns distance in kilometers between two points on Earth's surface.
@@ -122,4 +142,3 @@ static double distance(Location loc1, Location loc2) {
     // Convert from meters to kilometers before returning
     return s / 1000.;
 }
-} // namespace util

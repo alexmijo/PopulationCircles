@@ -1,5 +1,6 @@
-#include "RasterData.cpp"
-#include "Utility.cpp"
+#include "../src/RasterData.cpp"
+#include "../src/Utility.cpp"
+
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -21,9 +22,8 @@ class RasterDataTests {
             const double lon = rd.lon(x);
             const int lonToXResult = rd.lonToX(lon);
             if (lonToXResult != x) {
-                util::printLine(kFunctionName + " - x: " + std::to_string(x) +
-                                 ", lon: " + std::to_string(lon) +
-                                 ", lonToXResult: " + std::to_string(lonToXResult));
+                printLine(kFunctionName + " - x: " + std::to_string(x) + ", lon: " +
+                          std::to_string(lon) + ", lonToXResult: " + std::to_string(lonToXResult));
                 return false;
             }
         }
@@ -36,9 +36,8 @@ class RasterDataTests {
             const double lat = rd.lat(y);
             const int latToYResult = rd.latToY(lat);
             if (latToYResult != y) {
-                util::printLine(kFunctionName + " - y: " + std::to_string(y) +
-                                 ", lat: " + std::to_string(lat) +
-                                 ", latToYResult: " + std::to_string(latToYResult));
+                printLine(kFunctionName + " - y: " + std::to_string(y) + ", lat: " +
+                          std::to_string(lat) + ", latToYResult: " + std::to_string(latToYResult));
                 return false;
             }
         }
@@ -53,8 +52,8 @@ class RasterDataTests {
         PixelRectangle pr{0, kNumCols - 1, kNumRows - 1, 0};
         const double result = rd.sumWithinRectangle(pr);
         if (result != kWorldPop) {
-            util::printLine(kFunctionName + " - result: " + std::to_string(result) +
-                             ", kWorldPop: " + std::to_string(kWorldPop));
+            printLine(kFunctionName + " - result: " + std::to_string(result) +
+                      ", kWorldPop: " + std::to_string(kWorldPop));
             return false;
         }
         return true;
@@ -107,17 +106,17 @@ int main() {
 
     RasterDataTests rdTests;
     if (rdTests.runFastTests()) {
-        util::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+        printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
     } else {
-        util::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
-                         std::to_string(rdTests.numTestsRun()) + " tests");
+        printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+                  std::to_string(rdTests.numTestsRun()) + " tests");
     }
 
     rdTests.loadData(sumTableFilename);
     if (rdTests.runSlowTests()) {
-        util::printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
+        printLine("Passed " + std::to_string(rdTests.numTestsRun()) + " tests");
     } else {
-        util::printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
-                         std::to_string(rdTests.numTestsRun()) + " tests");
+        printLine("Failed " + std::to_string(rdTests.numTestsFailed()) + "/" +
+                  std::to_string(rdTests.numTestsRun()) + " tests");
     }
 }
