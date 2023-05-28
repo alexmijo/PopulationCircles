@@ -1,5 +1,5 @@
 # PopulationCircles
-Note to any potential employers: This code kinda got spaghettified and I haven't yet brought it up to my normal standards for code quality (although it does still work well). If you'd like to see a better example of clean C++ code I've written, look at https://github.com/alexmijo/BlackjackSim
+Note to any potential employers: This code kinda got spaghettified and I haven't yet brought it up to my normal standards for code quality (although it does still work well). If you'd like to see a better example of clean C++ code I've written, look at https://github.com/alexmijo/BlackjackSim Edit: Nvm that's really old, dang that has a ton of unneeded comments lol
 
 This program can, among other things, find the smallest possible circles on earth containing a given percentage of the
 world’s population. Also wrote code in C++, Python and Java to render the maps.
