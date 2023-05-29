@@ -2,10 +2,12 @@
 #include <cmath>
 #include <iostream>
 
+//--------------------------------------------------------------------------------------------------
 constexpr int k30ArcSecsPerDegree = 2 * 60;
 constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
 constexpr int kNumRows = 180 * k30ArcSecsPerDegree;
 
+//--------------------------------------------------------------------------------------------------
 void print(const std::string &line) { std::cout << line; }
 
 void printLine(const std::string &line) {
@@ -13,30 +15,38 @@ void printLine(const std::string &line) {
     std::cout << "\n";
 }
 
-struct Location {
-    double lat, lon;
+//--------------------------------------------------------------------------------------------------
+struct LatLon {
+    double lat;
+    double lon;
 };
 
-struct Pixel {
-    // x from left to right, y from bottom to top
-    int x, y;
+// A pixel. 0 indexed, x from west to east, y from south to north
+struct XY {
+    int x;
+    int y;
 };
 
-// Defines a rectangular region of the raster data. Ranges are inclusive.
-class PixelRectangle {
-  public:
-    int west, east;
-    int south, north;
+struct LatLonRect {
+    // TODO
+};
 
-    // TODO: Is Pixel small enough that pass by value is faster?
-    bool contains(const Pixel &p) const {
-        return west <= p.x && p.x <= east && north <= p.y && p.y <= south;
+// (x ∈ [W, E], y ∈ [S, N])
+struct XYRect {
+    int W;
+    int E;
+    int S;
+    int N;
+
+    bool contains(const XY p) const {
+        return W <= p.x && p.x <= E && N <= p.y && p.y <= S;
     }
 };
 
+//--------------------------------------------------------------------------------------------------
 // Returns distance in kilometers between two points on Earth's surface.
 // TODO: Find source and give credit
-static double distance(Location loc1, Location loc2) {
+static double distance(LatLon loc1, LatLon loc2) {
     double req = 6378137.0;
 
     // alexmijo added code for dealing with equatorial points or identical points

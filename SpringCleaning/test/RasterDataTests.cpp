@@ -7,6 +7,7 @@
 #include <vector>
 
 constexpr bool kUse2020Data = true;
+// TODO: Constants JSON
 constexpr double kWorldPop = kUse2020Data ? 7757982599.3135586 : 7346242908.863955;
 
 class RasterDataTests {

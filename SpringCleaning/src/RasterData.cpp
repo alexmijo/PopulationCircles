@@ -1,6 +1,6 @@
 #pragma once
-#include "Utility.cpp"
 #include "EarthCircle.cpp"
+#include "Utility.cpp"
 #include <fstream>
 #include <vector>
 
@@ -17,8 +17,7 @@ class RasterData {
 
     // Returns the northernmost or southernmost row containing any pixel within <radius> km of the
     //  given row (specified by <y>).
-    int boundingBoxEdge(const int y, const double radius,
-                        const bool isNorth) const {
+    int boundingBoxEdge(const int y, const double radius, const bool isNorth) const {
         // Turn x and y (indices in the pop data) into geographic coordinates.
         const double cenLat = lat(y);
 
@@ -48,9 +47,7 @@ class RasterData {
         return edge;
     }
 
-    double sumWithinCircle(const EarthCircle& circle) {
-        
-    }
+    double sumWithinCircle(const EarthCircle &circle) {}
 
     // Get longitude of the center of the <x>th (0 indexed) column.
     double lon(int x) const { return ((x + 0.5) / m_Width) * 360.0 - 180.0; }
