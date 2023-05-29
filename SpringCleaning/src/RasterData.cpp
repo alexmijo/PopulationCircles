@@ -10,7 +10,7 @@ class RasterData {
   public:
     // Returns the sum of the data in the specified rectangle.
     // TODO: Is PixelRectangle small enough that pass by value is faster?
-    double sumWithinRectangle(const PixelRectangle &rect) {
+    double sumWithinRectangle(const PixelRect &rect) {
         return sumTable[rect.south + 1][rect.east + 1] - sumTable[rect.north][rect.east + 1] -
                sumTable[rect.south + 1][rect.west] + sumTable[rect.north][rect.west];
     }

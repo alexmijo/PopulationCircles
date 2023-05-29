@@ -21,8 +21,8 @@ struct LatLon {
     double lon;
 };
 
-// A pixel. 0 indexed, x from west to east, y from south to north
-struct XY {
+// 0 indexed, x from west to east, y from south to north
+struct Pixel {
     int x;
     int y;
 };
@@ -32,14 +32,14 @@ struct LatLonRect {
 };
 
 // (x ∈ [W, E], y ∈ [S, N])
-struct XYRect {
+struct PixelRect {
     int W;
     int E;
     int S;
     int N;
 
     // TODO: Test timings with and without &
-    bool contains(const XY p) const {
+    bool contains(const Pixel p) const {
         return W <= p.x && p.x <= E && N <= p.y && p.y <= S;
     }
 };
