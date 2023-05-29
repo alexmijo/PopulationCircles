@@ -38,6 +38,7 @@ struct XYRect {
     int S;
     int N;
 
+    // TODO: Test timings with and without &
     bool contains(const XY p) const {
         return W <= p.x && p.x <= E && N <= p.y && p.y <= S;
     }
