@@ -10,7 +10,36 @@
 //     // x from left to right, y from bottom to top
 //     int x, y;
 // };
+// Returns the northernmost or southernmost row containing any pixel within <radius> km of the
+    //  given row (<y>).
+    // int boundingBoxEdge(const int y, const double radius, const bool isNorth) const {
+    //     const double cenLat = lat(y);
 
+    //     // Start at center
+    //     int edge = y;
+    //     int edgeOfMap = kNumRows - 1;
+    //     // Added to edge to move one pixel in desired direction
+    //     int incOrDec = isNorth ? -1 : 1;
+
+    //     while (edge >= 0 && edge <= edgeOfMap) {
+    //         double currLat;
+    //         currLat = lat(edge);
+    //         // Since this function only works for north and south, longitude never changes
+    //         const double distanceFromCen = distance({currLat, 0}, {cenLat, 0});
+    //         if (distanceFromCen > radius) {
+    //             edge -= incOrDec; // Went too far, walk it back
+    //             break;
+    //         } else {
+    //             edge += incOrDec;
+    //         }
+    //     }
+    //     if (edge < 0) {
+    //         edge = 0;
+    //     } else if (edge > edgeOfMap) {
+    //         edge = edgeOfMap;
+    //     }
+    //     return edge;
+    // }
 // // Defines a rectangular region of the raster data. Ranges are inclusive.
 // class PixelRectangle {
 //   public:

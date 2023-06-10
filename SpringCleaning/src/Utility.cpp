@@ -16,7 +16,7 @@ void printLine(const std::string &line) {
 }
 
 //--------------------------------------------------------------------------------------------------
-struct LatLon {
+struct Location {
     double lat;
     double lon;
 };
@@ -38,8 +38,8 @@ struct PixelRect {
     int S;
     int N;
 
-    // TODO: Test timings with and without &
-    bool contains(const Pixel p) const {
+    // TODO: Test timings with and without & (both here and everywhere else. How small is enough?)
+    bool contains(const Pixel& p) const {
         return W <= p.x && p.x <= E && N <= p.y && p.y <= S;
     }
 };
@@ -47,7 +47,7 @@ struct PixelRect {
 //--------------------------------------------------------------------------------------------------
 // Returns distance in kilometers between two points on Earth's surface.
 // TODO: Find source and give credit
-static double distance(LatLon loc1, LatLon loc2) {
+static double distance(Location loc1, Location loc2) {
     double req = 6378137.0;
 
     // alexmijo added code for dealing with equatorial points or identical points
