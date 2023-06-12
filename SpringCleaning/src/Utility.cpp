@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 
+// TODO: Split this file up
 //--------------------------------------------------------------------------------------------------
 constexpr int k30ArcSecsPerDegree = 2 * 60;
 constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
@@ -39,9 +40,15 @@ struct PixelRect {
     int N;
 
     // TODO: Test timings with and without & (both here and everywhere else. How small is enough?)
-    bool contains(const Pixel& p) const {
-        return W <= p.x && p.x <= E && N <= p.y && p.y <= S;
-    }
+    bool contains(const Pixel &p) const { return W <= p.x && p.x <= E && N <= p.y && p.y <= S; }
+};
+
+struct RelativePixelRect {};
+
+struct PixelCircle {
+    Pixel center;
+    // Each rect stretches from west to east side of circle
+    std::vector<PixelRect> rects;
 };
 
 //--------------------------------------------------------------------------------------------------
