@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 // TODO: Split this file up
 //--------------------------------------------------------------------------------------------------
@@ -43,7 +44,40 @@ struct PixelRect {
     bool contains(const Pixel &p) const { return W <= p.x && p.x <= E && N <= p.y && p.y <= S; }
 };
 
-struct RelativePixelRect {};
+// struct OffsetPixelRect {
+//     int offsetW;
+//     int offsetE;
+//     int offsetS;
+//     int offsetN;
+
+//     // TODO: dims aren't a Pixel
+//     std::vector<PixelRect> ToPixelRect(const Pixel &center, const Pixel &gridSize) {
+//         std::vector<PixelRect> rects;
+        
+//         int W = center.x + offsetW;
+//         int E = center.x + offsetE;
+//         int S = center.y + offsetS;
+//         int N = center.y + offsetN;
+
+//         if (W < 0) {
+//             rects.emplace_back(0, E, S, N);
+//             rects.emplace_back(gridSize.x + W, gridSize.x, S, N);
+//         } else if (E >= gridSize.x) {
+//             rects.emplace_back(W, gridSize.x - 1, S, N);
+//             rects.emplace_back(0, E - gridSize.x, S, N);
+//         } else {
+//             rects.emplace_back(W, E, S, N);
+//         }
+
+//         return rects;
+//     }
+// };
+
+// Summary: Setting up Karol's BCBE for trading, tradenotificationlistener subscribe by portfolio, was working on stuff related to moving the mdrc configs, 
+// 1. BC UI to OMS staging
+// 3. Futures order python client to BCBE to staging reflector  verify boltx looks as expected
+
+// 2. Python client to OMS staging
 
 struct PixelCircle {
     Pixel center;

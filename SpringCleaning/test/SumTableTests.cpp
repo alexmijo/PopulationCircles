@@ -1,7 +1,13 @@
 #include "Tests.cpp"
 #include "../src/SumTable.cpp"
 
+bool test1() {
+    return true;
+}
 
+bool test2() {
+    return false;
+}
 
 int main() {
     TestRunner runner;

@@ -1,6 +1,6 @@
-#include "PixelShapes.cpp"
 #include "Utility.cpp"
 #include <vector>
+#include <fstream>
 
 template <typename T> class SumTable {
   public:
@@ -23,9 +23,8 @@ template <typename T> class SumTable {
                sumTable[rect.W - 1][rect.N] + sumTable[rect.W - 1][rect.S - 1];
     }
 
-    T sumWithinCircle()
 
-        int width;
+    int width;
     int height;
 
   private:
