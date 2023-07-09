@@ -1,7 +1,10 @@
 #include "Tests.cpp"
 #include "../src/SumTable.cpp"
 
-bool test1() {
+void createSumTable
+
+//--------------------------------------------------------------------------------------------------
+bool testInitializeSumTable() {
     return true;
 }
 
