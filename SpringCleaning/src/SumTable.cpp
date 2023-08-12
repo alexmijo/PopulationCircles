@@ -22,27 +22,27 @@ template <typename T> class SumTable {
     // TODO: Something with the padding?
     // TODO: Move?
     SumTable(const std::vector<std::vector<T>> &sumTableOrValues, const bool isSumTable) {
-      if (isSumTable) {
-          sumTable = sumTableOrValues;
-          height = sumTableOrValues.size() - 1;
-          width = sumTableOrValues[0].size();
-      } else {
-          height = sumTableOrValues.size();
-          width = height > 0 ? sumTableOrValues[0].size() : 0;
+        if (isSumTable) {
+            sumTable = sumTableOrValues;
+            height = sumTableOrValues.size() - 1;
+            width = sumTableOrValues[0].size();
+        } else {
+            height = sumTableOrValues.size();
+            width = height > 0 ? sumTableOrValues[0].size() : 0;
 
-          // Initialize the sumTable with an extra row and column for padding
-          sumTable.resize(height + 1, std::vector<T>(width + 1, 0));
+            // Initialize the sumTable with an extra row and column for padding
+            sumTable.resize(height + 1, std::vector<T>(width + 1, 0));
 
-          // Calculate the sumTable
-          for (int r = 1; r <= height; ++r) {
-              for (int c = 1; c <= width; ++c) {
-                  sumTable[r][c] = sumTableOrValues[r - 1][c - 1] + sumTable[r - 1][c] + 
-                                   sumTable[r][c - 1] - sumTable[r - 1][c - 1];
-              }
-          }
-          
-      }
-  }
+            // Calculate the sumTable
+            for (int r = 1; r <= height; ++r) {
+                for (int c = 1; c <= width; ++c) {
+                    sumTable[r][c] = sumTableOrValues[r - 1][c - 1] + sumTable[r - 1][c] +
+                                     sumTable[r][c - 1] - sumTable[r - 1][c - 1];
+                    std::cout << "[" << r << "][" << c << "]: " << sumTable[r][c] << std::endl;
+                }
+            }
+        }
+    }
 
     T sumWithinRectangle(const PixelRect &rect) {
         return sumTable[rect.N][rect.E] - sumTable[rect.S - 1][rect.E] -
@@ -52,6 +52,6 @@ template <typename T> class SumTable {
     int width;
     int height;
 
-//   private:
+    //   private:
     std::vector<std::vector<T>> sumTable;
 };

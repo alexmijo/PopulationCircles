@@ -11,7 +11,7 @@ bool testInitializeSumTable() {
     // Manually computed expected sums
     std::vector<std::vector<double>> expectedSums = {{0, 0, 0, 0, 0},
                                                      {0, 0, 1, 3, 6},
-                                                     {0, 1, 3, 6, 10}};
+                                                     {0, 1, 4, 9, 16}};
 
     for (int r = 0; r <= 2; ++r) {
         for (int c = 0; c <= 4; ++c) {
