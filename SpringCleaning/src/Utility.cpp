@@ -3,7 +3,6 @@
 #include <iostream>
 #include <vector>
 
-// TODO: Split this file up
 //--------------------------------------------------------------------------------------------------
 constexpr int k30ArcSecsPerDegree = 2 * 60;
 constexpr int kNumCols = 360 * k30ArcSecsPerDegree;
