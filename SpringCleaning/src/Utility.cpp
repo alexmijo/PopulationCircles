@@ -246,7 +246,7 @@ template <typename T> class SumTable {
     int width;
     int height;
 
-    //   private:
+  private:
     std::vector<std::vector<T>> sumTable;
 };
 
