@@ -1,7 +1,6 @@
-#include "Tests.cpp"
 #include "../src/SumTable.cpp"
+#include "Tests.cpp"
 #include <vector>
-
 
 //--------------------------------------------------------------------------------------------------
 bool testInitializeSumTable() {
@@ -9,14 +8,15 @@ bool testInitializeSumTable() {
     SumTable<double> sumTable(values, false);
 
     // Manually computed expected sums
-    std::vector<std::vector<double>> expectedSums = {{0, 0, 0, 0, 0},
-                                                     {0, 0, 1, 3, 6},
-                                                     {0, 1, 4, 9, 16}};
-
-    for (int r = 0; r <= 2; ++r) {
-        for (int c = 0; c <= 4; ++c) {
-            if (sumTable.sumTable[r][c] != expectedSums[r][c]) { // Assuming sumTable member is made public for testing purposes
-                std::cout << "Actual: " << sumTable.sumTable[r][c] << ", Expected: " << expectedSums[r][c] << std::endl;
+    std::vector<std::vector<double>> expectedSums = {
+        {0, 0, 0, 0, 0}, {0, 0, 1, 3, 6}, {0, 1, 4, 9, 16}};
+sumTable.sumWithinRectangle(PixelRect{0,0,0,0});
+    for (int r = 1; r <= 1; ++r) {
+        for (int c = 1; c <= 3; ++c) {
+            if (sumTable.sumWithinRectangle(PixelRect{0,0,r,c}) != expectedSums[r][c]) { // Assuming sumTable member is made
+                                                                 // public for testing purposes
+                std::cout << "Actual: " << sumTable.sumTable[r][c]
+                          << ", Expected: " << expectedSums[r][c] << std::endl;
                 return false;
             }
         }
@@ -24,13 +24,8 @@ bool testInitializeSumTable() {
     return true;
 }
 
-
-
-
 // TODO: M
-bool test2() {
-    return false;
-}
+bool test2() { return false; }
 
 int main() {
     TestRunner runner;

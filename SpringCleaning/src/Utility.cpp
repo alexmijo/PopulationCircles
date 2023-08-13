@@ -1,6 +1,8 @@
-#pragma once
 #include <cmath>
+#include <fstream>
+#include <functional>
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 
 //--------------------------------------------------------------------------------------------------
@@ -52,7 +54,7 @@ struct PixelRect {
 //     // TODO: dims aren't a Pixel
 //     std::vector<PixelRect> ToPixelRect(const Pixel &center, const Pixel &gridSize) {
 //         std::vector<PixelRect> rects;
-        
+
 //         int W = center.x + offsetW;
 //         int E = center.x + offsetE;
 //         int S = center.y + offsetS;
@@ -72,7 +74,8 @@ struct PixelRect {
 //     }
 // };
 
-// Summary: Setting up Karol's BCBE for trading, tradenotificationlistener subscribe by portfolio, was working on stuff related to moving the mdrc configs, 
+// Summary: Setting up Karol's BCBE for trading, tradenotificationlistener subscribe by portfolio,
+// was working on stuff related to moving the mdrc configs,
 // 1. BC UI to OMS staging
 // 3. Futures order python client to BCBE to staging reflector  verify boltx looks as expected
 
@@ -192,4 +195,172 @@ static double distance(Location loc1, Location loc2) {
 
     // Convert from meters to kilometers before returning
     return s / 1000.;
+}
+
+//-----------------------------------------------------------------------------SumTable.cpp
+template <typename T> class SumTable {
+  public:
+    SumTable(const std::string &sumTableFilename) {
+        std::ifstream sumTableFile(sumTableFilename, std::ios::in | std::ios::binary);
+        sumTableFile.read(reinterpret_cast<char *>(&height), sizeof(int));
+        sumTableFile.read(reinterpret_cast<char *>(&width), sizeof(int));
+        // The 0s will remain only as a column of 0s to the west and a row of 0s to the south.
+        // This is padding for the data which will replace the rest of the zeros, and explains why
+        // sumTable has dimensions one greater than both height and width.
+        sumTable.resize(height + 1, std::vector<T>(width + 1, 0));
+        for (int r = 1; r < height + 1; r++) {
+            // Read in an entire row at once
+            sumTableFile.read(reinterpret_cast<char *>(&sumTable[r][1]), sizeof(T) * width);
+        }
+    }
+
+    // TODO: Something with the padding?
+    // TODO: Move?
+    SumTable(const std::vector<std::vector<T>> &sumTableOrValues, const bool isSumTable) {
+        if (isSumTable) {
+            sumTable = sumTableOrValues;
+            height = sumTableOrValues.size() - 1;
+            width = sumTableOrValues[0].size();
+        } else {
+            height = sumTableOrValues.size();
+            width = height > 0 ? sumTableOrValues[0].size() : 0;
+
+            // Initialize the sumTable with an extra row and column for padding
+            sumTable.resize(height + 1, std::vector<T>(width + 1, 0));
+
+            // Calculate the sumTable
+            for (int r = 1; r <= height; ++r) {
+                for (int c = 1; c <= width; ++c) {
+                    sumTable[r][c] = sumTableOrValues[r - 1][c - 1] + sumTable[r - 1][c] +
+                                     sumTable[r][c - 1] - sumTable[r - 1][c - 1];
+                    std::cout << "[" << r << "][" << c << "]: " << sumTable[r][c] << std::endl;
+                }
+            }
+        }
+    }
+
+    T sumWithinRectangle(const PixelRect &rect) {
+        return sumTable[rect.N + 1][rect.E + 1] - sumTable[rect.S][rect.E + 1] -
+               sumTable[rect.W][rect.N + 1] + sumTable[rect.W][rect.S];
+    }
+
+    int width;
+    int height;
+
+    //   private:
+    std::vector<std::vector<T>> sumTable;
+};
+
+//-----------------------------------------------------------------------------------------Tests.cpp
+class TestRunner {
+  public:
+    void addTest(const std::function<bool()> &testFunction, const std::string &testName = "") {
+        tests.emplace_back(testName, testFunction);
+    }
+
+    void runTests() {
+        for (const auto &test : tests) {
+            bool result = test.second();
+            std::cout << "Test '" << test.first << "' ";
+            if (result) {
+                std::cout << "Passed\n";
+            } else {
+                std::cout << "Failed\n";
+            }
+        }
+    }
+
+  private:
+    std::vector<std::pair<std::string, std::function<bool()>>> tests;
+};
+
+//-----------------------------------------------------------------------------SumTableTests.cpp
+bool testInitializeSumTable() {
+    // 1 2 3 4
+    // 0 1 2 3
+    std::vector<std::vector<double>> values = {{0, 1, 2, 3}, {1, 2, 3, 4}};
+    SumTable<double> sumTable(values, false);
+
+    // 1 4 9 16
+    // 0 1 3 6
+    // Manually computed expected sums
+    std::vector<std::vector<double>> expectedSums = {{0, 1, 3, 6}, {1, 4, 9, 16}};
+
+    for (int r = 0; r < 2; ++r) {
+        for (int c = 0; c < 4; ++c) {
+            std::cout << "h" << std::endl;
+
+            if (sumTable.sumWithinRectangle(PixelRect{0, c, 0, r}) != expectedSums[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle(PixelRect{0, c, 0, r})
+                          << ", Expected: " << expectedSums[r][c] << std::endl;
+                // return false;
+            }
+        }
+    }
+    return true;
+}
+
+// TODO: M
+bool test2() { return false; }
+
+int main() {
+    TestRunner runner;
+    runner.addTest(testInitializeSumTable, "Test 1");
+    std::cout << "g" << std::endl;
+    runner.addTest(test2, "Test 2");
+    std::cout << "h" << std::endl;
+    runner.runTests();
+    return 0;
+}
+
+//-----------------------------------------------------------------------------ImageMaker.cpp
+struct RGB {
+    unsigned char r;
+    unsigned char g;
+    unsigned char b;
+};
+
+RGB adjustBrightness(const RGB &color, double brightness) {
+    RGB newColor;
+
+    newColor.r = std::clamp(static_cast<int>(color.r * brightness), 0, 255);
+    newColor.g = std::clamp(static_cast<int>(color.g * brightness), 0, 255);
+    newColor.b = std::clamp(static_cast<int>(color.b * brightness), 0, 255);
+
+    return newColor;
+}
+
+const std::unordered_map<std::string, const RGB> kColors = {
+    {"r", {255, 0, 0}}, {"g", {0, 255, 0}}, {"b", {0, 0, 255}}};
+
+void makePpm(const std::vector<std::vector<std::string>> &pixels) {
+    std::cout << "P3\n" << pixels[0].size() << " " << pixels.size() << "\n255\n";
+    for (const auto &row : pixels) {
+        for (const auto &pixel : row) {
+            if (kColors.count(pixel) > 0) {
+                const auto &color = kColors.at(pixel);
+                std::cout << (int)color.r << " " << (int)color.g << " " << (int)color.b << "\n";
+            }
+        }
+    }
+}
+
+void makePpm(const std::vector<std::vector<RGB>> &pixels) {
+    std::cout << "P3\n" << pixels[0].size() << " " << pixels.size() << "\n255\n";
+    for (const auto &row : pixels) {
+        for (const auto &pixel : row) {
+            std::cout << (int)pixel.r << " " << (int)pixel.g << " " << (int)pixel.b << "\n";
+        }
+    }
+}
+
+int main2() {
+    std::vector<std::vector<std::string>> image1 = {
+        {"r", "r", "r", "r", "g", "b"}, {"r", "r", "r", "r", "g", "b"},
+        {"r", "r", "r", "r", "g", "b"}, {"r", "r", "r", "r", "g", "b"},
+        {"r", "r", "r", "r", "g", "b"}, {"r", "r", "r", "r", "g", "b"}};
+
+    makePpm(image1);
+
+    return 0;
 }

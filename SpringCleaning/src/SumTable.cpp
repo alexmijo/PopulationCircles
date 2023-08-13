@@ -34,8 +34,8 @@ template <typename T> class SumTable {
             sumTable.resize(height + 1, std::vector<T>(width + 1, 0));
 
             // Calculate the sumTable
-            for (int r = 1; r <= height; ++r) {
-                for (int c = 1; c <= width; ++c) {
+            for (int r = 1; r < height; ++r) {
+                for (int c = 1; c < width; ++c) {
                     sumTable[r][c] = sumTableOrValues[r - 1][c - 1] + sumTable[r - 1][c] +
                                      sumTable[r][c - 1] - sumTable[r - 1][c - 1];
                     std::cout << "[" << r << "][" << c << "]: " << sumTable[r][c] << std::endl;
