@@ -214,26 +214,18 @@ template <typename T> class SumTable {
         }
     }
 
-    // TODO: Something with the padding?
-    // TODO: Move?
-    SumTable(const std::vector<std::vector<T>> &sumTableOrValues, const bool isSumTable) {
-        if (isSumTable) {
-            sumTable = sumTableOrValues;
-            height = sumTableOrValues.size() - 1;
-            width = sumTableOrValues[0].size();
-        } else {
-            height = sumTableOrValues.size();
-            width = height > 0 ? sumTableOrValues[0].size() : 0;
+    SumTable(const std::vector<std::vector<T>> &values) {
+        height = values.size();
+        width = height > 0 ? values[0].size() : 0;
 
-            // Initialize the sumTable with an extra row and column for padding
-            sumTable.resize(height + 1, std::vector<T>(width + 1, 0));
+        // Initialize the sumTable with an extra row and column for padding
+        sumTable.resize(height + 1, std::vector<T>(width + 1, 0));
 
-            // Calculate the sumTable
-            for (int r = 1; r <= height; ++r) {
-                for (int c = 1; c <= width; ++c) {
-                    sumTable[r][c] = sumTableOrValues[r - 1][c - 1] + sumTable[r - 1][c] +
-                                     sumTable[r][c - 1] - sumTable[r - 1][c - 1];
-                }
+        // Calculate the sumTable
+        for (int r = 1; r <= height; ++r) {
+            for (int c = 1; c <= width; ++c) {
+                sumTable[r][c] = values[r - 1][c - 1] + sumTable[r - 1][c] + sumTable[r][c - 1] -
+                                 sumTable[r - 1][c - 1];
             }
         }
     }
@@ -251,6 +243,10 @@ template <typename T> class SumTable {
     int height;
 
   private:
+    // No need for this function but it nicely shows what sumTable contains.
+    // T sumStrictlyToTheSouthOrWestOfPoint(const int x, const int y) {
+    //     return sumTable[y][x];
+    // }
     std::vector<std::vector<T>> sumTable;
 };
 
@@ -282,7 +278,7 @@ bool testInitializeSumTableFromValues() {
     // 1 2 3 4
     // 0 1 2 3
     std::vector<std::vector<double>> values = {{0, 1, 2, 3}, {1, 2, 3, 4}};
-    SumTable<double> sumTable(values, false);
+    SumTable<double> sumTable(values);
 
     // 1 4 9 16
     // 0 1 3 6
@@ -320,7 +316,47 @@ bool testInitializeSumTableFromValues() {
     return true;
 }
 
-bool testInitializeSumTableFromFile() { return true; }
+bool testInitializeSumTableFromFile() {
+    // 1 2 3 4
+    // 0 1 2 3
+    std::vector<std::vector<double>> values = {{0, 1, 2, 3}, {1, 2, 3, 4}};
+    SumTable<double> sumTable(values);
+
+    // 1 4 9 16
+    // 0 1 3 6
+    // Manually computed expected sums
+    std::vector<std::vector<double>> expectedSums = {{0, 1, 3, 6}, {1, 4, 9, 16}};
+
+    for (int r = 0; r < values.size(); ++r) {
+        for (int c = 0; c < values[0].size(); ++c) {
+            if (sumTable.sumWithinRectangle({0, c, 0, r}) != expectedSums[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle({0, c, 0, r})
+                          << ", Expected: " << expectedSums[r][c] << std::endl;
+                return false;
+            }
+
+            if (sumTable.sumWithinRectangle({c, c, r, r}) != values[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle({c, c, r, r})
+                          << ", Expected: " << values[r][c] << std::endl;
+                return false;
+            }
+
+            if (sumTable.sumWithinRectangle(0, c, 0, r) != expectedSums[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle(0, c, 0, r)
+                          << ", Expected: " << expectedSums[r][c] << std::endl;
+                return false;
+            }
+
+            if (sumTable.sumWithinRectangle(c, c, r, r) != values[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle(c, c, r, r)
+                          << ", Expected: " << values[r][c] << std::endl;
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 
 void main1() {
     TestRunner runner;
@@ -379,8 +415,5 @@ void main2() {
     makePpm(image1);
 }
 
-
 //--------------------------------------------------------------------------------------------------
-int main() {
-    main1();
-}
+int main() { main1(); }
