@@ -278,7 +278,7 @@ class TestRunner {
 };
 
 //-----------------------------------------------------------------------------SumTableTests.cpp
-bool testInitializeSumTable() {
+bool testInitializeSumTableFromValues() {
     // 1 2 3 4
     // 0 1 2 3
     std::vector<std::vector<double>> values = {{0, 1, 2, 3}, {1, 2, 3, 4}};
@@ -289,8 +289,8 @@ bool testInitializeSumTable() {
     // Manually computed expected sums
     std::vector<std::vector<double>> expectedSums = {{0, 1, 3, 6}, {1, 4, 9, 16}};
 
-    for (int r = 0; r < 2; ++r) {
-        for (int c = 0; c < 4; ++c) {
+    for (int r = 0; r < values.size(); ++r) {
+        for (int c = 0; c < values[0].size(); ++c) {
             if (sumTable.sumWithinRectangle({0, c, 0, r}) != expectedSums[r][c]) {
                 std::cout << "Actual: " << sumTable.sumWithinRectangle({0, c, 0, r})
                           << ", Expected: " << expectedSums[r][c] << std::endl;
@@ -317,26 +317,19 @@ bool testInitializeSumTable() {
         }
     }
 
-    for (int r = 0; r < 2; ++r) {
-        for (int c = 0; c < 4; ++c) {
-        }
-    }
-
     return true;
 }
 
-// TODO: M
-bool test2() { return true; }
+bool testInitializeSumTableFromFile() { return true; }
 
-int main() {
+void main1() {
     TestRunner runner;
-    runner.addTest(testInitializeSumTable, "testInitializeSumTable");
-    runner.addTest(test2, "Test 2");
+    runner.addTest(testInitializeSumTableFromValues, "testInitializeSumTableFromValues");
+    runner.addTest(testInitializeSumTableFromFile, "testInitializeSumTableFromFile");
     runner.runTests();
-    return 0;
 }
 
-//-----------------------------------------------------------------------------ImageMaker.cpp
+//------------------------------------------------------------------------------------ImageMaker.cpp
 struct RGB {
     unsigned char r;
     unsigned char g;
@@ -377,13 +370,17 @@ void makePpm(const std::vector<std::vector<RGB>> &pixels) {
     }
 }
 
-int main2() {
+void main2() {
     std::vector<std::vector<std::string>> image1 = {
         {"r", "r", "r", "r", "g", "b"}, {"r", "r", "r", "r", "g", "b"},
         {"r", "r", "r", "r", "g", "b"}, {"r", "r", "r", "r", "g", "b"},
         {"r", "r", "r", "r", "g", "b"}, {"r", "r", "r", "r", "g", "b"}};
 
     makePpm(image1);
+}
 
-    return 0;
+
+//--------------------------------------------------------------------------------------------------
+int main() {
+    main1();
 }
