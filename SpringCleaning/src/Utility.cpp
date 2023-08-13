@@ -287,8 +287,8 @@ bool testInitializeSumTable() {
 
     for (int r = 0; r < 2; ++r) {
         for (int c = 0; c < 4; ++c) {
-            if (sumTable.sumWithinRectangle(PixelRect{0, c, 0, r}) != expectedSums[r][c]) {
-                std::cout << "Actual: " << sumTable.sumWithinRectangle(PixelRect{0, c, 0, r})
+            if (sumTable.sumWithinRectangle({0, c, 0, r}) != expectedSums[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle({0, c, 0, r})
                           << ", Expected: " << expectedSums[r][c] << std::endl;
                 return false;
             }
