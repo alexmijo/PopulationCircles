@@ -240,7 +240,7 @@ template <typename T> class SumTable {
 
     T sumWithinRectangle(const PixelRect &rect) {
         return sumTable[rect.N + 1][rect.E + 1] - sumTable[rect.S][rect.E + 1] -
-               sumTable[rect.W][rect.N + 1] + sumTable[rect.W][rect.S];
+               sumTable[rect.N + 1][rect.W] + sumTable[rect.S][rect.W];
     }
 
     int width;
@@ -292,8 +292,20 @@ bool testInitializeSumTable() {
                           << ", Expected: " << expectedSums[r][c] << std::endl;
                 return false;
             }
+
+            if (sumTable.sumWithinRectangle({c, c, r, r}) != values[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle({c, c, r, r})
+                          << ", Expected: " << values[r][c] << std::endl;
+                return false;
+            }
         }
     }
+
+    for (int r = 0; r < 2; ++r) {
+        for (int c = 0; c < 4; ++c) {
+        }
+    }
+
     return true;
 }
 
@@ -302,7 +314,7 @@ bool test2() { return true; }
 
 int main() {
     TestRunner runner;
-    runner.addTest(testInitializeSumTable, "Test 1");
+    runner.addTest(testInitializeSumTable, "testInitializeSumTable");
     runner.addTest(test2, "Test 2");
     runner.runTests();
     return 0;
