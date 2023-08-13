@@ -243,6 +243,10 @@ template <typename T> class SumTable {
                sumTable[rect.N + 1][rect.W] + sumTable[rect.S][rect.W];
     }
 
+    T sumWithinRectangle(const int W, const int E, const int S, const int N) {
+        return sumWithinRectangle({W, E, S, N});
+    }
+
     int width;
     int height;
 
@@ -295,6 +299,18 @@ bool testInitializeSumTable() {
 
             if (sumTable.sumWithinRectangle({c, c, r, r}) != values[r][c]) {
                 std::cout << "Actual: " << sumTable.sumWithinRectangle({c, c, r, r})
+                          << ", Expected: " << values[r][c] << std::endl;
+                return false;
+            }
+
+            if (sumTable.sumWithinRectangle(0, c, 0, r) != expectedSums[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle(0, c, 0, r)
+                          << ", Expected: " << expectedSums[r][c] << std::endl;
+                return false;
+            }
+
+            if (sumTable.sumWithinRectangle(c, c, r, r) != values[r][c]) {
+                std::cout << "Actual: " << sumTable.sumWithinRectangle(c, c, r, r)
                           << ", Expected: " << values[r][c] << std::endl;
                 return false;
             }
