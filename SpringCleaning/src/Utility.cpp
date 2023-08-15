@@ -367,7 +367,6 @@ bool testInitializeSumTableFromFile() {
         }
     }
 
-    // Step 4: Optionally, remove the temporary binary file afterward
     std::filesystem::remove(tmpFilename);
 
     return true;
