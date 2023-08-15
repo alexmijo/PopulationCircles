@@ -199,6 +199,7 @@ static double distance(Location loc1, Location loc2) {
 }
 
 //-----------------------------------------------------------------------------SumTable.cpp
+// TODO: Just write/read padding to/from binary too
 template <typename T> class SumTable {
   public:
     SumTable(const std::string &filename) {
