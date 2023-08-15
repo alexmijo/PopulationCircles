@@ -1,4 +1,5 @@
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -200,8 +201,8 @@ static double distance(Location loc1, Location loc2) {
 //-----------------------------------------------------------------------------SumTable.cpp
 template <typename T> class SumTable {
   public:
-    SumTable(const std::string &sumTableFilename) {
-        std::ifstream sumTableFile(sumTableFilename, std::ios::in | std::ios::binary);
+    SumTable(const std::string &filename) {
+        std::ifstream sumTableFile(filename, std::ios::in | std::ios::binary);
         sumTableFile.read(reinterpret_cast<char *>(&height), sizeof(int));
         sumTableFile.read(reinterpret_cast<char *>(&width), sizeof(int));
         // The 0s will remain only as a column of 0s to the west and a row of 0s to the south.
@@ -227,6 +228,20 @@ template <typename T> class SumTable {
                 sumTable[r][c] = values[r - 1][c - 1] + sumTable[r - 1][c] + sumTable[r][c - 1] -
                                  sumTable[r - 1][c - 1];
             }
+        }
+    }
+
+    void SaveToFile(const std::string &filename) {
+        std::ofstream outFile(filename, std::ios::out | std::ios::binary);
+        if (!outFile.is_open()) {
+            throw std::runtime_error("Unable to open file for writing: " + filename);
+        }
+
+        outFile.write(reinterpret_cast<const char *>(&height), sizeof(int));
+        outFile.write(reinterpret_cast<const char *>(&width), sizeof(int));
+
+        for (int r = 1; r <= height; r++) {
+            outFile.write(reinterpret_cast<const char *>(&sumTable[r][1]), sizeof(T) * width);
         }
     }
 
@@ -317,43 +332,47 @@ bool testInitializeSumTableFromValues() {
 }
 
 bool testInitializeSumTableFromFile() {
-    // 1 2 3 4
-    // 0 1 2 3
-    std::vector<std::vector<double>> values = {{0, 1, 2, 3}, {1, 2, 3, 4}};
-    SumTable<double> sumTable(values);
+    // Step 1: Create a temporary binary file with desired contents
+    std::string tmpFilename =
+        std::filesystem::temp_directory_path().string() + "/temp_sum_table.bin";
+    {
+        std::ofstream tmpFile(tmpFilename, std::ios::out | std::ios::binary);
+        int height = 2, width = 4;
+        std::vector<std::vector<double>> sumTable = {{0, 1, 3, 6}, {1, 4, 9, 16}};
+        tmpFile.write(reinterpret_cast<const char *>(&height), sizeof(int));
+        tmpFile.write(reinterpret_cast<const char *>(&width), sizeof(int));
+        for (int r = 0; r < height; r++) {
+            tmpFile.write(reinterpret_cast<const char *>(&sumTable[r][0]), sizeof(double) * width);
+        }
+        tmpFile.close();
+    }
 
-    // 1 4 9 16
-    // 0 1 3 6
-    // Manually computed expected sums
+    // Step 2: Initialize a SumTable from this file
+    SumTable<double> sumTable(tmpFilename);
+
+    // Step 3: Check if the initialized table matches our expectations
+    // Use the same logic as the previous test since we are using the same values
     std::vector<std::vector<double>> expectedSums = {{0, 1, 3, 6}, {1, 4, 9, 16}};
-
-    for (int r = 0; r < values.size(); ++r) {
-        for (int c = 0; c < values[0].size(); ++c) {
+    std::vector<std::vector<double>> expectedValues = {{0, 1, 2, 3}, {1, 2, 3, 4}};
+    for (int r = 0; r < 2; ++r) {
+        for (int c = 0; c < 4; ++c) {
             if (sumTable.sumWithinRectangle({0, c, 0, r}) != expectedSums[r][c]) {
-                std::cout << "Actual: " << sumTable.sumWithinRectangle({0, c, 0, r})
+                std::cout << "Failed at coordinates (" << r << ", " << c << "). "
+                          << "Actual: " << sumTable.sumWithinRectangle({0, c, 0, r})
                           << ", Expected: " << expectedSums[r][c] << std::endl;
                 return false;
             }
 
-            if (sumTable.sumWithinRectangle({c, c, r, r}) != values[r][c]) {
+            if (sumTable.sumWithinRectangle({c, c, r, r}) != expectedValues[r][c]) {
                 std::cout << "Actual: " << sumTable.sumWithinRectangle({c, c, r, r})
-                          << ", Expected: " << values[r][c] << std::endl;
-                return false;
-            }
-
-            if (sumTable.sumWithinRectangle(0, c, 0, r) != expectedSums[r][c]) {
-                std::cout << "Actual: " << sumTable.sumWithinRectangle(0, c, 0, r)
-                          << ", Expected: " << expectedSums[r][c] << std::endl;
-                return false;
-            }
-
-            if (sumTable.sumWithinRectangle(c, c, r, r) != values[r][c]) {
-                std::cout << "Actual: " << sumTable.sumWithinRectangle(c, c, r, r)
-                          << ", Expected: " << values[r][c] << std::endl;
+                          << ", Expected: " << expectedValues[r][c] << std::endl;
                 return false;
             }
         }
     }
+
+    // Step 4: Optionally, remove the temporary binary file afterward
+    std::filesystem::remove(tmpFilename);
 
     return true;
 }
