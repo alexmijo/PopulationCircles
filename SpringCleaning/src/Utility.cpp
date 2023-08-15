@@ -373,11 +373,48 @@ bool testInitializeSumTableFromFile() {
     return true;
 }
 
+void initializeSumTableFromFileTiming() {
+    std::string tmpFilename =
+        std::filesystem::temp_directory_path().string() + "/temp_sum_table.bin";
+
+    const int height = 10000;
+    const int width = 20000;
+
+    std::vector<std::vector<double>> sumTable(height, std::vector<double>(width));
+    for (int r = 0; r < height; r++) {
+        for (int c = 0; c < width; c++) {
+            sumTable[r][c] = (r + 1) * (c + 1);
+        }
+    }
+
+    {
+        std::ofstream tmpFile(tmpFilename, std::ios::out | std::ios::binary);
+        tmpFile.write(reinterpret_cast<const char *>(&height), sizeof(int));
+        tmpFile.write(reinterpret_cast<const char *>(&width), sizeof(int));
+        for (int r = 0; r < height; r++) {
+            tmpFile.write(reinterpret_cast<const char *>(&sumTable[r][0]), sizeof(double) * width);
+        }
+        tmpFile.close();
+    }
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    SumTable<double> sumTableObj(tmpFilename);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    std::cout << "Time taken to initialize SumTable from file: " << duration.count() << " seconds."
+              << std::endl;
+
+    std::filesystem::remove(tmpFilename);
+}
+
 void main1() {
     TestRunner runner;
     runner.addTest(testInitializeSumTableFromValues, "testInitializeSumTableFromValues");
     runner.addTest(testInitializeSumTableFromFile, "testInitializeSumTableFromFile");
     runner.runTests();
+    initializeSumTableFromFileTiming();
 }
 
 //------------------------------------------------------------------------------------ImageMaker.cpp
