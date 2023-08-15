@@ -332,7 +332,6 @@ bool testInitializeSumTableFromValues() {
 }
 
 bool testInitializeSumTableFromFile() {
-    // Step 1: Create a temporary binary file with desired contents
     std::string tmpFilename =
         std::filesystem::temp_directory_path().string() + "/temp_sum_table.bin";
     {
@@ -347,11 +346,8 @@ bool testInitializeSumTableFromFile() {
         tmpFile.close();
     }
 
-    // Step 2: Initialize a SumTable from this file
     SumTable<double> sumTable(tmpFilename);
 
-    // Step 3: Check if the initialized table matches our expectations
-    // Use the same logic as the previous test since we are using the same values
     std::vector<std::vector<double>> expectedSums = {{0, 1, 3, 6}, {1, 4, 9, 16}};
     std::vector<std::vector<double>> expectedValues = {{0, 1, 2, 3}, {1, 2, 3, 4}};
     for (int r = 0; r < 2; ++r) {
