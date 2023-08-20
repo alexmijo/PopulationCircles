@@ -75,13 +75,6 @@ struct PixelRect {
 //     }
 // };
 
-// Summary: Setting up Karol's BCBE for trading, tradenotificationlistener subscribe by portfolio,
-// was working on stuff related to moving the mdrc configs,
-// 1. BC UI to OMS staging
-// 3. Futures order python client to BCBE to staging reflector  verify boltx looks as expected
-
-// 2. Python client to OMS staging
-
 struct PixelCircle {
     Pixel center;
     // Each rect stretches from west to east side of circle
@@ -303,26 +296,16 @@ bool testInitializeSumTableFromValues() {
 
     for (int r = 0; r < values.size(); ++r) {
         for (int c = 0; c < values[0].size(); ++c) {
+            // Expected sumTable vec of vecs?
             if (sumTable.sumWithinRectangle({0, c, 0, r}) != expectedSums[r][c]) {
                 std::cout << "Actual: " << sumTable.sumWithinRectangle({0, c, 0, r})
                           << ", Expected: " << expectedSums[r][c] << std::endl;
                 return false;
             }
 
+            // Can use sumTable to get values?
             if (sumTable.sumWithinRectangle({c, c, r, r}) != values[r][c]) {
                 std::cout << "Actual: " << sumTable.sumWithinRectangle({c, c, r, r})
-                          << ", Expected: " << values[r][c] << std::endl;
-                return false;
-            }
-
-            if (sumTable.sumWithinRectangle(0, c, 0, r) != expectedSums[r][c]) {
-                std::cout << "Actual: " << sumTable.sumWithinRectangle(0, c, 0, r)
-                          << ", Expected: " << expectedSums[r][c] << std::endl;
-                return false;
-            }
-
-            if (sumTable.sumWithinRectangle(c, c, r, r) != values[r][c]) {
-                std::cout << "Actual: " << sumTable.sumWithinRectangle(c, c, r, r)
                           << ", Expected: " << values[r][c] << std::endl;
                 return false;
             }
@@ -333,12 +316,13 @@ bool testInitializeSumTableFromValues() {
 }
 
 bool testInitializeSumTableFromFile() {
+    std::vector<std::vector<double>> sumTable = {{0, 1, 3, 6}, {1, 4, 9, 16}};
+    int height = sumTable.size();
+    int width = height == 0 ? 0 : sumTable[0].size();
     std::string tmpFilename =
         std::filesystem::temp_directory_path().string() + "/temp_sum_table.bin";
     {
         std::ofstream tmpFile(tmpFilename, std::ios::out | std::ios::binary);
-        int height = 2, width = 4;
-        std::vector<std::vector<double>> sumTable = {{0, 1, 3, 6}, {1, 4, 9, 16}};
         tmpFile.write(reinterpret_cast<const char *>(&height), sizeof(int));
         tmpFile.write(reinterpret_cast<const char *>(&width), sizeof(int));
         for (int r = 0; r < height; r++) {
@@ -409,6 +393,7 @@ void initializeSumTableFromFileTiming() {
     std::filesystem::remove(tmpFilename);
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void main1() {
     TestRunner runner;
     runner.addTest(testInitializeSumTableFromValues, "testInitializeSumTableFromValues");
