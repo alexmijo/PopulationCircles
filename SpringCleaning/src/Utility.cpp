@@ -316,12 +316,17 @@ bool testInitializeSumTableFromValues() {
 }
 
 bool testInitializeSumTableFromFile() {
-    std::vector<std::vector<double>> sumTable = {{0, 1, 3, 6}, {1, 4, 9, 16}};
-    int height = sumTable.size();
-    int width = height == 0 ? 0 : sumTable[0].size();
+    SumTable<double> sumTable("../PopData/popSumTable2020.bin");
+
+    return true;
+}
+bool testInitializeSumTableFromFile2() {
     std::string tmpFilename =
         std::filesystem::temp_directory_path().string() + "/temp_sum_table.bin";
     {
+        std::vector<std::vector<double>> sumTable = {{0, 1, 3, 6}, {1, 4, 9, 16}};
+        int height = sumTable.size();
+        int width = height == 0 ? 0 : sumTable[0].size();
         std::ofstream tmpFile(tmpFilename, std::ios::out | std::ios::binary);
         tmpFile.write(reinterpret_cast<const char *>(&height), sizeof(int));
         tmpFile.write(reinterpret_cast<const char *>(&width), sizeof(int));
